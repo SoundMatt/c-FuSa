@@ -32,9 +32,21 @@ static int infer_severity(const char *name)
         "brake","steer","throttle","safety","shutdown","critical",
         "halt","fault","error","emergency","protect","watchdog", NULL
     };
+    static const char * const med[] = {
+        "init","config","check","validate","monitor","log", NULL
+    };
     for (int i = 0; hi[i]; i++)
         if (strstr(name, hi[i])) return 9;
+    for (int i = 0; med[i]; i++)
+        if (strstr(name, med[i])) return 5;
     return 3;
+}
+
+static const char *sev_string(int s)
+{
+    if (s >= 8) return "High";
+    if (s >= 5) return "Medium";
+    return "Low";
 }
 
 static void fmea_line(const char *path, int lineno, const char *line, void *vctx)
@@ -148,14 +160,15 @@ int cmd_fmea(int argc, char **argv)
             cfg.project, cfg.version, ts);
         /* CSV header */
         if (with_cyber)
-            fprintf(cf, "ID,Function,File,Line,Failure Mode,Effect,Cause,S,O,D,RPN,Action,Cyber Failure Mode\n");
+            fprintf(cf, "ID,Function,File,Line,Failure Mode,Effect,Cause,Severity,O,D,RPN,Action,Cyber Failure Mode\n");
         else
-            fprintf(cf, "ID,Function,File,Line,Failure Mode,Effect,Cause,S,O,D,RPN,Action\n");
+            fprintf(cf, "ID,Function,File,Line,Failure Mode,Effect,Cause,Severity,O,D,RPN,Action\n");
 
-        int high = 0, med = 0, low = 0;
+        int high = 0, med_cnt = 0, low = 0;
         for (int i = 0; i < g_fn_count; i++) {
             int s = g_fns[i].severity;
-            if (s >= 8) high++; else if (s >= 5) med++; else low++;
+            const char *sv = sev_string(s);
+            if (s >= 8) high++; else if (s >= 5) med_cnt++; else low++;
             /* JSON entry */
             fprintf(jf,
                 "    {\n"
@@ -166,25 +179,25 @@ int cmd_fmea(int argc, char **argv)
                 "      \"failure_mode\": \"\",\n"
                 "      \"effect\": \"\",\n"
                 "      \"cause\": \"\",\n"
-                "      \"severity\": %d,\n"
+                "      \"severity\": \"%s\",\n"
                 "      \"occurrence\": 1,\n"
                 "      \"detection\": 1,\n"
                 "      \"rpn\": %d%s\n"
                 "    }%s\n",
                 i + 1, g_fns[i].name,
                 cfusa_basename(g_fns[i].file), g_fns[i].line,
-                s, s,
+                sv, s,
                 with_cyber ? ",\n      \"cyber_failure_mode\": \"\"" : "",
                 (i < g_fn_count - 1) ? "," : "");
             /* CSV row */
-            fprintf(cf, "FM-%03d,\"%s\",\"%s\",%d,,,,%d,1,1,%d,",
+            fprintf(cf, "FM-%03d,\"%s\",\"%s\",%d,,,,\"%s\",1,1,%d,",
                     i + 1, g_fns[i].name,
-                    cfusa_basename(g_fns[i].file), g_fns[i].line, s, s);
+                    cfusa_basename(g_fns[i].file), g_fns[i].line, sv, s);
             if (with_cyber) fprintf(cf, ",\n"); else fprintf(cf, "\n");
         }
         fprintf(jf, "  ]\n}\n");
         fclose(jf); fclose(cf);
-        printf("Severity: %d high, %d medium, %d low\n", high, med, low);
+        printf("Severity: %d high, %d medium, %d low\n", high, med_cnt, low);
         return 0;
     }
 
@@ -206,6 +219,7 @@ int cmd_fmea(int argc, char **argv)
             cfg.project, cfg.version, ts);
         for (int i = 0; i < g_fn_count; i++) {
             int s = g_fns[i].severity;
+            const char *sv = sev_string(s);
             fprintf(f,
                 "    {\n"
                 "      \"id\": \"FM-%03d\",\n"
@@ -215,28 +229,29 @@ int cmd_fmea(int argc, char **argv)
                 "      \"failure_mode\": \"\",\n"
                 "      \"effect\": \"\",\n"
                 "      \"cause\": \"\",\n"
-                "      \"severity\": %d,\n"
+                "      \"severity\": \"%s\",\n"
                 "      \"occurrence\": 1,\n"
                 "      \"detection\": 1,\n"
                 "      \"rpn\": %d%s\n"
                 "    }%s\n",
                 i + 1, g_fns[i].name,
                 cfusa_basename(g_fns[i].file), g_fns[i].line,
-                s, s,
+                sv, s,
                 with_cyber ? ",\n      \"cyber_failure_mode\": \"\"" : "",
                 (i < g_fn_count - 1) ? "," : "");
         }
         fprintf(f, "  ]\n}\n");
     } else if (fmt == FMT_CSV) {
         if (with_cyber)
-            fprintf(f, "ID,Function,File,Line,Failure Mode,Effect,Cause,S,O,D,RPN,Action,Cyber Failure Mode\n");
+            fprintf(f, "ID,Function,File,Line,Failure Mode,Effect,Cause,Severity,O,D,RPN,Action,Cyber Failure Mode\n");
         else
-            fprintf(f, "ID,Function,File,Line,Failure Mode,Effect,Cause,S,O,D,RPN,Action\n");
+            fprintf(f, "ID,Function,File,Line,Failure Mode,Effect,Cause,Severity,O,D,RPN,Action\n");
         for (int i = 0; i < g_fn_count; i++) {
             int s = g_fns[i].severity;
-            fprintf(f, "FM-%03d,\"%s\",\"%s\",%d,,,,%d,1,1,%d,",
+            const char *sv = sev_string(s);
+            fprintf(f, "FM-%03d,\"%s\",\"%s\",%d,,,,\"%s\",1,1,%d,",
                     i + 1, g_fns[i].name,
-                    cfusa_basename(g_fns[i].file), g_fns[i].line, s, s);
+                    cfusa_basename(g_fns[i].file), g_fns[i].line, sv, s);
             if (with_cyber) fprintf(f, ",\n"); else fprintf(f, "\n");
         }
     } else {

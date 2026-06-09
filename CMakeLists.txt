@@ -74,6 +74,13 @@ add_executable(cfusa
     cmd/cfusa/cmd_sci.c
     cmd/cfusa/cmd_coverage.c
     cmd/cfusa/cmd_pr.c
+    cmd/cfusa/cmd_hara.c
+    cmd/cfusa/cmd_iso26262.c
+    cmd/cfusa/cmd_iec61508.c
+    cmd/cfusa/cmd_misra.c
+    cmd/cfusa/cmd_disposition.c
+    cmd/cfusa/cmd_impact.c
+    cmd/cfusa/cmd_metrics.c
     cmd/cfusa/cmd_version.c
 )
 target_link_libraries(cfusa PRIVATE cfusa_core)

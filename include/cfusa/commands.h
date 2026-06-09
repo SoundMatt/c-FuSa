@@ -38,6 +38,13 @@ int cmd_sas(int argc, char **argv);
 int cmd_sci(int argc, char **argv);
 int cmd_coverage(int argc, char **argv);
 int cmd_pr(int argc, char **argv);
+int cmd_hara(int argc, char **argv);
+int cmd_iso26262(int argc, char **argv);
+int cmd_iec61508(int argc, char **argv);
+int cmd_misra(int argc, char **argv);
+int cmd_disposition(int argc, char **argv);
+int cmd_impact(int argc, char **argv);
+int cmd_metrics(int argc, char **argv);
 int cmd_version(int argc, char **argv);
 int cmd_help(int argc, char **argv);
 

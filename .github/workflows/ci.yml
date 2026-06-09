@@ -129,3 +129,56 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-22.04
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t cfusa:ci .
+
+      - name: Smoke test Docker image
+        run: docker run --rm cfusa:ci version
+
+      - name: Self-check via Docker
+        run: |
+          docker run --rm -v "$(pwd)":/workspace cfusa:ci check \
+            --dir /workspace/src --format json --output /workspace/cfusa-docker-check.json || true
+
+      - name: Upload Docker self-check
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cfusa-docker-check
+          path: cfusa-docker-check.json
+
+  qualify:
+    name: Self-qualification
+    runs-on: ubuntu-22.04
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update -y && sudo apt-get install -y cmake gcc
+
+      - name: Build
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+
+      - name: Run self-qualification
+        run: ./build/cfusa qualify --dir .
+
+      - name: Run trace coverage check
+        run: ./build/cfusa trace --dir . || true
+
+      - name: Upload qualification record
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qualification-record
+          path: .cfusa_qualification*.json

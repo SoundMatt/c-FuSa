@@ -20,7 +20,7 @@
 | DO-178C | Annex A objectives, SAS, SCI, problem reports |
 | MISRA-C:2012 | Lint rules (L001–L010) |
 | CERT-C | Static analysis and cybersecurity rules |
-| SLSA | Build provenance, SBOM |
+| SLSA | Build provenance (SLSA v0.2), SPDX-3.0.1 SBOM |
 
 ---
 
@@ -36,6 +36,20 @@ cmake --build build --parallel
 sudo cmake --install build        # installs to /usr/local/bin/cfusa
 ```
 
+### Docker
+
+```bash
+docker pull ghcr.io/soundmatt/c-fusa:latest
+docker run --rm -v "$(pwd)":/workspace ghcr.io/soundmatt/c-fusa check --dir /workspace/src
+```
+
+Or build locally:
+
+```bash
+docker build -t cfusa .
+docker run --rm -v "$(pwd)":/workspace cfusa check --dir /workspace/src
+```
+
 ### Requirements
 - C99 compiler (gcc ≥ 9 or clang ≥ 12)
 - CMake ≥ 3.16
@@ -48,7 +62,7 @@ sudo cmake --install build        # installs to /usr/local/bin/cfusa
 # Initialise your C project
 cfusa init --project my-ecu --standard iso26262,misra-c
 
-# Run all safety checks
+# Run all safety checks (exits 1 on errors)
 cfusa check --dir src/
 
 # MISRA-C lint only
@@ -65,6 +79,9 @@ cfusa check --dir src/ --format sarif --output results.sarif
 
 # HTML report
 cfusa report --dir src/ --format html --output report.html
+
+# Auto-fix guidance — step-by-step remediation for every finding
+cfusa fix --dir src/
 ```
 
 ---
@@ -78,22 +95,22 @@ cfusa report --dir src/ --format html --output report.html
 | `lint` | MISRA-C:2012 / CERT-C coding standard rules |
 | `analyze` | Static analysis — overflows, unchecked returns, pointer issues |
 | `cyber` | CWE-mapped cybersecurity rules (ISO 21434) |
+| `fix` | Step-by-step remediation guidance for auto-fixable findings |
 | `tara` | Threat Analysis & Risk Assessment skeleton (ISO 21434 §9) |
-| `fmea` | Design FMEA skeleton from function signatures |
+| `fmea` | Design FMEA from function signatures → `fmea.json` + `fmea.csv` |
 | `report` | Compliance report (text/json/sarif/html/md) |
 | `template` | Safety doc templates (HARA, PSAC, safety-plan, test-evidence) |
-| `trace` | Requirements traceability matrix from `// REQ:` annotations |
+| `trace` | Requirements traceability matrix from `.cfusa-reqs.json` |
+| `req` | Show requirements and their impl/test source locations |
 | `verify` | Collect and bundle test evidence |
-| `release` | SBOM (SPDX-2.3), build provenance, artifact checksums |
+| `release` | SBOM (SPDX-3.0.1 JSON), SLSA provenance, artifact manifest |
 | `qualify` | Tool self-test and qualification record |
 | `safety-case` | GSN safety case skeleton + evidence index |
 | `boundary` | Component dependency graph from `#include` directives |
-| `vuln` | Known-vulnerable function pattern scan |
+| `vuln` | Known-vulnerable function pattern scan (CWE/CVE) |
 | `audit-pack` | Bundle all artifacts into audit package |
 | `diff` | Compare two cfusa JSON reports |
 | `badge` | SVG status badge from report |
-| `req` | Show source locations for a requirement ID |
-| `fix` | Apply mechanical auto-fixes |
 | `hooks` | Install/remove git pre-commit hook |
 | `sign` | HMAC-SHA256 file signing and verification |
 | `do178` | DO-178C Annex A objective gap report |
@@ -101,9 +118,187 @@ cfusa report --dir src/ --format html --output report.html
 | `sci` | Software Configuration Index with SHA-256 checksums |
 | `coverage` | Structural coverage from gcov/lcov |
 | `pr` | Problem report CRUD log (DO-178C §11.17) |
+| `hara` | Hazard Analysis & Risk Assessment (ISO 26262-3 §6) — `init`/`show`/`asil` |
+| `iso26262` | ISO 26262 Part 6 compliance gap report (`--asil ASIL-A|B|C|D`) |
+| `iec61508` | IEC 61508 Parts 1–3 compliance gap report (`--sil SIL-1|2|3|4`) |
+| `misra` | MISRA C:2012 rule coverage mapping (`--gaps`) |
+| `disposition` | Finding disposition tracking — `add`/`list`/`show` |
+| `impact` | Change impact analysis on requirements (`--from`/`--to` git refs) |
+| `metrics` | Safety metrics tracking over time — `record`/`show` |
 | `version` | Print version |
 
 Run `cfusa <command> --help` for per-command options.
+
+---
+
+## Requirements Traceability
+
+Create a requirements registry at `.cfusa-reqs.json` (copy from `.cfusa-reqs.json.template`):
+
+```json
+{
+  "requirements": [
+    {
+      "id": "REQ-ANA001",
+      "title": "Null pointer check before dereference",
+      "text": "The tool shall report any dereference of a pointer that is not checked for NULL.",
+      "standard": "ISO 26262",
+      "level": "ASIL-B"
+    }
+  ]
+}
+```
+
+Annotate source with `//cfusa:` comments:
+
+```c
+//cfusa:req REQ-ANA001
+int check_pointer(const void *p) {
+    if (!p) return -1;    //cfusa:test REQ-ANA001
+    return 0;
+}
+```
+
+Then run:
+
+```bash
+cfusa trace --dir src/               # full traceability matrix
+cfusa trace --gaps                   # requirements with no test annotation
+cfusa trace --req-coverage 90        # exit 1 if <90% of requirements are traced
+cfusa trace --sec-tested 80          # exit 1 if <80% of requirements are tested
+cfusa req --dir src/                 # list all requirements with locations
+cfusa req REQ-ANA001                 # show single requirement detail
+```
+
+Legacy `// REQ: ID` annotations are also supported. Use `--no-legacy` to disable.
+
+---
+
+## FMEA
+
+```bash
+cfusa fmea --dir src/                 # generates fmea.json + fmea.csv
+cfusa fmea --dir src/ --cyber         # enriches with cybersecurity failure modes
+cfusa fmea --dir src/ --format md     # generates FMEA.md only
+cfusa fmea --output-dir artifacts/    # write to specific directory
+```
+
+Default output is both `fmea.json` (structured data) and `fmea.csv` (importable into Excel/JIRA).
+
+---
+
+## Release Artifacts
+
+```bash
+cfusa release --dir .                 # SPDX-3.0.1 SBOM + SLSA provenance
+cfusa release --dir . --full          # + fmea, boundary, vuln, SHA256SUMS
+```
+
+Generates in `.cfusa_release/`:
+- `<project>-<version>.spdx.json` — SPDX 3.0.1 JSON SBOM
+- `provenance.json` — SLSA v0.2 provenance with git commit SHA
+- `fmea.json` + `fmea.csv` (with `--full`)
+- `boundary.md` (with `--full`)
+- `vuln-report.json` (with `--full`)
+- `SHA256SUMS` (with `--full`)
+
+---
+
+## Fix Guidance
+
+```bash
+cfusa fix --dir src/
+```
+
+Re-runs all checks and prints step-by-step remediation for every finding that has a deterministic fix, across 18 rules in LINT, ANALYZE, and CYBER categories.
+
+---
+
+## Hazard Analysis (HARA)
+
+```bash
+cfusa hara init --dir .                    # create .cfusa-hara.json skeleton
+cfusa hara show --dir .                    # list hazards with ASIL ratings
+cfusa hara asil --severity 3 --exposure 3 --controllability 2  # compute ASIL
+```
+
+ASIL is computed per ISO 26262-3:2018 Table 4 from severity (S1–S4), exposure (E1–E4), and controllability (C1–C3).
+
+---
+
+## Standards Gap Reports
+
+```bash
+cfusa iso26262 --asil ASIL-D              # ISO 26262 Part 6 gap report
+cfusa iec61508 --sil SIL-3                # IEC 61508 Parts 1-3 gap report
+cfusa misra --gaps                        # MISRA C:2012 uncovered rules only
+```
+
+---
+
+## Finding Disposition Tracking
+
+```bash
+cfusa disposition add --rule CFUSA-L003 \
+    --disposition accepted \
+    --rationale "Heap used only at startup under supervision" \
+    --owner "jane.doe"
+cfusa disposition list
+cfusa disposition show DISP-0001
+```
+
+Dispositions are stored in `.cfusa-dispositions.json`.
+
+---
+
+## Change Impact Analysis
+
+```bash
+cfusa impact --from main --to HEAD        # requirements impacted by this branch
+cfusa impact --from v1.0 --to v1.1       # requirements impacted between releases
+```
+
+Maps git-changed files back to `//cfusa:req` annotations and `.cfusa-reqs.json`.
+
+---
+
+## Safety Metrics Tracking
+
+```bash
+# Record after a cfusa check run
+cfusa metrics record --errors 5 --warnings 12 --info 3 --label ci-build-42
+cfusa metrics show
+```
+
+Metrics are appended to `.cfusa-metrics.jsonl` for trend analysis over time.
+
+---
+
+## Docker Compose Pipeline
+
+```bash
+# Run the full pipeline (check → trace → qualify → release)
+docker compose run pipeline
+```
+
+Or run individual commands:
+
+```bash
+docker compose run cfusa check --dir /workspace/src
+docker compose run cfusa hara show
+```
+
+---
+
+## DO-178C Support
+
+```bash
+cfusa do178 --dal a                      # DAL A objective gap report
+cfusa sas --output SAS.md               # Software Accomplishment Summary
+cfusa sci --output SCI.md               # Software Configuration Index
+cfusa pr --new --title "divide by zero" --severity major
+cfusa coverage --lcov coverage.info --mcdc  # MC/DC coverage analysis
+```
 
 ---
 
@@ -126,13 +321,13 @@ Run `cfusa <command> --help` for per-command options.
 
 | ID | Rule | Standard |
 |---|---|---|
-| CFUSA-A001 | Unsafe string functions | CERT-C STR31-C |
-| CFUSA-A002 | Unchecked allocation | CERT-C MEM32-C |
-| CFUSA-A003 | Signed/unsigned comparison with `sizeof` | CERT-C INT02-C |
+| CFUSA-A001 | Unsafe string functions (`gets`, `strcpy`, …) | CERT-C STR31-C |
+| CFUSA-A002 | Unchecked allocation return value | CERT-C MEM32-C |
+| CFUSA-A003 | Signed/unsigned comparison | CERT-C INT02-C |
 | CFUSA-A004 | Integer boundary constant without guard | CERT-C INT30-C |
-| CFUSA-A005 | `assert()` in production | CERT-C MSC11-C |
+| CFUSA-A005 | `assert()` in production code | CERT-C MSC11-C |
 | CFUSA-A006 | Pointer arithmetic | MISRA-C:2012 R18.4 |
-| CFUSA-A007 | Unchecked system call return | CERT-C ERR33-C |
+| CFUSA-A007 | Unchecked system call return value | CERT-C ERR33-C |
 
 ## Cyber Rules (CFUSA-CY series)
 
@@ -165,47 +360,18 @@ Run `cfusa <command> --help` for per-command options.
 }
 ```
 
----
-
-## Requirements Traceability
-
-Annotate source with `// REQ:` comments:
-
-```c
-/* REQ: SRS-001, SRS-007 */
-int compute_braking_force(int pedal_pos) { ... }
-```
-
-Then:
-
-```bash
-cfusa trace --dir src/ --format md --output RTM.md
-cfusa req SRS-001 --dir src/
-```
-
----
-
-## DO-178C Support
-
-```bash
-cfusa do178 --dal a                      # DAL A objective gap report
-cfusa sas --output SAS.md               # Software Accomplishment Summary
-cfusa sci --output SCI.md               # Software Configuration Index
-cfusa pr --new --title "divide by zero" --severity major
-cfusa coverage --lcov coverage.info --mcdc  # MC/DC coverage
-```
+Copy `.cfusa.json.template` and `.cfusa-reqs.json.template` to start a new project.
 
 ---
 
 ## GitHub Actions Integration
-
-Add to `.github/workflows/ci.yml`:
 
 ```yaml
 - name: cfusa safety check
   run: |
     cmake -B build && cmake --build build
     ./build/cfusa check --dir src/ --format sarif --output results.sarif
+    ./build/cfusa trace --req-coverage 80 --sec-tested 70
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v3
@@ -213,18 +379,35 @@ Add to `.github/workflows/ci.yml`:
     sarif_file: results.sarif
 ```
 
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the full matrix build (ubuntu-22.04/gcc, ubuntu-22.04/clang, macos-14/clang), coverage, and SARIF upload.
+
+---
+
+## Self-check
+
+c-FuSa validates itself on every CI run:
+
+```bash
+cfusa check --dir . --format json --output cfusa-self-check.json
+```
+
+The self-check report is uploaded as a CI artifact on each build.
+
 ---
 
 ## Architecture
 
 ```
 c-FuSa/
-├── cmd/cfusa/       # 29 command files (one per command)
+├── cmd/cfusa/       # 37 command files (one per command)
 ├── include/cfusa/   # Public headers
 ├── src/             # Core library (engine, report, config, utils + SHA-256)
-├── tests/           # Unity test suite
+├── tests/           # Unity test suite (4 suites)
 ├── vendor/unity/    # Unity test framework (MIT)
-├── .github/         # CI, release, CodeQL workflows
+├── .github/         # CI, CodeQL workflows
+├── .cfusa.json              # Project config
+├── .cfusa.json.template     # Template for new projects
+├── .cfusa-reqs.json.template # Requirements registry template
 └── CMakeLists.txt
 ```
 
@@ -234,7 +417,7 @@ Zero external runtime dependencies. SHA-256 / HMAC-SHA256 implemented in-tree.
 
 ## Related
 
-- [go-FuSa](https://github.com/SoundMatt/go-FuSa) — the Go equivalent
+- [go-FuSa](https://github.com/SoundMatt/go-FuSa) — the Go equivalent for Go projects
 
 ---
 

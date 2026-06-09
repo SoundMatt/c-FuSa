@@ -32,6 +32,13 @@ const cfusa_command_t CFUSA_COMMANDS[] = {
     {"sci",         "Software Configuration Index with SHA-256",        cmd_sci},
     {"coverage",    "Structural coverage from gcov/lcov",               cmd_coverage},
     {"pr",          "Problem report CRUD log (DO-178C §11.17)",         cmd_pr},
+    {"hara",        "Hazard Analysis & Risk Assessment (ISO 26262 §3)", cmd_hara},
+    {"iso26262",    "ISO 26262 Part 6 compliance gap report",           cmd_iso26262},
+    {"iec61508",    "IEC 61508 Parts 1–3 compliance gap report",        cmd_iec61508},
+    {"misra",       "MISRA-C:2012 rule coverage mapping",               cmd_misra},
+    {"disposition", "Manage finding disposition entries",               cmd_disposition},
+    {"impact",      "Change impact analysis on requirements",           cmd_impact},
+    {"metrics",     "Track safety metrics over time",                   cmd_metrics},
     {"version",     "Print version",                                    cmd_version},
     {"help",        "Show this help",                                   cmd_help},
     {NULL, NULL, NULL}

@@ -212,18 +212,21 @@ int cmd_release(int argc, char **argv)
             bnd_argv[5] = NULL;
             cmd_boundary(5, bnd_argv);
         }
-        /* -- vuln scan -- */
+        /* -- vuln scan → vuln-report.json -- */
         printf("Running: cfusa vuln ...\n");
         {
             char vuln_out[512];
             snprintf(vuln_out, sizeof(vuln_out), "%s/vuln-report.json", output);
-            char *vuln_argv[8];
+            char *vuln_argv[10];
             char vuln_prog[] = "cfusa vuln";
-            char *vuln_dir   = (char*)dir;
+            char fmt_json[]  = "json";
             vuln_argv[0] = vuln_prog;
-            vuln_argv[1] = "--dir"; vuln_argv[2] = vuln_dir;
-            vuln_argv[3] = NULL;
-            cmd_vuln(3, vuln_argv);
+            vuln_argv[1] = "--dir";    vuln_argv[2] = (char*)dir;
+            vuln_argv[3] = "--output"; vuln_argv[4] = vuln_out;
+            vuln_argv[5] = "--format"; vuln_argv[6] = fmt_json;
+            vuln_argv[7] = NULL;
+            cmd_vuln(7, vuln_argv);
+            printf("Vuln report written: %s\n", vuln_out);
         }
         /* -- SHA256SUMS manifest -- */
         char manifest[512];

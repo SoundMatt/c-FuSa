@@ -1,0 +1,9 @@
+{
+  "project": "c-FuSa",
+  "version": "0.1.0",
+  "strict": false,
+  "max_function_lines": 50,
+  "standards": ["iso26262", "misra-c", "do178c", "cert-c"],
+  "exclude_dirs": ["build", "build-cov", "vendor", ".git", ".cfusa_release"],
+  "src_extensions": [".c", ".h"]
+}
