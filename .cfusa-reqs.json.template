@@ -1,0 +1,32 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-ANA001",
+      "title": "Null pointer check before dereference",
+      "text": "The tool shall report any dereference of a pointer that is not checked for NULL.",
+      "standard": "ISO 26262",
+      "level": "ASIL-B"
+    },
+    {
+      "id": "REQ-ANA002",
+      "title": "Buffer bounds validation",
+      "text": "The tool shall report any array access that may exceed declared bounds.",
+      "standard": "ISO 26262",
+      "level": "ASIL-B"
+    },
+    {
+      "id": "REQ-SEC001",
+      "title": "Input sanitisation at trust boundary",
+      "text": "All data received from external sources shall be validated before use.",
+      "standard": "ISO 21434",
+      "level": "CAL-3"
+    },
+    {
+      "id": "REQ-SEC002",
+      "title": "No use of forbidden functions",
+      "text": "Functions such as gets(), strcpy(), sprintf() shall not be used.",
+      "standard": "MISRA-C:2012",
+      "level": "Required"
+    }
+  ]
+}

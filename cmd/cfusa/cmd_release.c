@@ -10,6 +10,7 @@
 typedef struct {
     FILE *out;
     int  count;
+    int  first;
 } sbom_ctx_t;
 
 static int sbom_file(const char *path, void *vctx)
@@ -17,16 +18,21 @@ static int sbom_file(const char *path, void *vctx)
     sbom_ctx_t *ctx = vctx;
     char hex[65];
     cfusa_sha256_file(path, hex);
-    ctx->count++;
+    if (!ctx->first) fprintf(ctx->out, ",\n");
     fprintf(ctx->out,
-        "FileName: ./%s\n"
-        "SPDXID: SPDXRef-File-%d\n"
-        "FileChecksum: SHA256: %s\n"
-        "FileType: SOURCE\n\n",
-        cfusa_basename(path), ctx->count, hex);
+        "    {\n"
+        "      \"SPDXID\": \"SPDXRef-File-%d\",\n"
+        "      \"fileName\": \"./%s\",\n"
+        "      \"fileTypes\": [\"SOURCE\"],\n"
+        "      \"checksums\": [{\"algorithm\": \"SHA256\", \"checksumValue\": \"%s\"}]\n"
+        "    }",
+        ctx->count + 1, cfusa_basename(path), hex);
+    ctx->count++;
+    ctx->first = 0;
     return 0;
 }
 
+/* Generates SPDX 3.0.1 JSON SBOM (matches go-FuSa output format) */
 static int write_sbom(const char *dir, const cfusa_config_t *cfg,
                        const char *out_path, const char *ts)
 {
@@ -34,26 +40,45 @@ static int write_sbom(const char *dir, const cfusa_config_t *cfg,
     if (!f) { perror(out_path); return -1; }
 
     fprintf(f,
-        "SPDXVersion: SPDX-2.3\n"
-        "DataLicense: CC0-1.0\n"
-        "SPDXID: SPDXRef-DOCUMENT\n"
-        "DocumentName: %s\n"
-        "DocumentNamespace: https://github.com/SoundMatt/c-FuSa/sbom/%s-%s\n"
-        "Creator: Tool: cfusa\n"
-        "Created: %s\n\n"
-        "PackageName: %s\n"
-        "SPDXID: SPDXRef-Package\n"
-        "PackageVersion: %s\n"
-        "PackageLicenseConcluded: MPL-2.0\n"
-        "PackageLicenseDeclared: MPL-2.0\n"
-        "PackageCopyrightText: NOASSERTION\n\n",
+        "{\n"
+        "  \"spdxVersion\": \"SPDX-3.0.1\",\n"
+        "  \"dataLicense\": \"CC0-1.0\",\n"
+        "  \"SPDXID\": \"SPDXRef-DOCUMENT\",\n"
+        "  \"name\": \"%s\",\n"
+        "  \"documentNamespace\": \"https://github.com/SoundMatt/c-FuSa/sbom/%s-%s\",\n"
+        "  \"creationInfo\": {\n"
+        "    \"created\": \"%s\",\n"
+        "    \"creators\": [\"Tool: cfusa\"]\n"
+        "  },\n"
+        "  \"packages\": [\n"
+        "    {\n"
+        "      \"SPDXID\": \"SPDXRef-Package\",\n"
+        "      \"name\": \"%s\",\n"
+        "      \"versionInfo\": \"%s\",\n"
+        "      \"downloadLocation\": \"https://github.com/SoundMatt/c-FuSa\",\n"
+        "      \"licenseConcluded\": \"MPL-2.0\",\n"
+        "      \"licenseDeclared\": \"MPL-2.0\",\n"
+        "      \"copyrightText\": \"NOASSERTION\"\n"
+        "    }\n"
+        "  ],\n"
+        "  \"files\": [\n",
         cfg->project, cfg->project, cfg->version, ts,
         cfg->project, cfg->version);
 
-    sbom_ctx_t ctx = {f, 0};
+    sbom_ctx_t ctx = {f, 0, 1};
     static const char * const exts[]={".c",".h"};
     cfusa_walk_sources(dir, exts, 2, sbom_file, &ctx);
-    fprintf(f,"Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package\n");
+
+    fprintf(f,
+        "\n  ],\n"
+        "  \"relationships\": [\n"
+        "    {\n"
+        "      \"spdxElementId\": \"SPDXRef-DOCUMENT\",\n"
+        "      \"relationshipType\": \"DESCRIBES\",\n"
+        "      \"relatedSpdxElement\": \"SPDXRef-Package\"\n"
+        "    }\n"
+        "  ]\n"
+        "}\n");
     fclose(f);
     return 0;
 }
@@ -97,12 +122,35 @@ int cmd_release(int argc, char **argv)
 
     /* SBOM */
     char sbom_path[512];
-    snprintf(sbom_path, sizeof(sbom_path), "%s/%s-%s.spdx",
+    snprintf(sbom_path, sizeof(sbom_path), "%s/%s-%s.spdx.json",
              output, cfg.project, cfg.version);
     write_sbom(dir, &cfg, sbom_path, ts);
     printf("SBOM written:      %s\n", sbom_path);
 
-    /* Build provenance JSON (SLSA-style) */
+    /* SLSA provenance — capture git commit SHA via popen if available */
+    char commit[64] = "unknown";
+    {
+        FILE *gp = popen("git rev-parse HEAD 2>/dev/null", "r");
+        if (gp) {
+            if (fgets(commit, sizeof(commit), gp)) {
+                char *nl = strchr(commit, '\n');
+                if (nl) *nl = '\0';
+            }
+            pclose(gp);
+        }
+    }
+    char branch[64] = "unknown";
+    {
+        FILE *gp = popen("git rev-parse --abbrev-ref HEAD 2>/dev/null", "r");
+        if (gp) {
+            if (fgets(branch, sizeof(branch), gp)) {
+                char *nl = strchr(branch, '\n');
+                if (nl) *nl = '\0';
+            }
+            pclose(gp);
+        }
+    }
+
     char prov_path[512];
     snprintf(prov_path, sizeof(prov_path), "%s/provenance.json", output);
     FILE *pf = fopen(prov_path,"w");
@@ -110,18 +158,25 @@ int cmd_release(int argc, char **argv)
         fprintf(pf,
             "{\n"
             "  \"_type\": \"https://in-toto.io/Statement/v0.1\",\n"
-            "  \"subject\": [{\"name\": \"%s\", \"digest\": {}}],\n"
+            "  \"subject\": [{\"name\": \"%s\", \"digest\": {\"sha256\": \"\"}}],\n"
             "  \"predicateType\": \"https://slsa.dev/provenance/v0.2\",\n"
             "  \"predicate\": {\n"
             "    \"builder\": {\"id\": \"https://github.com/SoundMatt/c-FuSa\"},\n"
             "    \"buildType\": \"cmake\",\n"
-            "    \"metadata\": {\"buildStartedOn\": \"%s\"},\n"
+            "    \"invocationEnvironment\": {\n"
+            "      \"commit\": \"%s\",\n"
+            "      \"branch\": \"%s\"\n"
+            "    },\n"
+            "    \"metadata\": {\n"
+            "      \"buildStartedOn\": \"%s\",\n"
+            "      \"completeness\": {\"arguments\": false, \"environment\": false, \"materials\": false}\n"
+            "    },\n"
             "    \"materials\": []\n"
             "  }\n"
             "}\n",
-            cfg.project, ts);
+            cfg.project, commit, branch, ts);
         fclose(pf);
-        printf("Provenance written: %s\n", prov_path);
+        printf("Provenance written: %s  (commit: %.8s)\n", prov_path, commit);
     }
 
     if (full) {

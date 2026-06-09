@@ -41,7 +41,8 @@ typedef enum {
     FMT_JSON  = 1,
     FMT_SARIF = 2,
     FMT_HTML  = 3,
-    FMT_MD    = 4
+    FMT_MD    = 4,
+    FMT_CSV   = 5
 } cfusa_format_t;
 
 void           cfusa_report_init(cfusa_report_t *rpt);

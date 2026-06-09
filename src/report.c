@@ -73,6 +73,7 @@ cfusa_format_t cfusa_format_parse(const char *s)
     if (!strcmp(s, "sarif")) return FMT_SARIF;
     if (!strcmp(s, "html"))  return FMT_HTML;
     if (!strcmp(s, "md") || !strcmp(s, "markdown")) return FMT_MD;
+    if (!strcmp(s, "csv")) return FMT_CSV;
     return FMT_TEXT;
 }
 
