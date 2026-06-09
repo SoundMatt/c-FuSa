@@ -171,7 +171,7 @@ jobs:
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
 
       - name: Run self-qualification
-        run: ./build/cfusa qualify --dir .
+        run: ./build/cfusa qualify --binary ./build/cfusa --format json --output .cfusa_qualification.json
 
       - name: Run trace coverage check
         run: ./build/cfusa trace --dir . || true
