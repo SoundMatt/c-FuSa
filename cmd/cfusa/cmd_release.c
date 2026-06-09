@@ -198,17 +198,16 @@ int cmd_release(int argc, char **argv)
             fmea_argv[5] = NULL;
             cmd_fmea(5, fmea_argv);
         }
-        /* -- boundary: boundary diagram -- */
+        /* -- boundary: mermaid + dot diagrams -- */
         printf("Running: cfusa boundary ...\n");
         {
-            char bnd_out[512];
-            snprintf(bnd_out, sizeof(bnd_out), "%s/boundary.md", output);
             char *bnd_argv[8];
-            char bnd_prog[] = "cfusa boundary";
-            char *bnd_dir   = (char*)dir;
+            char bnd_prog[]  = "cfusa boundary";
+            char *bnd_dir    = (char*)dir;
+            char *bnd_odir   = (char*)output;
             bnd_argv[0] = bnd_prog;
-            bnd_argv[1] = "--dir";    bnd_argv[2] = bnd_dir;
-            bnd_argv[3] = "--output"; bnd_argv[4] = bnd_out;
+            bnd_argv[1] = "--dir";        bnd_argv[2] = bnd_dir;
+            bnd_argv[3] = "--output-dir"; bnd_argv[4] = bnd_odir;
             bnd_argv[5] = NULL;
             cmd_boundary(5, bnd_argv);
         }

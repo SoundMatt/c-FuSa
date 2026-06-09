@@ -122,28 +122,187 @@ static void scan_line(const char *path, int lineno,
 static int scan_file(const char *path, void *v)
 { cfusa_scan_lines(path, scan_line, v); return 0; }
 
+static void do_req_export(const char *dir, const char *output)
+{
+    g_req_count = g_tag_count = 0;
+    load_reqs(dir);
+
+    if (g_req_count == 0) {
+        fprintf(stderr, "cfusa req export: no requirements in %s/%s\n",
+                dir, REQS_FILE);
+        return;
+    }
+
+    FILE *f = output ? fopen(output, "w") : stdout;
+    if (!f) { perror(output); return; }
+
+    fprintf(f, "id,title,text,standard,level\n");
+    for (int i = 0; i < g_req_count; i++) {
+        fprintf(f, "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                g_reqs[i].id, g_reqs[i].title, g_reqs[i].text,
+                g_reqs[i].standard, g_reqs[i].level);
+    }
+
+    if (output) fclose(f);
+    if (output) printf("Exported %d requirement(s) to %s\n", g_req_count, output);
+}
+
+static void do_req_import(const char *dir, const char *input_file)
+{
+    FILE *f = fopen(input_file, "r");
+    if (!f) { perror(input_file); return; }
+
+    /* Read existing content */
+    char reqs_path[512];
+    cfusa_path_join(reqs_path, sizeof(reqs_path), dir, REQS_FILE);
+
+    size_t elen = 0;
+    char *existing = cfusa_read_file(reqs_path, &elen);
+
+    char ts[32]; cfusa_timestamp_now(ts);
+
+    /* Count existing entries */
+    int existing_count = 0;
+    if (existing) {
+        const char *p = existing;
+        while ((p = strstr(p, "\"id\"")) != NULL) { existing_count++; p++; }
+    }
+
+    /* Parse CSV: skip header, read id,title,text,standard,level */
+    char line[1024];
+    int imported = 0;
+
+    /* Collect new entries */
+    char new_entries[65536] = "";
+    size_t ne_len = 0;
+
+    /* Skip header */
+    if (!fgets(line, sizeof(line), f)) { fclose(f); free(existing); return; }
+
+    while (fgets(line, sizeof(line), f)) {
+        /* Simple CSV parse: split on commas outside quotes */
+        char cols[5][512] = {{0}};
+        int col = 0;
+        int in_q = 0;
+        size_t ci = 0;
+        for (const char *p = line; *p && col < 5; p++) {
+            if (*p == '"') { in_q = !in_q; continue; }
+            if (*p == ',' && !in_q) {
+                cols[col][ci] = '\0';
+                col++; ci = 0;
+                continue;
+            }
+            if (*p == '\n' || *p == '\r') break;
+            if (ci < 511) cols[col][ci++] = *p;
+        }
+        cols[col][ci] = '\0';
+        if (!cols[0][0]) continue;
+
+        char entry[1024];
+        int elen2 = snprintf(entry, sizeof(entry),
+            "    {\"id\":\"%s\",\"title\":\"%s\",\"text\":\"%s\","
+            "\"standard\":\"%s\",\"level\":\"%s\"}",
+            cols[0], cols[1], cols[2], cols[3], cols[4]);
+        if (elen2 <= 0) continue;
+
+        if (ne_len + (size_t)elen2 + 4 < sizeof(new_entries)) {
+            if (ne_len > 0) { strcat(new_entries, ",\n"); ne_len += 2; }
+            strcat(new_entries, entry);
+            ne_len += (size_t)elen2;
+            imported++;
+        }
+    }
+    fclose(f);
+
+    if (imported == 0) {
+        fprintf(stderr, "cfusa req import: no valid rows found in %s\n", input_file);
+        free(existing);
+        return;
+    }
+
+    /* Write merged file */
+    FILE *out = fopen(reqs_path, "w");
+    if (!out) { perror(reqs_path); free(existing); return; }
+
+    fprintf(out, "{\n  \"requirements\": [\n");
+
+    /* Emit existing entries */
+    if (existing) {
+        const char *start = strstr(existing, "\"requirements\"");
+        const char *arr   = start ? strchr(start, '[') : NULL;
+        if (arr) {
+            arr++;
+            const char *end = strrchr(arr, ']');
+            if (end) {
+                /* trim trailing whitespace */
+                while (end > arr && (end[-1]==' '||end[-1]=='\n'||end[-1]=='\r'))
+                    end--;
+                if (end > arr) {
+                    fwrite(arr, 1, (size_t)(end - arr), out);
+                    if (imported > 0) fprintf(out, ",\n");
+                }
+            }
+        }
+        free(existing);
+    }
+
+    fprintf(out, "%s\n  ]\n}\n", new_entries);
+    fclose(out);
+
+    printf("Imported %d requirement(s) into %s (existing: %d)\n",
+           imported, reqs_path, existing_count);
+}
+
 int cmd_req(int argc, char **argv)
 {
-    const char *dir = ".";
+    const char *dir    = ".";
+    const char *output = NULL;
+    const char *subcmd = NULL;
+
+    /* Check for subcommand first */
+    if (argc >= 2 && (!strcmp(argv[1],"export") || !strcmp(argv[1],"import"))) {
+        subcmd = argv[1];
+        argv++; argc--;
+    }
 
     static const struct option lo[] = {
-        {"dir",  required_argument, NULL, 'd'},
-        {"help", no_argument,       NULL, 'h'},
+        {"dir",    required_argument, NULL, 'd'},
+        {"output", required_argument, NULL, 'o'},
+        {"help",   no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c; optind = 1;
-    while ((c = getopt_long(argc, argv, "d:h", lo, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:o:h", lo, NULL)) != -1) {
         switch (c) {
-        case 'd': dir = optarg; break;
+        case 'd': dir    = optarg; break;
+        case 'o': output = optarg; break;
         case 'h':
-            printf("Usage: cfusa req [--dir <path>] [REQ-ID ...]\n\n"
+            printf("Usage: cfusa req [--dir <path>] [REQ-ID ...]\n"
+                   "       cfusa req export [--output requirements.csv]\n"
+                   "       cfusa req import <requirements.csv>\n\n"
                    "List requirements and their source/test locations.\n"
                    "With no IDs, lists all requirements from .cfusa-reqs.json.\n"
-                   "With IDs, filters to the named requirements.\n");
+                   "With IDs, filters to the named requirements.\n"
+                   "export: write requirements to CSV\n"
+                   "import: read CSV and merge into .cfusa-reqs.json\n");
             return 0;
         default: return 1;
         }
+    }
+
+    if (subcmd && !strcmp(subcmd, "export")) {
+        do_req_export(dir, output);
+        return 0;
+    }
+    if (subcmd && !strcmp(subcmd, "import")) {
+        const char *csv = (optind < argc) ? argv[optind] : NULL;
+        if (!csv) {
+            fprintf(stderr, "cfusa req import: requires a CSV file argument\n");
+            return 1;
+        }
+        do_req_import(dir, csv);
+        return 0;
     }
 
     g_req_count = g_tag_count = 0;

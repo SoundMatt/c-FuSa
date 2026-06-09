@@ -96,17 +96,17 @@ cfusa fix --dir src/
 | `analyze` | Static analysis — overflows, unchecked returns, pointer issues |
 | `cyber` | CWE-mapped cybersecurity rules (ISO 21434) |
 | `fix` | Step-by-step remediation guidance for auto-fixable findings |
-| `tara` | Threat Analysis & Risk Assessment skeleton (ISO 21434 §9) |
+| `tara` | Threat Analysis & Risk Assessment → `tara.json` + `TARA.md` (ISO 21434 §9) |
 | `fmea` | Design FMEA from function signatures → `fmea.json` + `fmea.csv` |
 | `report` | Compliance report (text/json/sarif/html/md) |
 | `template` | Safety doc templates (HARA, PSAC, safety-plan, test-evidence) |
 | `trace` | Requirements traceability matrix from `.cfusa-reqs.json` |
-| `req` | Show requirements and their impl/test source locations |
+| `req` | Show requirements and their impl/test source locations — `export`/`import` CSV |
 | `verify` | Collect and bundle test evidence |
 | `release` | SBOM (SPDX-3.0.1 JSON), SLSA provenance, artifact manifest |
 | `qualify` | Tool self-test and qualification record |
 | `safety-case` | GSN safety case skeleton + evidence index |
-| `boundary` | Component dependency graph from `#include` directives |
+| `boundary` | Component dependency graph → `boundary.mermaid` + `boundary.dot` |
 | `vuln` | Known-vulnerable function pattern scan (CWE/CVE) |
 | `audit-pack` | Bundle all artifacts into audit package |
 | `diff` | Compare two cfusa JSON reports |
@@ -168,6 +168,10 @@ cfusa trace --req-coverage 90        # exit 1 if <90% of requirements are traced
 cfusa trace --sec-tested 80          # exit 1 if <80% of requirements are tested
 cfusa req --dir src/                 # list all requirements with locations
 cfusa req REQ-ANA001                 # show single requirement detail
+
+# Import/export requirements as CSV
+cfusa req export --output requirements.csv
+cfusa req import requirements.csv
 ```
 
 Legacy `// REQ: ID` annotations are also supported. Use `--no-legacy` to disable.
@@ -198,7 +202,7 @@ Generates in `.cfusa_release/`:
 - `<project>-<version>.spdx.json` — SPDX 3.0.1 JSON SBOM
 - `provenance.json` — SLSA v0.2 provenance with git commit SHA
 - `fmea.json` + `fmea.csv` (with `--full`)
-- `boundary.md` (with `--full`)
+- `boundary.mermaid` + `boundary.dot` (with `--full`)
 - `vuln-report.json` (with `--full`)
 - `SHA256SUMS` (with `--full`)
 
