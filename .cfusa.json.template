@@ -1,0 +1,9 @@
+{
+  "project": "YOUR_PROJECT_NAME",
+  "version": "0.1.0",
+  "strict": false,
+  "max_function_lines": 50,
+  "standards": ["iso26262", "misra-c"],
+  "exclude_dirs": ["build", "vendor", ".git", "third_party"],
+  "src_extensions": [".c", ".h"]
+}

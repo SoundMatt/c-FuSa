@@ -1,0 +1,129 @@
+cmake_minimum_required(VERSION 3.16)
+project(cfusa
+    VERSION 0.1.0
+    DESCRIPTION "C functional safety toolkit"
+    LANGUAGES C
+)
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+# ---- Compiler warnings ----
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    add_compile_options(
+        -Wall -Wextra -Wpedantic
+        -Wshadow -Wconversion -Wformat=2 -Wnull-dereference
+        -Wstrict-prototypes
+        -fstack-protector-strong
+    )
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        add_compile_options(-O2 -DNDEBUG)
+    else()
+        add_compile_options(-g -O0)
+    endif()
+endif()
+
+# MISRA-C friendly: treat char as signed/unsigned consistently
+add_compile_options(-funsigned-char)
+
+# ---- Include paths ----
+include_directories(include)
+
+# ---- Core library ----
+add_library(cfusa_core STATIC
+    src/engine.c
+    src/report.c
+    src/config.c
+    src/utils.c
+)
+target_include_directories(cfusa_core PUBLIC include)
+set_target_properties(cfusa_core PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED ON
+)
+
+# ---- cfusa binary ----
+add_executable(cfusa
+    cmd/cfusa/main.c
+    cmd/cfusa/cmd_init.c
+    cmd/cfusa/cmd_check.c
+    cmd/cfusa/cmd_lint.c
+    cmd/cfusa/cmd_analyze.c
+    cmd/cfusa/cmd_cyber.c
+    cmd/cfusa/cmd_tara.c
+    cmd/cfusa/cmd_fmea.c
+    cmd/cfusa/cmd_report.c
+    cmd/cfusa/cmd_template.c
+    cmd/cfusa/cmd_trace.c
+    cmd/cfusa/cmd_verify.c
+    cmd/cfusa/cmd_release.c
+    cmd/cfusa/cmd_qualify.c
+    cmd/cfusa/cmd_safety_case.c
+    cmd/cfusa/cmd_boundary.c
+    cmd/cfusa/cmd_vuln.c
+    cmd/cfusa/cmd_audit_pack.c
+    cmd/cfusa/cmd_diff.c
+    cmd/cfusa/cmd_badge.c
+    cmd/cfusa/cmd_req.c
+    cmd/cfusa/cmd_fix.c
+    cmd/cfusa/cmd_hooks.c
+    cmd/cfusa/cmd_sign.c
+    cmd/cfusa/cmd_do178.c
+    cmd/cfusa/cmd_sas.c
+    cmd/cfusa/cmd_sci.c
+    cmd/cfusa/cmd_coverage.c
+    cmd/cfusa/cmd_pr.c
+    cmd/cfusa/cmd_version.c
+)
+target_link_libraries(cfusa PRIVATE cfusa_core)
+target_include_directories(cfusa PRIVATE include)
+
+# ---- Tests ----
+enable_testing()
+
+# Unity test framework
+add_library(unity STATIC
+    vendor/unity/unity.c
+)
+target_include_directories(unity PUBLIC vendor/unity)
+
+# Helper macro to register a test executable
+macro(cfusa_test name)
+    add_executable(${name} tests/${name}.c)
+    target_link_libraries(${name} PRIVATE cfusa_core unity)
+    target_include_directories(${name} PRIVATE include vendor/unity)
+    add_test(NAME ${name} COMMAND ${name})
+endmacro()
+
+cfusa_test(test_engine)
+cfusa_test(test_utils)
+cfusa_test(test_config)
+cfusa_test(test_report)
+
+# ---- Installation ----
+include(GNUInstallDirs)
+install(TARGETS cfusa
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(DIRECTORY include/cfusa
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+# ---- Package config ----
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/cfusaConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+# ---- Summary ----
+message(STATUS "cfusa ${PROJECT_VERSION}")
+message(STATUS "  Build type:  ${CMAKE_BUILD_TYPE}")
+message(STATUS "  C compiler:  ${CMAKE_C_COMPILER}")
+message(STATUS "  Install to:  ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "")
+message(STATUS "  Build:   cmake -B build && cmake --build build")
+message(STATUS "  Test:    cmake --build build --target test")
+message(STATUS "  Install: cmake --install build")

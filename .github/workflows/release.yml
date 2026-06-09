@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build release (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact: cfusa-linux-amd64
+            binary: cfusa
+          - os: macos-14
+            artifact: cfusa-darwin-arm64
+            binary: cfusa
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -y && sudo apt-get install -y cmake
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel $(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package binary
+        run: |
+          cp build/${{ matrix.binary }} ${{ matrix.artifact }}
+          sha256sum ${{ matrix.artifact }} > ${{ matrix.artifact }}.sha256 2>/dev/null \
+            || shasum -a 256 ${{ matrix.artifact }} > ${{ matrix.artifact }}.sha256
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}
+            ${{ matrix.artifact }}.sha256
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-22.04
+    needs: build-release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*
+          generate_release_notes: true
+          body: |
+            ## cfusa ${{ github.ref_name }}
+
+            C functional safety toolkit.
+
+            ### Installation
+
+            ```bash
+            # Linux (amd64)
+            curl -Lo cfusa https://github.com/SoundMatt/c-FuSa/releases/download/${{ github.ref_name }}/cfusa-linux-amd64
+            chmod +x cfusa && sudo mv cfusa /usr/local/bin/
+
+            # macOS (arm64)
+            curl -Lo cfusa https://github.com/SoundMatt/c-FuSa/releases/download/${{ github.ref_name }}/cfusa-darwin-arm64
+            chmod +x cfusa && sudo mv cfusa /usr/local/bin/
+
+            # From source
+            cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --install build
+            ```
+
+            ### Verify
+            ```bash
+            cfusa version
+            cfusa qualify
+            ```
