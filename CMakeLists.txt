@@ -135,6 +135,7 @@ cfusa_test(test_utils_advanced)
 cfusa_test(test_report_advanced)
 cfusa_test(test_hara_advanced)
 cfusa_test(test_engine_advanced)
+cfusa_test(test_req_trace_cov)
 
 # ---- Installation ----
 include(GNUInstallDirs)
