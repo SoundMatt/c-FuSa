@@ -1,6 +1,6 @@
 {
   "project": "c-FuSa",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "strict": false,
   "max_function_lines": 75,
   "standards": ["iso26262", "misra-c", "do178c", "cert-c"],

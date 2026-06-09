@@ -103,7 +103,7 @@ cfusa fix --dir src/
 | `trace` | Requirements traceability matrix from `.cfusa-reqs.json` |
 | `req` | Show requirements and their impl/test source locations — `export`/`import` CSV |
 | `verify` | Collect and bundle test evidence |
-| `release` | SBOM (SPDX-3.0.1 JSON), SLSA provenance, artifact manifest |
+| `release` | SBOM (SPDX-3.0.1 JSON), SLSA v0.2 provenance, artifact manifest |
 | `qualify` | Tool self-test and qualification record |
 | `safety-case` | GSN safety case skeleton + evidence index |
 | `boundary` | Component dependency graph → `boundary.mermaid` + `boundary.dot` |
@@ -406,7 +406,7 @@ c-FuSa/
 ├── cmd/cfusa/       # 37 command files (one per command)
 ├── include/cfusa/   # Public headers
 ├── src/             # Core library (engine, report, config, utils + SHA-256)
-├── tests/           # Unity test suite (4 suites)
+├── tests/           # Unity test suite (27 suites, 454 tests)
 ├── vendor/unity/    # Unity test framework (MIT)
 ├── .github/         # CI, CodeQL workflows
 ├── .cfusa.json              # Project config
