@@ -8,8 +8,9 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/commands.h"
 
-/* Generates SBOM (SPDX-2.3 tag-value), build provenance, and signs artifacts. */
+/* Generates SPDX-3.0.1 JSON SBOM, SLSA provenance, and artifact manifest. */
 
 typedef struct {
     FILE *out;
@@ -184,16 +185,56 @@ int cmd_release(int argc, char **argv)
     }
 
     if (full) {
-        /* Checksum manifest for release dir */
+        /* -- fmea: fmea.json + fmea.csv -- */
+        printf("Running: cfusa fmea ...\n");
+        {
+            char *fmea_argv[8];
+            char fmea_prog[] = "cfusa fmea";
+            char *fmea_dir   = (char*)dir;
+            char *fmea_odir  = (char*)output;
+            fmea_argv[0] = fmea_prog;
+            fmea_argv[1] = "--dir";       fmea_argv[2] = fmea_dir;
+            fmea_argv[3] = "--output-dir";fmea_argv[4] = fmea_odir;
+            fmea_argv[5] = NULL;
+            cmd_fmea(5, fmea_argv);
+        }
+        /* -- boundary: boundary diagram -- */
+        printf("Running: cfusa boundary ...\n");
+        {
+            char bnd_out[512];
+            snprintf(bnd_out, sizeof(bnd_out), "%s/boundary.md", output);
+            char *bnd_argv[8];
+            char bnd_prog[] = "cfusa boundary";
+            char *bnd_dir   = (char*)dir;
+            bnd_argv[0] = bnd_prog;
+            bnd_argv[1] = "--dir";    bnd_argv[2] = bnd_dir;
+            bnd_argv[3] = "--output"; bnd_argv[4] = bnd_out;
+            bnd_argv[5] = NULL;
+            cmd_boundary(5, bnd_argv);
+        }
+        /* -- vuln scan -- */
+        printf("Running: cfusa vuln ...\n");
+        {
+            char vuln_out[512];
+            snprintf(vuln_out, sizeof(vuln_out), "%s/vuln-report.json", output);
+            char *vuln_argv[8];
+            char vuln_prog[] = "cfusa vuln";
+            char *vuln_dir   = (char*)dir;
+            vuln_argv[0] = vuln_prog;
+            vuln_argv[1] = "--dir"; vuln_argv[2] = vuln_dir;
+            vuln_argv[3] = NULL;
+            cmd_vuln(3, vuln_argv);
+        }
+        /* -- SHA256SUMS manifest -- */
         char manifest[512];
-        snprintf(manifest,sizeof(manifest),"%s/SHA256SUMS",output);
-        FILE *mf = fopen(manifest,"w");
+        snprintf(manifest, sizeof(manifest), "%s/SHA256SUMS", output);
+        FILE *mf = fopen(manifest, "w");
         if (mf) {
             char hex[65];
             cfusa_sha256_file(sbom_path,  hex);
-            fprintf(mf,"%s  %s\n", hex, cfusa_basename(sbom_path));
+            fprintf(mf, "%s  %s\n", hex, cfusa_basename(sbom_path));
             cfusa_sha256_file(prov_path, hex);
-            fprintf(mf,"%s  %s\n", hex, cfusa_basename(prov_path));
+            fprintf(mf, "%s  %s\n", hex, cfusa_basename(prov_path));
             fclose(mf);
             printf("Manifest written:  %s\n", manifest);
         }
