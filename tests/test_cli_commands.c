@@ -1,0 +1,221 @@
+/*
+ * Smoke tests for remaining CLI commands: init, check, release, qualify,
+ * safety_case, sign, iso26262, iec61508, misra, audit, diff, badge, pr.
+ */
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include "../vendor/unity/unity.h"
+
+extern int cmd_init(int argc, char **argv);
+extern int cmd_check(int argc, char **argv);
+extern int cmd_release(int argc, char **argv);
+extern int cmd_qualify(int argc, char **argv);
+extern int cmd_safety_case(int argc, char **argv);
+extern int cmd_sign(int argc, char **argv);
+extern int cmd_iso26262(int argc, char **argv);
+extern int cmd_iec61508(int argc, char **argv);
+extern int cmd_misra(int argc, char **argv);
+extern int cmd_audit_pack(int argc, char **argv);
+extern int cmd_diff(int argc, char **argv);
+extern int cmd_badge(int argc, char **argv);
+
+#define CLI_TEST_DIR "/tmp/cfusa_cli_testdir"
+
+void setUp(void)   { (void)mkdir(CLI_TEST_DIR, 0700); }
+void tearDown(void) {}
+
+/* ---- init ---- */
+
+//cfusa:req REQ-CLI001
+//cfusa:test REQ-CLI001
+void test_init_creates_config(void)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.cfusa.json", CLI_TEST_DIR);
+    (void)remove(path);
+
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    int rc = cmd_init(3, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen(path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+    (void)remove(path);
+}
+
+//cfusa:req REQ-CLI002
+//cfusa:test REQ-CLI002
+void test_init_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_init(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+/* ---- check ---- */
+
+//cfusa:req REQ-CLI003
+//cfusa:test REQ-CLI003
+void test_check_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_check(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+//cfusa:req REQ-CLI003
+//cfusa:test REQ-CLI003
+void test_check_runs_on_empty_dir(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    int rc = cmd_check(3, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+/* ---- release ---- */
+
+//cfusa:req REQ-REL001
+//cfusa:test REQ-REL001
+void test_release_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_release(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+//cfusa:req REQ-REL002
+//cfusa:test REQ-REL002
+void test_release_runs_no_crash(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    int rc = cmd_release(3, argv);
+    (void)rc;
+}
+
+/* ---- qualify ---- */
+
+//cfusa:req REQ-QUAL001
+//cfusa:test REQ-QUAL001
+void test_qualify_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_qualify(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+//cfusa:req REQ-QUAL002
+//cfusa:test REQ-QUAL002
+void test_qualify_runs_no_crash(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    int rc = cmd_qualify(3, argv);
+    (void)rc;
+}
+
+/* ---- safety_case ---- */
+
+//cfusa:req REQ-SC001
+//cfusa:test REQ-SC001
+void test_safety_case_runs_no_crash(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    int rc = cmd_safety_case(3, argv);
+    (void)rc;
+}
+
+/* ---- sign ---- */
+
+//cfusa:req REQ-SIGN001
+//cfusa:test REQ-SIGN001
+void test_sign_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_sign(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+/* ---- iso26262 / iec61508 / misra ---- */
+
+//cfusa:req REQ-ISO26262
+//cfusa:test REQ-ISO26262
+void test_iso26262_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_iso26262(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+//cfusa:req REQ-IEC61508
+//cfusa:test REQ-IEC61508
+void test_iec61508_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_iec61508(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+//cfusa:req REQ-MISRA
+//cfusa:test REQ-MISRA
+void test_misra_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_misra(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+/* ---- audit_pack ---- */
+
+//cfusa:req REQ-AUDIT
+//cfusa:test REQ-AUDIT
+void test_audit_pack_runs_no_crash(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    int rc = cmd_audit_pack(3, argv);
+    (void)rc;
+}
+
+/* ---- diff ---- */
+
+//cfusa:req REQ-DIFF
+//cfusa:test REQ-DIFF
+void test_diff_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_diff(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+/* ---- badge ---- */
+
+//cfusa:req REQ-BADGE
+//cfusa:test REQ-BADGE
+void test_badge_runs_no_crash(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    int rc = cmd_badge(3, argv);
+    (void)rc;
+}
+
+int main(void)
+{
+    UNITY_BEGIN();
+    RUN_TEST(test_init_creates_config);
+    RUN_TEST(test_init_help_returns_zero);
+    RUN_TEST(test_check_help_returns_zero);
+    RUN_TEST(test_check_runs_on_empty_dir);
+    RUN_TEST(test_release_help_returns_zero);
+    RUN_TEST(test_release_runs_no_crash);
+    RUN_TEST(test_qualify_help_returns_zero);
+    RUN_TEST(test_qualify_runs_no_crash);
+    RUN_TEST(test_safety_case_runs_no_crash);
+    RUN_TEST(test_sign_help_returns_zero);
+    RUN_TEST(test_iso26262_help_returns_zero);
+    RUN_TEST(test_iec61508_help_returns_zero);
+    RUN_TEST(test_misra_help_returns_zero);
+    RUN_TEST(test_audit_pack_runs_no_crash);
+    RUN_TEST(test_diff_help_returns_zero);
+    RUN_TEST(test_badge_runs_no_crash);
+    return UNITY_END();
+}

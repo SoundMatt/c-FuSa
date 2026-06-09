@@ -4,6 +4,7 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-CFG001 REQ-CFG002 REQ-CFG003 REQ-CFG004 REQ-CFG005 REQ-CFG006
 void cfusa_config_defaults(cfusa_config_t *cfg)
 {
     memset(cfg, 0, sizeof(*cfg));

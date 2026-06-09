@@ -8,6 +8,7 @@
 
 typedef struct { cfusa_report_t *rpt; } a_ctx_t;
 
+//cfusa:req REQ-ANA001
 /* A001 — dangerous string functions (potential buffer overflow) */
 static const char * const dangerous_str_fns[] = {
     "strcpy(","strcat(","sprintf(","gets(","scanf(",
@@ -22,15 +23,20 @@ static void a001_line(const char *path,int lineno,const char *line,void *vctx)
     while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
     for(int i=0; dangerous_str_fns[i]; i++) {
-        if(strstr(line, dangerous_str_fns[i])) {
-            cfusa_report_add(ctx->rpt,
-                "CFUSA-A001", CFUSA_CATEGORY_ANALYZE, SEV_WARNING,
-                path, lineno,
-                "use of '%.*s' — unbounded string operation; "
-                "use strlcpy/strlcat/snprintf with explicit bounds",
-                (int)(strlen(dangerous_str_fns[i])-1), dangerous_str_fns[i]);
-            return;
-        }
+        const char *fp = strstr(line, dangerous_str_fns[i]);
+        if (!fp) continue;
+        /* word-boundary: skip substrings (e.g. "gets(" inside "fgets(") */
+        if (fp > line && (*(fp-1)=='_' || (*(fp-1)>='a'&&*(fp-1)<='z')
+                          || (*(fp-1)>='A'&&*(fp-1)<='Z')
+                          || (*(fp-1)>='0'&&*(fp-1)<='9'))) continue;
+        if (!cfusa_match_outside_string(line, dangerous_str_fns[i])) continue;
+        cfusa_report_add(ctx->rpt,
+            "CFUSA-A001", CFUSA_CATEGORY_ANALYZE, SEV_WARNING,
+            path, lineno,
+            "use of '%.*s' — unbounded string operation; "
+            "use strlcpy/strlcat/snprintf with explicit bounds",
+            (int)(strlen(dangerous_str_fns[i])-1), dangerous_str_fns[i]);
+        return;
     }
 }
 
@@ -49,6 +55,7 @@ static int rule_a001(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-ANA002
 /* A002 — unchecked malloc return value */
 static void a002_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -83,6 +90,7 @@ static int rule_a002(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-ANA003
 /* A003 — signed/unsigned comparison */
 static void a003_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -116,6 +124,7 @@ static int rule_a003(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-ANA004
 /* A004 — integer overflow risk (INT_MAX, UINT_MAX without check) */
 static void a004_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -147,6 +156,7 @@ static int rule_a004(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-ANA005
 /* A005 — use of assert in production (not for safety invariants in release) */
 static void a005_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -177,6 +187,7 @@ static int rule_a005(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-ANA006
 /* A006 — pointer arithmetic (MISRA-C Rule 18.4) */
 static void a006_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -209,6 +220,7 @@ static int rule_a006(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-ANA007
 /* A007 — missing return value check for system calls */
 static const char * const syscall_fns[] = {
     "fopen(","fclose(","fread(","fwrite(",
@@ -224,9 +236,15 @@ static void a007_line(const char *path,int lineno,const char *line,void *vctx)
     while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
     for(int i=0; syscall_fns[i]; i++) {
-        /* Flag bare calls (no assignment) */
-        if(strstr(line, syscall_fns[i]) && !strstr(line,"=")
-           && !strstr(line,"if ") && !strstr(line,"while "))
+        const char *fp = strstr(line, syscall_fns[i]);
+        if (!fp) continue;
+        /* word-boundary: skip substrings (e.g. "close(" inside "fclose(") */
+        if (fp > line && (*(fp-1)=='_' || (*(fp-1)>='a'&&*(fp-1)<='z')
+                          || (*(fp-1)>='A'&&*(fp-1)<='Z')
+                          || (*(fp-1)>='0'&&*(fp-1)<='9'))) continue;
+        if (!cfusa_match_outside_string(line, syscall_fns[i])) continue;
+        /* Flag bare calls (no assignment or conditional) */
+        if (!strstr(line,"=") && !strstr(line,"if ") && !strstr(line,"while "))
             cfusa_report_add(ctx->rpt,
                 "CFUSA-A007", CFUSA_CATEGORY_ANALYZE, SEV_WARNING,
                 path, lineno,

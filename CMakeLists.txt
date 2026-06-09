@@ -43,9 +43,8 @@ set_target_properties(cfusa_core PROPERTIES
     C_STANDARD_REQUIRED ON
 )
 
-# ---- cfusa binary ----
-add_executable(cfusa
-    cmd/cfusa/main.c
+# ---- Command implementations (testable library, excludes main.c) ----
+add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_init.c
     cmd/cfusa/cmd_check.c
     cmd/cfusa/cmd_lint.c
@@ -83,7 +82,14 @@ add_executable(cfusa
     cmd/cfusa/cmd_metrics.c
     cmd/cfusa/cmd_version.c
 )
-target_link_libraries(cfusa PRIVATE cfusa_core)
+target_link_libraries(cfusa_cmds PUBLIC cfusa_core)
+target_include_directories(cfusa_cmds PUBLIC include)
+
+# ---- cfusa binary ----
+add_executable(cfusa
+    cmd/cfusa/main.c
+)
+target_link_libraries(cfusa PRIVATE cfusa_cmds)
 target_include_directories(cfusa PRIVATE include)
 
 # ---- Tests ----
@@ -98,7 +104,7 @@ target_include_directories(unity PUBLIC vendor/unity)
 # Helper macro to register a test executable
 macro(cfusa_test name)
     add_executable(${name} tests/${name}.c)
-    target_link_libraries(${name} PRIVATE cfusa_core unity)
+    target_link_libraries(${name} PRIVATE cfusa_cmds cfusa_core unity)
     target_include_directories(${name} PRIVATE include vendor/unity)
     add_test(NAME ${name} COMMAND ${name})
 endmacro()
@@ -107,6 +113,28 @@ cfusa_test(test_engine)
 cfusa_test(test_utils)
 cfusa_test(test_config)
 cfusa_test(test_report)
+cfusa_test(test_lint_rules)
+cfusa_test(test_cyber_rules)
+cfusa_test(test_analyze_rules)
+cfusa_test(test_hara)
+cfusa_test(test_match_outside_string)
+cfusa_test(test_asil_table)
+cfusa_test(test_report_formats)
+cfusa_test(test_impact)
+cfusa_test(test_safety_commands)
+cfusa_test(test_trace_req)
+cfusa_test(test_cli_commands)
+cfusa_test(test_lint_extended)
+cfusa_test(test_cyber_extended)
+cfusa_test(test_lint_rules2)
+cfusa_test(test_cyber_rules2)
+cfusa_test(test_analyze_rules2)
+cfusa_test(test_commands2)
+cfusa_test(test_config_advanced)
+cfusa_test(test_utils_advanced)
+cfusa_test(test_report_advanced)
+cfusa_test(test_hara_advanced)
+cfusa_test(test_engine_advanced)
 
 # ---- Installation ----
 include(GNUInstallDirs)

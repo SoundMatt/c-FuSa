@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "cfusa/engine.h"
 
+//cfusa:req REQ-ENG001 REQ-ENG002 REQ-ENG003 REQ-ENG004 REQ-ENG005
 static const cfusa_rule_t *g_rules[CFUSA_MAX_RULES];
 static int                 g_rule_count = 0;
 

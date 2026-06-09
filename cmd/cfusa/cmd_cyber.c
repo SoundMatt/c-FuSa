@@ -8,6 +8,7 @@
 
 typedef struct { cfusa_report_t *rpt; } cy_ctx_t;
 
+//cfusa:req REQ-CYB001
 /* CY001 — CWE-120: Buffer copy without checking size */
 static void cy001_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -15,13 +16,20 @@ static void cy001_line(const char *path,int lineno,const char *line,void *vctx)
     const char *p=line; while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
     static const char * const fns[]={"strcpy(","strncpy(","strcat(","strncat(","memcpy(","memmove(",NULL};
-    for(int i=0;fns[i];i++)
-        if(strstr(line,fns[i]))
-            cfusa_report_add(ctx->rpt,
-                "CFUSA-CY001","cyber",SEV_WARNING,path,lineno,
-                "CWE-120: buffer copy '%.*s' — ensure destination buffer is large enough; "
-                "prefer explicit size-bounded variants",
-                (int)(strlen(fns[i])-1),fns[i]);
+    for(int i=0;fns[i];i++){
+        const char *fp=strstr(line,fns[i]);
+        if(!fp) continue;
+        if(fp>line && (*(fp-1)=='_'||(*(fp-1)>='a'&&*(fp-1)<='z')
+                       ||(*(fp-1)>='A'&&*(fp-1)<='Z')
+                       ||(*(fp-1)>='0'&&*(fp-1)<='9'))) continue;
+        if(!cfusa_match_outside_string(line,fns[i])) continue;
+        cfusa_report_add(ctx->rpt,
+            "CFUSA-CY001","cyber",SEV_WARNING,path,lineno,
+            "CWE-120: buffer copy '%.*s' — ensure destination buffer is large enough; "
+            "prefer explicit size-bounded variants",
+            (int)(strlen(fns[i])-1),fns[i]);
+        break;
+    }
 }
 
 static int cy001_file(const char *path,void *v){cfusa_scan_lines(path,cy001_line,v);return 0;}
@@ -31,26 +39,41 @@ static int rule_cy001(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,1,cy001_file,&c); return 0;
 }
 
+//cfusa:req REQ-CYB002
 /* CY002 — CWE-134: Uncontrolled format string */
 static void cy002_line(const char *path,int lineno,const char *line,void *vctx)
 {
     cy_ctx_t *ctx=vctx;
     const char *p=line; while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
-    /* printf/fprintf/syslog called with a variable (no literal first arg) */
+    /* printf/fprintf/syslog: check the FORMAT argument (not the FILE* arg) */
     const char * const fns[]={"printf(","fprintf(","syslog(","dprintf(",NULL};
     for(int i=0;fns[i];i++){
         const char *fp=strstr(line,fns[i]);
         if(!fp) continue;
+        /* Ensure it is a proper token start (not e.g. "printf" inside "fprintf") */
+        if(fp > line && (*(fp-1)=='_' || (*(fp-1)>='a'&&*(fp-1)<='z')
+                         || (*(fp-1)>='A'&&*(fp-1)<='Z')
+                         || (*(fp-1)>='0'&&*(fp-1)<='9'))) continue;
+        /* Skip past any comment or string-literal context */
+        if(!cfusa_match_outside_string(line, fns[i])) continue;
         const char *arg=fp+strlen(fns[i]);
         while(*arg==' ') arg++;
-        /* If first argument is not a string literal and not stderr/stdout/... */
+        /* fprintf/dprintf: first arg is FILE* — advance to the format arg */
+        if(strncmp(fns[i],"fprintf",7)==0 || strncmp(fns[i],"dprintf",7)==0){
+            while(*arg && *arg != ',') arg++;
+            if(*arg==',') arg++;
+            while(*arg==' ') arg++;
+        }
+        /* If no format arg visible on this line (multiline call), skip */
+        if(!*arg || *arg=='\n' || *arg=='\r' || *arg==')') continue;
+        /* If format argument is not a string literal → uncontrolled format string */
         if(*arg != '"' && strncmp(arg,"stderr",6)!=0 && strncmp(arg,"stdout",6)!=0
            && strncmp(arg,"stdin",5)!=0)
             cfusa_report_add(ctx->rpt,
                 "CFUSA-CY002","cyber",SEV_ERROR,path,lineno,
                 "CWE-134: possible uncontrolled format string in '%.*s' — "
-                "first argument should be a string literal",
+                "format argument should be a string literal (CERT-C FIO30-C)",
                 (int)(strlen(fns[i])-1),fns[i]);
     }
 }
@@ -62,18 +85,29 @@ static int rule_cy002(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,1,cy002_file,&c); return 0;
 }
 
+//cfusa:req REQ-CYB003
 /* CY003 — CWE-78: OS command injection */
 static void cy003_line(const char *path,int lineno,const char *line,void *vctx)
 {
     cy_ctx_t *ctx=vctx;
     const char *p=line; while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
-    if(strstr(line,"system(") || strstr(line,"popen(") || strstr(line,"execl(")
-       || strstr(line,"execlp(") || strstr(line,"execv(") || strstr(line,"execvp("))
+    static const char * const cmdfns[]={"system(","popen(","execl(","execlp(","execv(","execvp(",NULL};
+    for(int i=0;cmdfns[i];i++){
+        const char *fp=strstr(line,cmdfns[i]);
+        if(!fp) continue;
+        if(!cfusa_match_outside_string(line,cmdfns[i])) continue;
+        /* Only flag if the first argument is not a string literal (i.e., a variable) */
+        const char *arg=fp+strlen(cmdfns[i]);
+        while(*arg==' ') arg++;
+        if(*arg=='"') continue; /* hardcoded literal — low risk; skip */
         cfusa_report_add(ctx->rpt,
             "CFUSA-CY003","cyber",SEV_ERROR,path,lineno,
-            "CWE-78: OS command execution — verify all arguments are sanitised "
-            "and cannot be influenced by external input (ISO 21434 CAL3)");
+            "CWE-78: OS command execution with non-literal argument — verify "
+            "all arguments are sanitised and not influenced by external input "
+            "(ISO 21434 CAL3)");
+        break;
+    }
 }
 
 static int cy003_file(const char *path,void *v){cfusa_scan_lines(path,cy003_line,v);return 0;}
@@ -83,18 +117,24 @@ static int rule_cy003(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,1,cy003_file,&c); return 0;
 }
 
+//cfusa:req REQ-CYB004
 /* CY004 — CWE-476: NULL pointer dereference after allocation */
 static void cy004_line(const char *path,int lineno,const char *line,void *vctx)
 {
     cy_ctx_t *ctx=vctx;
     const char *p=line; while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
-    /* Flag dereferencing a pointer that was just assigned from malloc on same line */
-    if((strstr(line,"malloc(") || strstr(line,"calloc(")) && strstr(line,"->"))
-        cfusa_report_add(ctx->rpt,
-            "CFUSA-CY004","cyber",SEV_ERROR,path,lineno,
-            "CWE-476: potential NULL dereference — do not dereference allocation "
-            "result without checking for NULL first");
+    /* Flag immediate dereference of malloc/calloc result on same line */
+    {
+        const char *alloc = strstr(line,"malloc(");
+        if (!alloc) alloc = strstr(line,"calloc(");
+        if (alloc && strstr(alloc, "->")
+            && (cfusa_match_outside_string(line,"malloc(") || cfusa_match_outside_string(line,"calloc(")))
+            cfusa_report_add(ctx->rpt,
+                "CFUSA-CY004","cyber",SEV_ERROR,path,lineno,
+                "CWE-476: potential NULL dereference — do not dereference allocation "
+                "result without checking for NULL first");
+    }
 }
 
 static int cy004_file(const char *path,void *v){cfusa_scan_lines(path,cy004_line,v);return 0;}
@@ -104,6 +144,7 @@ static int rule_cy004(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,1,cy004_file,&c); return 0;
 }
 
+//cfusa:req REQ-CYB005
 /* CY005 — CWE-190: Integer overflow */
 static void cy005_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -127,6 +168,7 @@ static int rule_cy005(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,1,cy005_file,&c); return 0;
 }
 
+//cfusa:req REQ-CYB006
 /* CY006 — CWE-416: Use after free */
 static void cy006_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -148,15 +190,18 @@ static int rule_cy006(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,1,cy006_file,&c); return 0;
 }
 
+//cfusa:req REQ-CYB007
 /* CY007 — CWE-415: Double free */
 static void cy007_line(const char *path,int lineno,const char *line,void *vctx)
 {
     cy_ctx_t *ctx=vctx;
-    /* Simple: two free() on same line (rare but real) */
+    const char *p=line; while(*p==' '||*p=='\t') p++;
+    if(*p=='/'||*p=='*') return;
+    /* Simple: two free() on same line (rare but real) — both outside string literals */
     const char *first=strstr(line,"free(");
-    if(!first) return;
+    if(!first || !cfusa_match_outside_string(line,"free(")) return;
     const char *second=strstr(first+5,"free(");
-    if(second)
+    if(second && cfusa_match_outside_string(first+5,"free("))
         cfusa_report_add(ctx->rpt,
             "CFUSA-CY007","cyber",SEV_ERROR,path,lineno,
             "CWE-415: possible double-free on same line — "
@@ -170,11 +215,13 @@ static int rule_cy007(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,1,cy007_file,&c); return 0;
 }
 
+//cfusa:req REQ-CYB008
 /* CY008 — CWE-377: Insecure temp file creation */
 static void cy008_line(const char *path,int lineno,const char *line,void *vctx)
 {
     cy_ctx_t *ctx=vctx;
-    if(strstr(line,"tmpnam(") || strstr(line,"mktemp(") || strstr(line,"tempnam("))
+    if(cfusa_match_outside_string(line,"tmpnam(") || cfusa_match_outside_string(line,"mktemp(")
+       || cfusa_match_outside_string(line,"tempnam("))
         cfusa_report_add(ctx->rpt,
             "CFUSA-CY008","cyber",SEV_ERROR,path,lineno,
             "CWE-377: insecure temp file function — use mkstemp() or "
@@ -188,6 +235,7 @@ static int rule_cy008(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,1,cy008_file,&c); return 0;
 }
 
+//cfusa:req REQ-CYB009
 /* CY009 — CWE-327: Use of broken cryptographic algorithm */
 static void cy009_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -196,7 +244,7 @@ static void cy009_line(const char *path,int lineno,const char *line,void *vctx)
     if(*p=='/'||*p=='*') return;
     static const char * const broken[]={"MD5_","DES_","RC4_","SHA1_","md5(","des_",NULL};
     for(int i=0;broken[i];i++)
-        if(strstr(line,broken[i]))
+        if(cfusa_match_outside_string(line,broken[i]))
             cfusa_report_add(ctx->rpt,
                 "CFUSA-CY009","cyber",SEV_ERROR,path,lineno,
                 "CWE-327: weak/broken cryptographic function '%.*s' — "
@@ -211,6 +259,7 @@ static int rule_cy009(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,2,cy009_file,&c); return 0;
 }
 
+//cfusa:req REQ-CYB010
 /* CY010 — CWE-676: Use of potentially dangerous function */
 static void cy010_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -218,13 +267,21 @@ static void cy010_line(const char *path,int lineno,const char *line,void *vctx)
     const char *p=line; while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
     static const char * const dangerous[]={"gets(","getpwd(","mktemp(","strtok(",NULL};
-    for(int i=0;dangerous[i];i++)
-        if(strstr(line,dangerous[i]))
-            cfusa_report_add(ctx->rpt,
-                "CFUSA-CY010","cyber",SEV_WARNING,path,lineno,
-                "CWE-676: potentially dangerous function '%.*s' — "
-                "see CERT-C for safe alternatives",
-                (int)(strlen(dangerous[i])-1),dangerous[i]);
+    for(int i=0;dangerous[i];i++){
+        const char *fp=strstr(line,dangerous[i]);
+        if(!fp) continue;
+        /* word-boundary: skip if preceded by an identifier character */
+        if(fp>line && (*(fp-1)=='_' || (*(fp-1)>='a'&&*(fp-1)<='z')
+                       || (*(fp-1)>='A'&&*(fp-1)<='Z')
+                       || (*(fp-1)>='0'&&*(fp-1)<='9'))) continue;
+        if(!cfusa_match_outside_string(line,dangerous[i])) continue;
+        cfusa_report_add(ctx->rpt,
+            "CFUSA-CY010","cyber",SEV_WARNING,path,lineno,
+            "CWE-676: potentially dangerous function '%.*s' — "
+            "see CERT-C for safe alternatives",
+            (int)(strlen(dangerous[i])-1),dangerous[i]);
+        break;
+    }
 }
 
 static int cy010_file(const char *path,void *v){cfusa_scan_lines(path,cy010_line,v);return 0;}

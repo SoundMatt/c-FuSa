@@ -18,6 +18,20 @@
 #define MAX_FILES  512
 #define MAX_REQS   256
 
+//cfusa:req REQ-IMP001 REQ-IMP002 REQ-IMP003
+static int validate_git_ref(const char *ref)
+{
+    if (!ref || !*ref) return 0;
+    for (const char *p = ref; *p; p++) {
+        if (!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+              (*p >= '0' && *p <= '9') ||
+              *p == '.' || *p == '_' || *p == '/' ||
+              *p == '~' || *p == '^' || *p == ':' || *p == '-'))
+            return 0;
+    }
+    return 1;
+}
+
 static int run_git_diff(const char *from, const char *to,
                         char files[][512], int *nfiles)
 {
@@ -118,6 +132,16 @@ int cmd_impact(int argc, char **argv)
 
     cfusa_config_t cfg;
     cfusa_config_load(dir, &cfg);
+
+    /* Validate git refs to prevent command injection (CWE-78 / CERT-C FIO30-C) */
+    if (!validate_git_ref(from)) {
+        fprintf(stderr, "cfusa impact: invalid --from ref '%s'\n", from);
+        return 1;
+    }
+    if (!validate_git_ref(to)) {
+        fprintf(stderr, "cfusa impact: invalid --to ref '%s'\n", to);
+        return 1;
+    }
 
     /* Get changed files */
     static char files[MAX_FILES][512];

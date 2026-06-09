@@ -7,10 +7,16 @@
 
 #define INITIAL_CAPACITY 256
 
+//cfusa:req REQ-RPT001 REQ-RPT002 REQ-RPT003 REQ-RPT004 REQ-RPT005 REQ-RPT006 REQ-RPT007
 void cfusa_report_init(cfusa_report_t *rpt)
 {
     memset(rpt, 0, sizeof(*rpt));
     rpt->findings = calloc(INITIAL_CAPACITY, sizeof(cfusa_finding_t));
+    if (!rpt->findings) {
+        fprintf(stderr, "cfusa: out of memory initialising report\n");
+        rpt->capacity = 0;
+        return;
+    }
     rpt->capacity = INITIAL_CAPACITY;
     cfusa_timestamp_now(rpt->timestamp);
 }
@@ -28,9 +34,14 @@ void cfusa_report_add(cfusa_report_t *rpt, const char *rule_id,
                        const char *fmt, ...)
 {
     if (rpt->count >= rpt->capacity) {
-        int newcap = rpt->capacity * 2;
-        rpt->findings = realloc(rpt->findings,
-                                (size_t)newcap * sizeof(cfusa_finding_t));
+        int newcap = rpt->capacity > 0 ? rpt->capacity * 2 : INITIAL_CAPACITY;
+        cfusa_finding_t *tmp = realloc(rpt->findings,
+                                       (size_t)newcap * sizeof(cfusa_finding_t));
+        if (!tmp) {
+            fprintf(stderr, "cfusa: out of memory growing report\n");
+            return;
+        }
+        rpt->findings = tmp;
         rpt->capacity = newcap;
     }
     cfusa_finding_t *f = &rpt->findings[rpt->count++];

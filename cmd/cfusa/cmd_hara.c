@@ -24,6 +24,7 @@
  * ISO 26262-3:2018 Table 4 ASIL determination.
  * Indices: [S1-S3][E1-E4][C1-C3]  (C0 always QM, omitted)
  */
+//cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA006 REQ-HARA007 REQ-HARA008 REQ-HARA009
 static const char *asil_table[3][4][3] = {
     /* S1: slight to moderate injuries */
     {
@@ -132,23 +133,23 @@ static void do_show(const char *dir)
 
         if (strstr(blk, "\"id\"")) {
             char *fp = strstr(blk, "\"id\":");
-            if (fp) sscanf(fp, "\"id\":\"%31[^\"]", id);
+            if (fp) { fp += 5; while(*fp==' '||*fp=='\t') fp++; if(*fp=='"') fp++; sscanf(fp, "%31[^\"]", id); }
         }
         {
             char *fp = strstr(blk, "\"hazardous_event\":");
-            if (fp) sscanf(fp, "\"hazardous_event\":\"%127[^\"]", event);
+            if (fp) { fp += 18; while(*fp==' '||*fp=='\t') fp++; if(*fp=='"') fp++; sscanf(fp, "%127[^\"]", event); }
         }
         {
             char *fp = strstr(blk, "\"asil\":");
-            if (fp) sscanf(fp, "\"asil\":\"%15[^\"]", asil);
+            if (fp) { fp += 7; while(*fp==' '||*fp=='\t') fp++; if(*fp=='"') fp++; sscanf(fp, "%15[^\"]", asil); }
         }
         {
             char *fp = strstr(blk, "\"safety_goal\":");
-            if (fp) sscanf(fp, "\"safety_goal\":\"%127[^\"]", goal);
+            if (fp) { fp += 14; while(*fp==' '||*fp=='\t') fp++; if(*fp=='"') fp++; sscanf(fp, "%127[^\"]", goal); }
         }
         {
             char *fp = strstr(blk, "\"safe_state\":");
-            if (fp) sscanf(fp, "\"safe_state\":\"%127[^\"]", safe);
+            if (fp) { fp += 13; while(*fp==' '||*fp=='\t') fp++; if(*fp=='"') fp++; sscanf(fp, "%127[^\"]", safe); }
         }
         {
             char *fp = strstr(blk, "\"severity\":");

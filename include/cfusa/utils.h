@@ -48,4 +48,8 @@ void cfusa_timestamp_now(char buf[32]);
 int cfusa_count_c_files(const char *dir);
 int cfusa_count_lines_in_file(const char *path);
 
+/* ---- pattern matching ---- */
+/* Returns 1 if token appears on the line outside a C string literal, 0 otherwise. */
+int cfusa_match_outside_string(const char *line, const char *token);
+
 #endif /* CFUSA_UTILS_H */

@@ -19,6 +19,7 @@ static int ext_matches(const char *path, const char * const *exts, int n)
     return 0;
 }
 
+//cfusa:req REQ-UTIL004 REQ-UTIL005
 int cfusa_walk_sources(const char *dir, const char * const *exts, int n_exts,
                         cfusa_file_cb cb, void *ctx)
 {
@@ -37,6 +38,11 @@ int cfusa_walk_sources(const char *dir, const char * const *exts, int n_exts,
         if (stat(path, &st) != 0) continue;
 
         if (S_ISDIR(st.st_mode)) {
+            /* Skip well-known non-source directories */
+            const char *bn = ent->d_name;
+            if (strcmp(bn,"build")==0 || strcmp(bn,"vendor")==0 ||
+                strcmp(bn,"build-cov")==0 || strcmp(bn,"node_modules")==0)
+                continue;
             ret += cfusa_walk_sources(path, exts, n_exts, cb, ctx);
         } else if (S_ISREG(st.st_mode)) {
             if (n_exts == 0 || ext_matches(path, exts, n_exts))
@@ -111,6 +117,7 @@ void cfusa_scan_lines(const char *path, cfusa_line_cb cb, void *ctx)
     fclose(f);
 }
 
+//cfusa:req REQ-UTIL010 REQ-UTIL011 REQ-UTIL012
 /* ---- string helpers ---- */
 
 const char *cfusa_basename(const char *path)
@@ -289,6 +296,7 @@ static void sha256_final(sha256_ctx_t *ctx, uint8_t hash[32])
     }
 }
 
+//cfusa:req REQ-UTIL015 REQ-UTIL016 REQ-UTIL017
 void cfusa_sha256_buf(const unsigned char *buf, size_t len, char hex_out[65])
 {
     sha256_ctx_t ctx;
@@ -377,6 +385,7 @@ static int count_cb(const char *path, void *ctx)
     return 0;
 }
 
+//cfusa:req REQ-UTIL013 REQ-UTIL014
 int cfusa_count_c_files(const char *dir)
 {
     int n = 0;
@@ -395,4 +404,20 @@ int cfusa_count_lines_in_file(const char *path)
         if (c == '\n') lines++;
     fclose(f);
     return lines;
+}
+
+//cfusa:req REQ-UTIL001 REQ-UTIL002 REQ-UTIL003
+int cfusa_match_outside_string(const char *line, const char *token)
+{
+    int in_str = 0;
+    const char *p = line;
+    size_t tlen = strlen(token);
+    while (*p) {
+        if (*p == '"' && (p == line || p[-1] != '\\'))
+            in_str = !in_str;
+        if (!in_str && strncmp(p, token, tlen) == 0)
+            return 1;
+        p++;
+    }
+    return 0;
 }

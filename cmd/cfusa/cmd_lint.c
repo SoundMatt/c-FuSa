@@ -16,6 +16,7 @@ typedef struct {
     const char      *category;
 } scan_ctx_t;
 
+//cfusa:req REQ-LINT001
 /* L001 — function length > max_function_lines (MISRA-C Rule 15.5 analogue) */
 typedef struct { cfusa_report_t *rpt; const cfusa_config_t *cfg; } l001_ctx_t;
 
@@ -31,7 +32,30 @@ static int l001_file(const char *path, void *vctx)
 
     while (fgets(line, sizeof(line), f)) {
         lineno++;
-        /* Very simple heuristic: opening brace on a line after a word + '(' */
+        char trimmed[4096];
+        strncpy(trimmed, line, sizeof(trimmed) - 1);
+        cfusa_str_trim(trimmed);
+
+        /* Detect function signature before scanning braces on this line so
+         * same-line opening braces (K&R style) are handled correctly. */
+        if (!in_fn && brace_depth == 0
+            && strstr(trimmed, "(") && strstr(trimmed, ")")
+            && trimmed[0] != '#' && trimmed[0] != '/'
+            && trimmed[0] != '*' && trimmed[0] != ' ') {
+            char *paren = strchr(trimmed, '(');
+            if (paren) {
+                char before[128] = "";
+                size_t blen = (size_t)(paren - trimmed);
+                if (blen > 0 && blen < 128) {
+                    strncpy(before, trimmed, blen);
+                    char *sp = strrchr(before, ' ');
+                    strncpy(fn_name, sp ? sp + 1 : before, sizeof(fn_name) - 1);
+                    while (fn_name[0] == '*') memmove(fn_name, fn_name+1, strlen(fn_name));
+                }
+                in_fn = 1;
+            }
+        }
+
         for (char *p = line; *p; p++) {
             if (*p == '{') {
                 if (brace_depth == 0 && in_fn) fn_start = lineno;
@@ -52,29 +76,6 @@ static int l001_file(const char *path, void *vctx)
                 }
             }
         }
-        /* Detect function start: line contains '(' and ')' and ends with '{' or next line */
-        char trimmed[4096];
-        strncpy(trimmed, line, sizeof(trimmed) - 1);
-        cfusa_str_trim(trimmed);
-        if (brace_depth == 0 && strstr(trimmed, "(") && strstr(trimmed, ")")
-            && trimmed[0] != '#' && trimmed[0] != '/'
-            && trimmed[0] != '*' && trimmed[0] != ' ') {
-            /* Extract a rough function name */
-            char *paren = strchr(trimmed, '(');
-            if (paren) {
-                char before[128] = "";
-                size_t blen = (size_t)(paren - trimmed);
-                if (blen > 0 && blen < 128) {
-                    strncpy(before, trimmed, blen);
-                    /* Last word in 'before' is the function name */
-                    char *sp = strrchr(before, ' ');
-                    strncpy(fn_name, sp ? sp + 1 : before, sizeof(fn_name) - 1);
-                    /* Strip pointer prefix */
-                    while (fn_name[0] == '*') memmove(fn_name, fn_name+1, strlen(fn_name));
-                }
-                in_fn = 1;
-            }
-        }
     }
     fclose(f);
     return 0;
@@ -89,6 +90,7 @@ static int rule_l001(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT003
 /* L002 — use of goto (MISRA-C 2012 Rule 15.1) */
 typedef struct { cfusa_report_t *rpt; } line_scan_ctx_t;
 
@@ -120,6 +122,7 @@ static int rule_l002(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT005
 /* L003 — dynamic memory (malloc/calloc/realloc/free) MISRA-C 2012 Rule 21.3 */
 static const char * const dyn_mem_fns[] = {
     "malloc(", "calloc(", "realloc(", "free(",
@@ -162,6 +165,7 @@ static int rule_l003(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT007
 /* L004 — recursive function (MISRA-C 2012 Rule 17.2) — simple self-call heuristic */
 typedef struct {
     cfusa_report_t *rpt;
@@ -185,8 +189,14 @@ static int l004_file(const char *path, void *vctx)
         strncpy(trimmed, line, sizeof(trimmed)-1);
         cfusa_str_trim(trimmed);
 
-        if (!ctx->in_fn && strstr(trimmed,"(") && strstr(trimmed,")")
-            && trimmed[0] != '#' && trimmed[0] != '/') {
+        /* Only detect function definitions at file scope (brace == 0).
+         * Skip declarations ending with ';' (forward decls / extern). */
+        size_t tlen = strlen(trimmed);
+        int is_decl = (tlen > 0 && trimmed[tlen-1] == ';');
+        if (!ctx->in_fn && brace == 0 && !is_decl
+            && strstr(trimmed,"(") && strstr(trimmed,")")
+            && trimmed[0] != '#' && trimmed[0] != '/'
+            && !strstr(trimmed,"=") && !strstr(trimmed,"[]")) {
             char *paren = strchr(trimmed,'(');
             if (paren) {
                 char before[128]="";
@@ -214,7 +224,7 @@ static int l004_file(const char *path, void *vctx)
             /* Check if the function calls itself */
             char call[130];
             snprintf(call,sizeof(call),"%s(",ctx->fn_name);
-            if (strstr(line, call)) {
+            if (cfusa_match_outside_string(line, call)) {
                 cfusa_report_add(ctx->rpt,
                     "CFUSA-L004", CFUSA_CATEGORY_LINT, SEV_ERROR,
                     path, lineno,
@@ -238,6 +248,7 @@ static int rule_l004(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT008
 /* L005 — use of #undef (MISRA-C 2012 Rule 20.5) */
 static void l005_line(const char *path, int lineno, const char *line, void *vctx)
 {
@@ -266,11 +277,12 @@ static int rule_l005(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT009
 /* L006 — setjmp/longjmp (MISRA-C 2012 Rule 17.4) */
 static void l006_line(const char *path,int lineno,const char *line,void *vctx)
 {
     line_scan_ctx_t *ctx=vctx;
-    if (strstr(line,"setjmp(")||strstr(line,"longjmp("))
+    if (cfusa_match_outside_string(line,"setjmp(")||cfusa_match_outside_string(line,"longjmp("))
         cfusa_report_add(ctx->rpt,
             "CFUSA-L006", CFUSA_CATEGORY_LINT, SEV_ERROR,
             path, lineno,
@@ -293,6 +305,7 @@ static int rule_l006(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT011
 /* L007 — global mutable variable (MISRA-C 2012 Rule 8.9 analogue) */
 static void l007_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -325,6 +338,7 @@ static int rule_l007(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT012
 /* L008 — void* usage (MISRA-C 2012 Rule 11.5) */
 static void l008_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -355,6 +369,7 @@ static int rule_l008(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT013
 /* L009 — use of #pragma (MISRA-C 2012 Rule 20.10) */
 static void l009_line(const char *path,int lineno,const char *line,void *vctx)
 {
@@ -384,6 +399,7 @@ static int rule_l009(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT014
 /* L010 — use of errno (MISRA-C 2012 Rule 22.8) */
 static void l010_line(const char *path,int lineno,const char *line,void *vctx)
 {
