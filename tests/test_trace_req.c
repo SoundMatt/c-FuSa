@@ -119,7 +119,7 @@ void test_disp_add_creates_entry(void)
                     "--rationale", "host tool",
                     "--owner", "test",
                     "--dir", TR_TEST_DIR, NULL};
-    int rc = cmd_disposition(11, argv);
+    int rc = cmd_disposition(12, argv);
     TEST_ASSERT_EQUAL(0, rc);
 
     FILE *f = fopen(path, "r");
@@ -143,7 +143,7 @@ void test_disp_list_after_add(void)
                         "--rationale", "bounded copies",
                         "--owner", "test",
                         "--dir", TR_TEST_DIR, NULL};
-    (void)cmd_disposition(11, add_argv);
+    (void)cmd_disposition(12, add_argv);
 
     /* list */
     char *list_argv[] = {"cfusa", "list", "--dir", TR_TEST_DIR, NULL};
