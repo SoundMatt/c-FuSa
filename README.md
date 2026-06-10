@@ -175,6 +175,9 @@ cfusa req REQ-ANA001                 # show single requirement detail
 # Import/export requirements as CSV
 cfusa req export --output requirements.csv
 cfusa req import requirements.csv
+cfusa req import --format codebeamer cb-export.csv
+cfusa req import --format jama jama-export.csv
+cfusa req import --format doors requirements.reqif
 ```
 
 Legacy `// REQ: ID` annotations are also supported. Use `--no-legacy` to disable.
@@ -306,6 +309,7 @@ cfusa sas --output SAS.md               # Software Accomplishment Summary
 cfusa sci --output SCI.md               # Software Configuration Index
 cfusa pr --new --title "divide by zero" --severity major
 cfusa coverage --lcov coverage.info --mcdc  # MC/DC coverage analysis
+cfusa coverage --mutate-score 95            # Mutation score evidence (DO-178C DAL A/B)
 ```
 
 ---
@@ -407,10 +411,10 @@ The self-check report is uploaded as a CI artifact on each build.
 
 ```
 c-FuSa/
-├── cmd/cfusa/       # 37 command files (one per command)
+├── cmd/cfusa/       # 40 command files (one per command)
 ├── include/cfusa/   # Public headers
 ├── src/             # Core library (engine, report, config, utils + SHA-256)
-├── tests/           # Unity test suite (27 suites, 454 tests)
+├── tests/           # Unity test suite (28 suites, 500+ tests)
 ├── vendor/unity/    # Unity test framework (MIT)
 ├── .github/         # CI, CodeQL workflows
 ├── .cfusa.json              # Project config

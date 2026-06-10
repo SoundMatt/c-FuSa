@@ -147,10 +147,216 @@ static void do_req_export(const char *dir, const char *output)
     if (output) printf("Exported %d requirement(s) to %s\n", g_req_count, output);
 }
 
-static void do_req_import(const char *dir, const char *input_file)
+/* ---- ALM format parsers ------------------------------------------ */
+
+/* Write one entry into new_entries[], return updated length */
+static size_t append_entry(char *buf, size_t buf_sz, size_t cur_len,
+                            const char *id, const char *title,
+                            const char *text, const char *standard,
+                            const char *level, int *count)
 {
-    FILE *f = fopen(input_file, "r");
-    if (!f) { perror(input_file); return; }
+    char entry[1024];
+    int n = snprintf(entry, sizeof(entry),
+        "    {\"id\":\"%s\",\"title\":\"%s\",\"text\":\"%s\","
+        "\"standard\":\"%s\",\"level\":\"%s\"}",
+        id, title, text, standard, level);
+    if (n <= 0) return cur_len;
+    if (cur_len + (size_t)n + 4 >= buf_sz) return cur_len;
+    if (cur_len > 0) { strcat(buf, ",\n"); cur_len += 2; }
+    strcat(buf, entry);
+    (*count)++;
+    return cur_len + (size_t)n;
+}
+
+/* Polarion/DOORS ReqIF XML: extract <ATTRIBUTE-VALUE-XHTML> and
+ * <ATTRIBUTE-DEFINITION-XHTML> patterns — simple heuristic. */
+static int import_reqif(const char *path, const char *dir,
+                         char *new_entries, size_t buf_sz,
+                         size_t *ne_len_out, int *imported)
+{
+    size_t flen;
+    char *xml = cfusa_read_file(path, &flen);
+    if (!xml) { perror(path); return 1; }
+
+    /* Walk SPEC-OBJECT elements */
+    const char *p = xml;
+    int idx = 0;
+    while ((p = strstr(p, "<SPEC-OBJECT")) != NULL) {
+        char id[MAX_ID]     = "";
+        char title[MAX_TITLE] = "";
+        char text[512]      = "";
+
+        /* Scan up to next </SPEC-OBJECT> for ATTRIBUTE-VALUE blocks */
+        const char *end_obj = strstr(p, "</SPEC-OBJECT>");
+        if (!end_obj) break;
+        size_t obj_len = (size_t)(end_obj - p);
+        char *obj = (char *)malloc(obj_len + 1);
+        if (!obj) break;
+        memcpy(obj, p, obj_len); obj[obj_len] = '\0';
+
+        /* Try to extract LONG-NAME (title) */
+        const char *ln = strstr(obj, "LONG-NAME=\"");
+        if (ln) {
+            ln += 11;
+            size_t i = 0;
+            while (*ln && *ln != '"' && i < MAX_TITLE - 1) title[i++] = *ln++;
+            title[i] = '\0';
+        }
+
+        /* Extract first THE-VALUE content as text */
+        const char *tv = strstr(obj, "<THE-VALUE>");
+        if (tv) {
+            tv += 11;
+            const char *tve = strstr(tv, "</THE-VALUE>");
+            if (tve) {
+                size_t tl = (size_t)(tve - tv);
+                if (tl >= sizeof(text)) tl = sizeof(text) - 1;
+                memcpy(text, tv, tl); text[tl] = '\0';
+            }
+        }
+
+        if (id[0] == '\0')
+            snprintf(id, sizeof(id), "REQ-%04d", ++idx);
+        if (title[0] == '\0' && text[0] != '\0')
+            strncpy(title, text, MAX_TITLE - 1);
+
+        *ne_len_out = append_entry(new_entries, buf_sz, *ne_len_out,
+                                   id, title, text, "", "", imported);
+        free(obj);
+        p = end_obj + 1;
+    }
+    free(xml);
+    (void)dir;
+    return 0;
+}
+
+/* Codebeamer CSV: columns differ from cfusa CSV */
+static size_t import_cb_csv(FILE *f, char *new_entries, size_t buf_sz,
+                              size_t ne_len, int *imported)
+{
+    /* Expected header: "tracker item id","summary","description","category","priority"... */
+    char line[1024];
+    if (!fgets(line, sizeof(line), f)) return ne_len; /* header */
+
+    /* Map known column names */
+    char cols_hdr[16][64];
+    int ncols = 0;
+    int col_id = -1, col_title = -1, col_text = -1;
+    {
+        int in_q = 0; size_t ci = 0;
+        for (const char *cp = line; *cp && ncols < 16; cp++) {
+            if (*cp == '"') { in_q = !in_q; continue; }
+            if (*cp == ',' && !in_q) {
+                cols_hdr[ncols][ci] = '\0'; ncols++; ci = 0; continue;
+            }
+            if (*cp == '\n' || *cp == '\r') break;
+            if (ci < 63) cols_hdr[ncols][ci++] = *cp;
+        }
+        cols_hdr[ncols][ci] = '\0';
+        if (ci) ncols++;
+    }
+    for (int i = 0; i < ncols; i++) {
+        if (strstr(cols_hdr[i], "item id") || strstr(cols_hdr[i], "Item Id")
+            || !strcmp(cols_hdr[i], "id"))
+            col_id = i;
+        if (strstr(cols_hdr[i], "summary") || strstr(cols_hdr[i], "Summary"))
+            col_title = i;
+        if (strstr(cols_hdr[i], "description") || strstr(cols_hdr[i], "Description"))
+            col_text = i;
+    }
+    if (col_id < 0)   col_id   = 0;
+    if (col_title < 0) col_title = (ncols > 1) ? 1 : 0;
+    if (col_text < 0)  col_text  = (ncols > 2) ? 2 : 0;
+
+    while (fgets(line, sizeof(line), f)) {
+        char vals[16][512] = {{0}};
+        int col = 0; int in_q = 0; size_t ci = 0;
+        for (const char *cp = line; *cp && col < 16; cp++) {
+            if (*cp == '"') { in_q = !in_q; continue; }
+            if (*cp == ',' && !in_q) { vals[col][ci] = '\0'; col++; ci = 0; continue; }
+            if (*cp == '\n' || *cp == '\r') break;
+            if (ci < 511) vals[col][ci++] = *cp;
+        }
+        vals[col][ci] = '\0';
+        if (!vals[col_id][0]) continue;
+
+        char id[MAX_ID]; snprintf(id, sizeof(id), "CB-%s", vals[col_id]);
+        ne_len = append_entry(new_entries, buf_sz, ne_len,
+                              id, vals[col_title], vals[col_text],
+                              "", "", imported);
+    }
+    return ne_len;
+}
+
+/* Jama CSV: columns: "ID","Name","Description","Status","Release" */
+static size_t import_jama_csv(FILE *f, char *new_entries, size_t buf_sz,
+                               size_t ne_len, int *imported)
+{
+    char line[1024];
+    if (!fgets(line, sizeof(line), f)) return ne_len; /* header */
+
+    /* Map Jama columns: ID, Name, Description */
+    char cols_hdr[16][64];
+    int ncols = 0;
+    int col_id = -1, col_title = -1, col_text = -1;
+    {
+        int in_q = 0; size_t ci = 0;
+        for (const char *cp = line; *cp && ncols < 16; cp++) {
+            if (*cp == '"') { in_q = !in_q; continue; }
+            if (*cp == ',' && !in_q) { cols_hdr[ncols][ci] = '\0'; ncols++; ci = 0; continue; }
+            if (*cp == '\n' || *cp == '\r') break;
+            if (ci < 63) cols_hdr[ncols][ci++] = *cp;
+        }
+        cols_hdr[ncols][ci] = '\0';
+        if (ci) ncols++;
+    }
+    for (int i = 0; i < ncols; i++) {
+        if (!strcmp(cols_hdr[i], "ID") || !strcmp(cols_hdr[i], "id"))
+            col_id = i;
+        if (!strcmp(cols_hdr[i], "Name") || !strcmp(cols_hdr[i], "name"))
+            col_title = i;
+        if (!strcmp(cols_hdr[i], "Description") || !strcmp(cols_hdr[i], "description"))
+            col_text = i;
+    }
+    if (col_id < 0)    col_id    = 0;
+    if (col_title < 0) col_title = (ncols > 1) ? 1 : 0;
+    if (col_text < 0)  col_text  = (ncols > 2) ? 2 : 0;
+
+    while (fgets(line, sizeof(line), f)) {
+        char vals[16][512] = {{0}};
+        int col = 0; int in_q = 0; size_t ci = 0;
+        for (const char *cp = line; *cp && col < 16; cp++) {
+            if (*cp == '"') { in_q = !in_q; continue; }
+            if (*cp == ',' && !in_q) { vals[col][ci] = '\0'; col++; ci = 0; continue; }
+            if (*cp == '\n' || *cp == '\r') break;
+            if (ci < 511) vals[col][ci++] = *cp;
+        }
+        vals[col][ci] = '\0';
+        if (!vals[col_id][0]) continue;
+
+        char id[MAX_ID]; snprintf(id, sizeof(id), "JAMA-%s", vals[col_id]);
+        ne_len = append_entry(new_entries, buf_sz, ne_len,
+                              id, vals[col_title], vals[col_text],
+                              "", "", imported);
+    }
+    return ne_len;
+}
+
+static void do_req_import(const char *dir, const char *input_file,
+                          const char *fmt)
+{
+    /* Auto-detect format from extension if not specified */
+    if (!fmt || !fmt[0]) {
+        const char *ext = strrchr(input_file, '.');
+        if (ext) {
+            if (!strcmp(ext, ".xml") || !strcmp(ext, ".reqif") || !strcmp(ext, ".reqifz"))
+                fmt = "doors";
+            else
+                fmt = "csv";
+        } else {
+            fmt = "csv";
+        }
+    }
 
     /* Read existing content */
     char reqs_path[512];
@@ -159,60 +365,57 @@ static void do_req_import(const char *dir, const char *input_file)
     size_t elen = 0;
     char *existing = cfusa_read_file(reqs_path, &elen);
 
-    char ts[32]; cfusa_timestamp_now(ts);
+    char ts[32]; cfusa_timestamp_now(ts); (void)ts;
 
-    /* Count existing entries */
     int existing_count = 0;
     if (existing) {
         const char *p = existing;
         while ((p = strstr(p, "\"id\"")) != NULL) { existing_count++; p++; }
     }
 
-    /* Parse CSV: skip header, read id,title,text,standard,level */
-    char line[1024];
     int imported = 0;
-
-    /* Collect new entries */
     char new_entries[65536] = "";
     size_t ne_len = 0;
 
-    /* Skip header */
-    if (!fgets(line, sizeof(line), f)) { fclose(f); free(existing); return; }
+    if (!strcmp(fmt, "doors") || !strcmp(fmt, "polarion")) {
+        import_reqif(input_file, dir, new_entries, sizeof(new_entries),
+                     &ne_len, &imported);
+    } else if (!strcmp(fmt, "codebeamer")) {
+        FILE *f = fopen(input_file, "r");
+        if (!f) { perror(input_file); free(existing); return; }
+        ne_len = import_cb_csv(f, new_entries, sizeof(new_entries), ne_len, &imported);
+        fclose(f);
+    } else if (!strcmp(fmt, "jama")) {
+        FILE *f = fopen(input_file, "r");
+        if (!f) { perror(input_file); free(existing); return; }
+        ne_len = import_jama_csv(f, new_entries, sizeof(new_entries), ne_len, &imported);
+        fclose(f);
+    } else {
+        /* csv (default) */
+        FILE *f = fopen(input_file, "r");
+        if (!f) { perror(input_file); free(existing); return; }
 
-    while (fgets(line, sizeof(line), f)) {
-        /* Simple CSV parse: split on commas outside quotes */
-        char cols[5][512] = {{0}};
-        int col = 0;
-        int in_q = 0;
-        size_t ci = 0;
-        for (const char *p = line; *p && col < 5; p++) {
-            if (*p == '"') { in_q = !in_q; continue; }
-            if (*p == ',' && !in_q) {
-                cols[col][ci] = '\0';
-                col++; ci = 0;
-                continue;
+        char line[1024];
+        if (!fgets(line, sizeof(line), f)) { fclose(f); free(existing); return; }
+
+        while (fgets(line, sizeof(line), f)) {
+            char cols[5][512] = {{0}};
+            int col = 0, in_q = 0;
+            size_t ci = 0;
+            for (const char *p = line; *p && col < 5; p++) {
+                if (*p == '"') { in_q = !in_q; continue; }
+                if (*p == ',' && !in_q) { cols[col][ci] = '\0'; col++; ci = 0; continue; }
+                if (*p == '\n' || *p == '\r') break;
+                if (ci < 511) cols[col][ci++] = *p;
             }
-            if (*p == '\n' || *p == '\r') break;
-            if (ci < 511) cols[col][ci++] = *p;
+            cols[col][ci] = '\0';
+            if (!cols[0][0]) continue;
+            ne_len = append_entry(new_entries, sizeof(new_entries), ne_len,
+                                  cols[0], cols[1], cols[2], cols[3], cols[4],
+                                  &imported);
         }
-        cols[col][ci] = '\0';
-        if (!cols[0][0]) continue;
-
-        char entry[1024];
-        int elen2 = snprintf(entry, sizeof(entry),
-            "    {\"id\":\"%s\",\"title\":\"%s\",\"text\":\"%s\","
-            "\"standard\":\"%s\",\"level\":\"%s\"}",
-            cols[0], cols[1], cols[2], cols[3], cols[4]);
-        if (elen2 <= 0) continue;
-
-        if (ne_len + (size_t)elen2 + 4 < sizeof(new_entries)) {
-            if (ne_len > 0) { strcat(new_entries, ",\n"); ne_len += 2; }
-            strcat(new_entries, entry);
-            ne_len += (size_t)elen2;
-            imported++;
-        }
+        fclose(f);
     }
-    fclose(f);
 
     if (imported == 0) {
         fprintf(stderr, "cfusa req import: no valid rows found in %s\n", input_file);
@@ -258,6 +461,7 @@ int cmd_req(int argc, char **argv)
     const char *dir    = ".";
     const char *output = NULL;
     const char *subcmd = NULL;
+    const char *fmt    = NULL;  /* import format */
 
     /* Check for subcommand first */
     if (argc >= 2 && (!strcmp(argv[1],"export") || !strcmp(argv[1],"import"))) {
@@ -268,24 +472,28 @@ int cmd_req(int argc, char **argv)
     static const struct option lo[] = {
         {"dir",    required_argument, NULL, 'd'},
         {"output", required_argument, NULL, 'o'},
+        {"format", required_argument, NULL, 'F'},
         {"help",   no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c; optind = 1;
-    while ((c = getopt_long(argc, argv, "d:o:h", lo, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:o:F:h", lo, NULL)) != -1) {
         switch (c) {
         case 'd': dir    = optarg; break;
         case 'o': output = optarg; break;
+        case 'F': fmt    = optarg; break;
         case 'h':
             printf("Usage: cfusa req [--dir <path>] [REQ-ID ...]\n"
                    "       cfusa req export [--output requirements.csv]\n"
-                   "       cfusa req import <requirements.csv>\n\n"
+                   "       cfusa req import [--format csv|doors|polarion|codebeamer|jama] <file>\n\n"
                    "List requirements and their source/test locations.\n"
                    "With no IDs, lists all requirements from .cfusa-reqs.json.\n"
                    "With IDs, filters to the named requirements.\n"
                    "export: write requirements to CSV\n"
-                   "import: read CSV and merge into .cfusa-reqs.json\n");
+                   "import: read ALM export and merge into .cfusa-reqs.json\n"
+                   "  formats: csv (default), doors/polarion (ReqIF XML), codebeamer, jama\n"
+                   "  Format is auto-detected from file extension if not specified.\n");
             return 0;
         default: return 1;
         }
@@ -296,12 +504,12 @@ int cmd_req(int argc, char **argv)
         return 0;
     }
     if (subcmd && !strcmp(subcmd, "import")) {
-        const char *csv = (optind < argc) ? argv[optind] : NULL;
-        if (!csv) {
-            fprintf(stderr, "cfusa req import: requires a CSV file argument\n");
+        const char *infile = (optind < argc) ? argv[optind] : NULL;
+        if (!infile) {
+            fprintf(stderr, "cfusa req import: requires a file argument\n");
             return 1;
         }
-        do_req_import(dir, csv);
+        do_req_import(dir, infile, fmt);
         return 0;
     }
 

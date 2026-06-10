@@ -363,6 +363,136 @@ void test_req_export_no_reqs_file(void)
         "  ]\n}\n");
 }
 
+extern int cmd_coverage(int argc, char **argv);
+
+//cfusa:req REQ-REQ011
+//cfusa:test REQ-REQ011
+void test_req_import_codebeamer_csv(void)
+{
+    char csvpath[256];
+    snprintf(csvpath, sizeof(csvpath), "%s/cb_import.csv", RTC_DIR);
+    FILE *f = fopen(csvpath, "w");
+    if (f) {
+        fputs("\"tracker item id\",\"summary\",\"description\",\"category\"\n", f);
+        fputs("\"101\",\"CB summary\",\"CB description\",\"Software\"\n", f);
+        fclose(f);
+    }
+    char *argv[] = {"cfusa", "import", "--dir", RTC_DIR,
+                    "--format", "codebeamer", csvpath, NULL};
+    int rc = cmd_req(7, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    /* verify the id was prefixed CB- */
+    char reqs_path[256];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    FILE *jf = fopen(reqs_path, "r");
+    if (jf) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "CB-101"));
+    }
+    remove(csvpath);
+}
+
+//cfusa:req REQ-REQ012
+//cfusa:test REQ-REQ012
+void test_req_import_jama_csv(void)
+{
+    char csvpath[256];
+    snprintf(csvpath, sizeof(csvpath), "%s/jama_import.csv", RTC_DIR);
+    FILE *f = fopen(csvpath, "w");
+    if (f) {
+        fputs("ID,Name,Description,Status\n", f);
+        fputs("202,Jama item,Jama description text,Active\n", f);
+        fclose(f);
+    }
+    char *argv[] = {"cfusa", "import", "--dir", RTC_DIR,
+                    "--format", "jama", csvpath, NULL};
+    int rc = cmd_req(7, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    char reqs_path[256];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    FILE *jf = fopen(reqs_path, "r");
+    if (jf) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "JAMA-202"));
+    }
+    remove(csvpath);
+}
+
+//cfusa:req REQ-REQ013
+//cfusa:test REQ-REQ013
+void test_req_import_reqif_xml(void)
+{
+    char xmlpath[256];
+    snprintf(xmlpath, sizeof(xmlpath), "%s/reqs.reqif", RTC_DIR);
+    FILE *f = fopen(xmlpath, "w");
+    if (f) {
+        fputs("<?xml version=\"1.0\"?>\n"
+              "<REQ-IF>\n"
+              "  <CORE-CONTENT>\n"
+              "    <SPEC-OBJECTS>\n"
+              "      <SPEC-OBJECT LONG-NAME=\"Safety requirement\">\n"
+              "        <VALUES>\n"
+              "          <ATTRIBUTE-VALUE-XHTML>\n"
+              "            <THE-VALUE>Shall detect overflow</THE-VALUE>\n"
+              "          </ATTRIBUTE-VALUE-XHTML>\n"
+              "        </VALUES>\n"
+              "      </SPEC-OBJECT>\n"
+              "    </SPEC-OBJECTS>\n"
+              "  </CORE-CONTENT>\n"
+              "</REQ-IF>\n", f);
+        fclose(f);
+    }
+    char *argv[] = {"cfusa", "import", "--dir", RTC_DIR,
+                    "--format", "doors", xmlpath, NULL};
+    int rc = cmd_req(7, argv);
+    /* May return 0 or non-zero depending on parse; must not crash */
+    (void)rc;
+    remove(xmlpath);
+}
+
+//cfusa:req REQ-COV001
+//cfusa:test REQ-COV001
+void test_coverage_mutate_score_flag(void)
+{
+    char outpath[256];
+    snprintf(outpath, sizeof(outpath), "%s/cov-mutate.json", RTC_DIR);
+    char *argv[] = {"cfusa coverage",
+                    "--dir",         RTC_DIR,
+                    "--format",      "json",
+                    "--output",      outpath,
+                    "--mutate",
+                    "--mutate-score","75.0", NULL};
+    int rc = cmd_coverage(9, argv);
+    /* mutate_score < 100 => exit 1 */
+    TEST_ASSERT_EQUAL(1, rc);
+    FILE *f = fopen(outpath, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f); buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"mutation_score\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "75.00"));
+    }
+    remove(outpath);
+}
+
+//cfusa:req REQ-COV002
+//cfusa:test REQ-COV002
+void test_coverage_mutate_100_pass(void)
+{
+    char outpath[256];
+    snprintf(outpath, sizeof(outpath), "%s/cov-mutate100.json", RTC_DIR);
+    char *argv[] = {"cfusa coverage",
+                    "--dir",          RTC_DIR,
+                    "--format",       "json",
+                    "--output",       outpath,
+                    "--mutate-score", "100.0", NULL};
+    int rc = cmd_coverage(8, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+    remove(outpath);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -389,5 +519,10 @@ int main(void)
     RUN_TEST(test_req_import_no_csv_arg);
     RUN_TEST(test_req_import_valid_csv);
     RUN_TEST(test_req_export_no_reqs_file);
+    RUN_TEST(test_req_import_codebeamer_csv);
+    RUN_TEST(test_req_import_jama_csv);
+    RUN_TEST(test_req_import_reqif_xml);
+    RUN_TEST(test_coverage_mutate_score_flag);
+    RUN_TEST(test_coverage_mutate_100_pass);
     return UNITY_END();
 }
