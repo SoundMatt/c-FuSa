@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /*
  * Compares two cfusa JSON reports and shows introduced/resolved/unchanged findings.
@@ -102,7 +103,17 @@ int cmd_diff(int argc, char **argv)
     int introduced=0, resolved=0, unchanged=0;
 
     if (!strcmp(fmt_s,"json")) {
-        printf("{\"diff\": {\n  \"introduced\": [");
+        char ts[32]; cfusa_timestamp_now(ts);
+        printf("{\n"
+               "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+               "  \"kind\": \"diff\",\n"
+               "  \"tool\": \"c-FuSa\",\n"
+               "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+               "  \"language\": \"c\",\n"
+               "  \"generatedAt\": \"%s\",\n"
+               "  \"reportA\": \"%s\",\n"
+               "  \"reportB\": \"%s\",\n"
+               "  \"introduced\": [", ts, report_a, report_b);
         int first=1;
         for (int i=0;i<b_count;i++) {
             if (find_key(a_entries,a_count,b_entries[i].key)<0) {
@@ -119,7 +130,7 @@ int cmd_diff(int argc, char **argv)
                 first=0; resolved++;
             } else unchanged++;
         }
-        printf("],\n  \"counts\": {\"introduced\":%d,\"resolved\":%d,\"unchanged\":%d}\n}}\n",
+        printf("],\n  \"counts\": {\"introduced\":%d,\"resolved\":%d,\"unchanged\":%d}\n}\n",
                introduced,resolved,unchanged);
     } else {
         printf("Report diff: %s  vs  %s\n\n", report_a, report_b);
