@@ -35,7 +35,7 @@ int cmd_safety_case(int argc, char **argv)
         case 'g': gsn_only = 1;     break;
         case 'h':
             printf("Usage: cfusa safety-case [--dir <path>] [--output safety-case.md]\n"
-                   "                          [--standard iso26262|do178c|iec61508]\n"
+                   "                          [--standard iso26262|do178c|iec61508|iso21434|unece-r155]\n"
                    "                          [--gsn]\n\n"
                    "Generates a GSN safety case skeleton with evidence index.\n");
             return 0;
@@ -111,6 +111,15 @@ int cmd_safety_case(int argc, char **argv)
             "hara.md","safety-plan.md","tara.md","fmea.md",
             "test-evidence.md","sas.md",".fusa.json",NULL
         };
+        /* ISO 21434 / UN R.155 extra evidence */
+        static const char * const cyber_evidence[] = {
+            "tara.json","vuln-report.json","cfusa-self-check.json",
+            "cyber-plan.json","provenance.json",NULL
+        };
+        const char * const *extra = NULL;
+        if (!strcmp(standard,"iso21434") || !strcmp(standard,"unece-r155"))
+            extra = cyber_evidence;
+
         for (int i=0; evidence_files[i]; i++) {
             char ep[512];
             cfusa_path_join(ep, sizeof(ep), dir, evidence_files[i]);
@@ -120,6 +129,19 @@ int cmd_safety_case(int argc, char **argv)
                 fprintf(f,"| %s | ✓ | `%s` |\n", evidence_files[i], hex);
             } else {
                 fprintf(f,"| %s | ✗ (missing) | — |\n", evidence_files[i]);
+            }
+        }
+        if (extra) {
+            for (int i=0; extra[i]; i++) {
+                char ep[512];
+                cfusa_path_join(ep, sizeof(ep), dir, extra[i]);
+                if (cfusa_file_exists(ep)) {
+                    char hex[65];
+                    cfusa_sha256_file(ep, hex);
+                    fprintf(f,"| %s | ✓ | `%s` |\n", extra[i], hex);
+                } else {
+                    fprintf(f,"| %s | ✗ (missing) | — |\n", extra[i]);
+                }
             }
         }
     }
