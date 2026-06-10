@@ -182,7 +182,7 @@ void test_unece_json_format(void)
     cmd_unece(7, argv);
     TEST_ASSERT_TRUE(file_contains("unece.json", "\"generatedAt\""));
     TEST_ASSERT_TRUE(file_contains("unece.json", "\"categories\""));
-    TEST_ASSERT_TRUE(file_contains("unece.json", "c-FuSa UN R.155"));
+    TEST_ASSERT_TRUE(file_contains("unece.json", "\"UN R.155\""));
 }
 
 void test_unece_json_has_manual_entries(void)

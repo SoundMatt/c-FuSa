@@ -10,6 +10,7 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 //cfusa:req REQ-UNECE-001
 
@@ -110,14 +111,19 @@ int cmd_unece(int argc, char **argv)
         char ts[32]; cfusa_timestamp_now(ts);
         fprintf(out,
             "{\n"
-            "  \"format\": \"c-FuSa UN R.155 Report v1\",\n"
-            "  \"project\": \"%s\",\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"unece-r155-gap\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+            "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
+            "  \"regulation\": \"UN R.155\",\n"
+            "  \"project\": \"%s\",\n"
             "  \"pass\": %d,\n"
             "  \"gap\": %d,\n"
             "  \"manual\": %d,\n"
             "  \"categories\": [\n",
-            cfg.project, ts, pass, gap, manual);
+            ts, cfg.project, pass, gap, manual);
 
         int first = 1;
         for (int i = 0; CATEGORIES[i].id; i++) {

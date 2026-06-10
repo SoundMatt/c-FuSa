@@ -4,6 +4,7 @@
 #include "cfusa/config.h"
 #include "cfusa/report.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /*
  * DO-178C Annex A objectives gap report.
@@ -176,9 +177,18 @@ int cmd_do178(int argc, char **argv)
                     OBJECTIVES[i].objective);
         }
     } else if (fmt==FMT_JSON) {
-        fprintf(out,"{\n  \"project\": \"%s\", \"dal\": \"%c\","
+        fprintf(out,
+                "{\n"
+                "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+                "  \"kind\": \"do178c-gap\",\n"
+                "  \"tool\": \"c-FuSa\",\n"
+                "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+                "  \"language\": \"c\",\n"
+                "  \"generatedAt\": \"%s\",\n"
+                "  \"project\": \"%s\",\n"
+                "  \"dal\": \"%c\","
                 " \"applicable\": %d, \"total\": %d,\n  \"objectives\": [\n",
-                cfg.project,(char)('A'+dal_col),applicable,total);
+                ts, cfg.project,(char)('A'+dal_col),applicable,total);
         int first=1;
         for (int i=0;OBJECTIVES[i].id;i++){
             int applies[4]={OBJECTIVES[i].dal_a,OBJECTIVES[i].dal_b,

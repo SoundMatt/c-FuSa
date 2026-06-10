@@ -11,6 +11,7 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 //cfusa:req REQ-ISO21434-001
 
@@ -145,15 +146,20 @@ int cmd_iso21434(int argc, char **argv)
         char ts[32]; cfusa_timestamp_now(ts);
         fprintf(out,
             "{\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"iso21434-gap\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+            "  \"language\": \"c\",\n"
+            "  \"generatedAt\": \"%s\",\n"
             "  \"project\": \"%s\",\n"
             "  \"cal\": \"%s\",\n"
-            "  \"generatedAt\": \"%s\",\n"
             "  \"pass\": %d,\n"
             "  \"gap\": %d,\n"
             "  \"manual\": %d,\n"
             "  \"na\": %d,\n"
             "  \"objectives\": [\n",
-            cfg.project, cal, ts, pass, gap, manual, na);
+            ts, cfg.project, cal, pass, gap, manual, na);
 
         int first = 1;
         for (int i = 0; OBJECTIVES[i].id; i++) {
