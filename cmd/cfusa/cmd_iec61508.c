@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /*
  * IEC 61508 Parts 1-3 compliance gap report.
@@ -60,24 +61,31 @@ static int sil_level(const char *sil)
 
 int cmd_iec61508(int argc, char **argv)
 {
-    const char *dir = ".";
-    const char *sil = "SIL-3";
+    const char *dir    = ".";
+    const char *sil    = "SIL-3";
+    const char *fmt_s  = "text";
+    const char *output = NULL;
 
     static const struct option long_opts[] = {
-        {"dir",  required_argument, NULL, 'd'},
-        {"sil",  required_argument, NULL, 's'},
-        {"help", no_argument,       NULL, 'h'},
+        {"dir",    required_argument, NULL, 'd'},
+        {"sil",    required_argument, NULL, 's'},
+        {"format", required_argument, NULL, 'f'},
+        {"output", required_argument, NULL, 'o'},
+        {"help",   no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:s:h", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:s:f:o:h", long_opts, NULL)) != -1) {
         switch (c) {
-        case 'd': dir = optarg; break;
-        case 's': sil = optarg; break;
+        case 'd': dir    = optarg; break;
+        case 's': sil    = optarg; break;
+        case 'f': fmt_s  = optarg; break;
+        case 'o': output = optarg; break;
         case 'h':
-            printf("Usage: cfusa iec61508 [--dir <path>] [--sil SIL-1|2|3|4]\n\n"
+            printf("Usage: cfusa iec61508 [--dir <path>] [--sil SIL-1|2|3|4]\n"
+                   "                      [--format text|json] [--output <file>]\n\n"
                    "IEC 61508 Parts 1-3 compliance gap report.\n"
                    "Checks which IEC 61508-3 objectives are covered by active cfusa rules.\n");
             return 0;
@@ -94,13 +102,6 @@ int cmd_iec61508(int argc, char **argv)
         return 1;
     }
 
-    printf("IEC 61508 Parts 1-3 Gap Report — %s (target %s)\n", cfg.project, sil);
-    printf("=====================================================\n\n");
-    printf("%-8s %-45s %-15s %-10s %s\n", "Clause", "Objective", "cfusa Rule", "Reqmt", "Status");
-    printf("%-8s %-45s %-15s %-10s %s\n",
-           "--------", "---------------------------------------------",
-           "---------------", "----------", "------");
-
     int covered = 0, gaps_m = 0, gaps_r = 0, na = 0;
     for (int i = 0; OBJECTIVES[i].clause; i++) {
         const iec61508_row_t *r = &OBJECTIVES[i];
@@ -108,25 +109,83 @@ int cmd_iec61508(int argc, char **argv)
                   (level==2) ? r->sil2 :
                   (level==3) ? r->sil3 : r->sil4;
         if (req == 0) { na++; continue; }
-
-        const char *reqmt = (req == 1) ? "Mandatory" : "Recommended";
-        const char *status;
-        if (r->cfusa_rule) {
-            status = "COVERED";
-            covered++;
-        } else {
-            status = (req == 2) ? "GAP (R)" : "GAP (M)";
-            if (req == 2) gaps_r++; else gaps_m++;
-        }
-
-        printf("%-8s %-45s %-15s %-10s %s\n",
-               r->clause, r->title,
-               r->cfusa_rule ? r->cfusa_rule : "-", reqmt, status);
+        if (r->cfusa_rule) covered++;
+        else if (req == 2) gaps_r++;
+        else gaps_m++;
     }
 
-    printf("\nSummary: %d covered, %d mandatory gap(s), %d recommended gap(s), "
-           "%d not applicable for %s\n",
-           covered, gaps_m, gaps_r, na, sil);
+    FILE *out = stdout;
+    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 1; } }
 
+    if (!strcmp(fmt_s, "json")) {
+        char ts[32]; cfusa_timestamp_now(ts);
+        fprintf(out,
+            "{\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"iec61508-gap\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+            "  \"language\": \"c\",\n"
+            "  \"generatedAt\": \"%s\",\n"
+            "  \"project\": \"%s\",\n"
+            "  \"sil\": \"%s\",\n"
+            "  \"covered\": %d,\n"
+            "  \"mandatoryGaps\": %d,\n"
+            "  \"recommendedGaps\": %d,\n"
+            "  \"na\": %d,\n"
+            "  \"objectives\": [\n",
+            ts, cfg.project, sil, covered, gaps_m, gaps_r, na);
+        int first = 1;
+        for (int i = 0; OBJECTIVES[i].clause; i++) {
+            const iec61508_row_t *r = &OBJECTIVES[i];
+            int req = (level==1) ? r->sil1 :
+                      (level==2) ? r->sil2 :
+                      (level==3) ? r->sil3 : r->sil4;
+            if (req == 0) continue;
+            const char *reqmt  = (req == 1) ? "mandatory" : "recommended";
+            const char *status = r->cfusa_rule ? "COVERED" :
+                                 (req == 2)    ? "GAP (R)" : "GAP (M)";
+            if (!first) fprintf(out, ",\n");
+            if (r->cfusa_rule)
+                fprintf(out,
+                    "    {\"clause\": \"%s\", \"title\": \"%s\","
+                    " \"cfusaRule\": \"%s\", \"reqmt\": \"%s\", \"status\": \"%s\"}",
+                    r->clause, r->title, r->cfusa_rule, reqmt, status);
+            else
+                fprintf(out,
+                    "    {\"clause\": \"%s\", \"title\": \"%s\","
+                    " \"cfusaRule\": null, \"reqmt\": \"%s\", \"status\": \"%s\"}",
+                    r->clause, r->title, reqmt, status);
+            first = 0;
+        }
+        fprintf(out, "\n  ]\n}\n");
+    } else {
+        fprintf(out, "IEC 61508 Parts 1-3 Gap Report — %s (target %s)\n", cfg.project, sil);
+        fprintf(out, "=====================================================\n\n");
+        fprintf(out, "%-8s %-45s %-15s %-10s %s\n", "Clause", "Objective", "cfusa Rule", "Reqmt", "Status");
+        fprintf(out, "%-8s %-45s %-15s %-10s %s\n",
+               "--------", "---------------------------------------------",
+               "---------------", "----------", "------");
+
+        for (int i = 0; OBJECTIVES[i].clause; i++) {
+            const iec61508_row_t *r = &OBJECTIVES[i];
+            int req = (level==1) ? r->sil1 :
+                      (level==2) ? r->sil2 :
+                      (level==3) ? r->sil3 : r->sil4;
+            if (req == 0) continue;
+            const char *reqmt  = (req == 1) ? "Mandatory" : "Recommended";
+            const char *status = r->cfusa_rule ? "COVERED" :
+                                 (req == 2)    ? "GAP (R)" : "GAP (M)";
+            fprintf(out, "%-8s %-45s %-15s %-10s %s\n",
+                   r->clause, r->title,
+                   r->cfusa_rule ? r->cfusa_rule : "-", reqmt, status);
+        }
+
+        fprintf(out, "\nSummary: %d covered, %d mandatory gap(s), %d recommended gap(s), "
+               "%d not applicable for %s\n",
+               covered, gaps_m, gaps_r, na, sil);
+    }
+
+    if (output && out != stdout) fclose(out);
     return (gaps_m > 0) ? 1 : 0;
 }

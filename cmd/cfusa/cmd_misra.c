@@ -2,6 +2,8 @@
 #include <string.h>
 #include <getopt.h>
 #include "cfusa/config.h"
+#include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /*
  * MISRA C:2012 rule coverage mapping.
@@ -56,23 +58,30 @@ static const misra_row_t MISRA_RULES[] = {
 int cmd_misra(int argc, char **argv)
 {
     const char *dir       = ".";
+    const char *fmt_s     = "text";
+    const char *output    = NULL;
     int         gaps_only = 0;
 
     static const struct option long_opts[] = {
-        {"dir",        required_argument, NULL, 'd'},
-        {"gaps",       no_argument,       NULL, 'g'},
-        {"help",       no_argument,       NULL, 'h'},
+        {"dir",    required_argument, NULL, 'd'},
+        {"format", required_argument, NULL, 'f'},
+        {"output", required_argument, NULL, 'o'},
+        {"gaps",   no_argument,       NULL, 'g'},
+        {"help",   no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:gh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:f:o:gh", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir       = optarg; break;
+        case 'f': fmt_s     = optarg; break;
+        case 'o': output    = optarg; break;
         case 'g': gaps_only = 1;     break;
         case 'h':
-            printf("Usage: cfusa misra [--dir <path>] [--gaps]\n\n"
+            printf("Usage: cfusa misra [--dir <path>] [--gaps]\n"
+                   "                   [--format text|json] [--output <file>]\n\n"
                    "MISRA C:2012 rule coverage mapping.\n"
                    "  --gaps   Show only rules not covered by cfusa\n");
             return 0;
@@ -80,30 +89,72 @@ int cmd_misra(int argc, char **argv)
         }
     }
 
-    (void)dir; /* config loaded implicitly; dir used for future custom rule loading */
-
-    printf("MISRA C:2012 Rule Coverage\n");
-    printf("==========================\n\n");
-    printf("%-8s %-12s %-52s %s\n", "Rule", "Category", "Title", "cfusa Coverage");
-    printf("%-8s %-12s %-52s %s\n",
-           "--------", "------------",
-           "----------------------------------------------------", "--------------");
+    cfusa_config_t cfg;
+    cfusa_config_load(dir, &cfg);
 
     int covered = 0, not_covered = 0;
     for (int i = 0; MISRA_RULES[i].rule; i++) {
-        const misra_row_t *r = &MISRA_RULES[i];
-        if (gaps_only && r->cfusa_rule) continue;
-
-        const char *coverage = r->cfusa_rule ? r->cfusa_rule : "GAP";
-        printf("%-8s %-12s %-52s %s\n",
-               r->rule, r->category, r->title, coverage);
-
-        if (r->cfusa_rule) covered++; else not_covered++;
+        if (MISRA_RULES[i].cfusa_rule) covered++; else not_covered++;
     }
 
-    printf("\n%d rules covered by cfusa, %d gap(s).\n", covered, not_covered);
-    printf("Note: cfusa covers MISRA checking at the pattern/lint level.\n"
-           "Full MISRA-C:2012 conformance requires compiler/static-analyser integration.\n");
+    FILE *out = stdout;
+    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 1; } }
 
+    if (!strcmp(fmt_s, "json")) {
+        char ts[32]; cfusa_timestamp_now(ts);
+        fprintf(out,
+            "{\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"misra-coverage\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+            "  \"language\": \"c\",\n"
+            "  \"generatedAt\": \"%s\",\n"
+            "  \"project\": \"%s\",\n"
+            "  \"covered\": %d,\n"
+            "  \"gaps\": %d,\n"
+            "  \"rules\": [\n",
+            ts, cfg.project, covered, not_covered);
+        int first = 1;
+        for (int i = 0; MISRA_RULES[i].rule; i++) {
+            const misra_row_t *r = &MISRA_RULES[i];
+            if (gaps_only && r->cfusa_rule) continue;
+            if (!first) fprintf(out, ",\n");
+            const char *status = r->cfusa_rule ? "COVERED" : "GAP";
+            if (r->cfusa_rule)
+                fprintf(out,
+                    "    {\"rule\": \"%s\", \"category\": \"%s\","
+                    " \"title\": \"%s\", \"cfusaRule\": \"%s\", \"status\": \"%s\"}",
+                    r->rule, r->category, r->title, r->cfusa_rule, status);
+            else
+                fprintf(out,
+                    "    {\"rule\": \"%s\", \"category\": \"%s\","
+                    " \"title\": \"%s\", \"cfusaRule\": null, \"status\": \"%s\"}",
+                    r->rule, r->category, r->title, status);
+            first = 0;
+        }
+        fprintf(out, "\n  ]\n}\n");
+    } else {
+        fprintf(out, "MISRA C:2012 Rule Coverage\n");
+        fprintf(out, "==========================\n\n");
+        fprintf(out, "%-8s %-12s %-52s %s\n", "Rule", "Category", "Title", "cfusa Coverage");
+        fprintf(out, "%-8s %-12s %-52s %s\n",
+               "--------", "------------",
+               "----------------------------------------------------", "--------------");
+
+        for (int i = 0; MISRA_RULES[i].rule; i++) {
+            const misra_row_t *r = &MISRA_RULES[i];
+            if (gaps_only && r->cfusa_rule) continue;
+            const char *coverage = r->cfusa_rule ? r->cfusa_rule : "GAP";
+            fprintf(out, "%-8s %-12s %-52s %s\n",
+                   r->rule, r->category, r->title, coverage);
+        }
+
+        fprintf(out, "\n%d rules covered by cfusa, %d gap(s).\n", covered, not_covered);
+        fprintf(out, "Note: cfusa covers MISRA checking at the pattern/lint level.\n"
+               "Full MISRA-C:2012 conformance requires compiler/static-analyser integration.\n");
+    }
+
+    if (output && out != stdout) fclose(out);
     return 0;
 }
