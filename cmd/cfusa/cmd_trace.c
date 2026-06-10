@@ -7,15 +7,19 @@
  *   //cfusa:sec-test REQ-ID  security-test reference
  *   // REQ: REQ-ID           legacy annotation (still supported unless --no-legacy)
  */
+#if defined(__linux__) || defined(__unix__)
+#  define _POSIX_C_SOURCE 200809L
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
-#include "cfusa/config.h"
 #include "cfusa/report.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
-#define REQS_FILE  ".cfusa-reqs.json"
+#define REQS_FILE        ".fusa-reqs.json"
+#define REQS_FILE_LEGACY ".cfusa-reqs.json"
 #define MAX_REQS   1024
 #define MAX_TAGS   4096
 #define MAX_ID     64
@@ -32,6 +36,7 @@ typedef struct { char req_id[MAX_ID]; char file[256];
 
 static req_t g_reqs[MAX_REQS];  static int g_req_count;
 static tag_t g_tags[MAX_TAGS];  static int g_tag_count;
+static char  g_dir_abs[512];    /* resolved absolute project root for path relativization */
 
 /* ---- minimal JSON field extractor for { ... } objects ---- */
 static void jfield(const char *obj, const char *key, char *out, size_t sz)
@@ -51,12 +56,22 @@ static void jfield(const char *obj, const char *key, char *out, size_t sz)
     out[i] = '\0';
 }
 
-/* Load requirements from .cfusa-reqs.json (graceful if absent) */
+/* Load requirements — try .fusa-reqs.json first, fall back to legacy .cfusa-reqs.json */
 static void load_reqs(const char *dir)
 {
     char path[512]; cfusa_path_join(path, sizeof(path), dir, REQS_FILE);
     size_t len; char *json = cfusa_read_file(path, &len);
+    if (!json) {
+        cfusa_path_join(path, sizeof(path), dir, REQS_FILE_LEGACY);
+        json = cfusa_read_file(path, &len);
+        if (json)
+            fprintf(stderr, "cfusa trace: WARNING: %s is deprecated; rename to %s\n",
+                    REQS_FILE_LEGACY, REQS_FILE);
+    }
     if (!json) return;
+
+    /* §1.2.2: check for duplicate requirement ids and emit ERRORs */
+    /* (collected after loading; detected via second pass below) */
 
     const char *p = strstr(json, "\"requirements\"");
     if (p) p = strchr(p, '[');
@@ -78,19 +93,40 @@ static void load_reqs(const char *dir)
         p = be + 1;
     }
     free(json);
+
+    /* §1.2.2: duplicate-id MUST surface as ERROR to stderr */
+    for (int i = 0; i < g_req_count; i++) {
+        for (int j = i + 1; j < g_req_count; j++) {
+            if (!strcmp(g_reqs[i].id, g_reqs[j].id))
+                fprintf(stderr,
+                        "cfusa trace: ERROR: duplicate requirement id '%s' in %s\n",
+                        g_reqs[i].id, REQS_FILE);
+        }
+    }
 }
 
 /* ---- annotation scanner ---- */
 static void add_tag(const char *path, int lineno, const char *ids, int kind)
 {
+    /* Relativize path against project root (§5 tags[].file MUST be project-relative) */
+    const char *rel = path;
+    if (g_dir_abs[0]) {
+        size_t prlen = strlen(g_dir_abs);
+        if (strncmp(path, g_dir_abs, prlen) == 0 &&
+            (path[prlen] == '/' || path[prlen] == '\0'))
+            rel = path + prlen + (path[prlen] == '/');
+    }
+    while (rel[0] == '.' && rel[1] == '/') rel += 2;
+    const char *relpath = rel[0] ? rel : path;
+
     char buf[512]; strncpy(buf, ids, sizeof(buf) - 1);
     char *end = strpbrk(buf, "\n\r"); if (end) *end = '\0';
     char *tok = strtok(buf, " \t,");
     while (tok && g_tag_count < MAX_TAGS) {
         char *t = cfusa_str_trim(tok);
         if (*t && *t != '*' && *t != '/') {
-            strncpy(g_tags[g_tag_count].req_id, t,    MAX_ID - 1);
-            strncpy(g_tags[g_tag_count].file,   path, 255);
+            strncpy(g_tags[g_tag_count].req_id, t,       MAX_ID - 1);
+            strncpy(g_tags[g_tag_count].file,   relpath, 255);
             g_tags[g_tag_count].line = lineno;
             g_tags[g_tag_count].kind = kind;
             g_tag_count++;
@@ -129,20 +165,22 @@ static void trace_line_cb(const char *path, int lineno,
 static int trace_file_cb(const char *path, void *v)
 { cfusa_scan_lines(path, trace_line_cb, v); return 0; }
 
-/* Compute coverage for known requirements */
-static void compute_coverage(int *traced, int *tested)
+/* Compute coverage per §5 counting rules */
+static void compute_coverage(int *traced, int *tested, int *sec_tested)
 {
-    *traced = *tested = 0;
+    *traced = *tested = *sec_tested = 0;
     for (int i = 0; i < g_req_count; i++) {
-        int hi = 0, ht = 0;
+        int any = 0, ht = 0, hst = 0;
         for (int j = 0; j < g_tag_count; j++) {
             if (!strcmp(g_tags[j].req_id, g_reqs[i].id)) {
-                if (g_tags[j].kind == KIND_IMPL) hi = 1;
-                else ht = 1;
+                any = 1;
+                if (g_tags[j].kind == KIND_TEST)     ht  = 1;
+                if (g_tags[j].kind == KIND_SEC_TEST) { ht = 1; hst = 1; }
             }
         }
-        if (hi) (*traced)++;
-        if (ht) (*tested)++;
+        if (any) (*traced)++;
+        if (ht)  (*tested)++;
+        if (hst) (*sec_tested)++;
     }
 }
 
@@ -196,6 +234,8 @@ int cmd_trace(int argc, char **argv)
     }
 
     g_req_count = g_tag_count = 0;
+    g_dir_abs[0] = '\0';
+    if (!realpath(dir, g_dir_abs)) strncpy(g_dir_abs, dir, sizeof(g_dir_abs) - 1);
     load_reqs(dir);
 
     scan_ctx_t sctx = {legacy};
@@ -203,8 +243,8 @@ int cmd_trace(int argc, char **argv)
     cfusa_walk_sources(dir, exts, 2, trace_file_cb, &sctx);
 
     int total = g_req_count;
-    int traced, tested;
-    compute_coverage(&traced, &tested);
+    int traced, tested, sec_tested_count;
+    compute_coverage(&traced, &tested, &sec_tested_count);
 
     /* --- coverage gates --- */
     if (req_coverage > 0 && total > 0) {
@@ -232,49 +272,87 @@ int cmd_trace(int argc, char **argv)
         return 0;
     }
 
-    /* --- --gaps mode --- */
-    if (show_gaps) {
-        int gaps = 0;
-        printf("Test coverage gaps:\n\n");
-        for (int i = 0; i < g_req_count; i++) {
-            int ht = 0;
-            for (int j = 0; j < g_tag_count; j++)
-                if (!strcmp(g_tags[j].req_id, g_reqs[i].id) &&
-                    g_tags[j].kind != KIND_IMPL) ht = 1;
-            if (!ht) {
-                printf("  %-24s  %s\n", g_reqs[i].id, g_reqs[i].title);
-                gaps++;
-            }
-        }
-        printf("\n%d / %d requirements untested\n", gaps, g_req_count);
-        return (gaps > 0) ? 1 : 0;
-    }
-
     /* --- output --- */
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
     FILE *out = stdout;
     if (out_path) { out = fopen(out_path, "w"); if (!out) { perror(out_path); return 1; } }
 
     if (fmt == FMT_JSON) {
+        char ts[32]; cfusa_timestamp_now(ts);
         fprintf(out,
-            "{\n  \"total\": %d, \"traced\": %d, \"tested\": %d,\n"
-            "  \"matrix\": [\n", total, traced, tested);
+            "{\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"trace-matrix\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+            "  \"language\": \"c\",\n"
+            "  \"generatedAt\": \"%s\",\n"
+            "  \"requirements\": [\n",
+            ts);
+
+        /* In --gaps mode, only emit untested requirements */
         for (int i = 0; i < g_req_count; i++) {
-            fprintf(out, "    {\"id\": \"%s\", \"title\": \"%s\", \"tags\": [",
-                    g_reqs[i].id, g_reqs[i].title);
-            int first = 1;
+            int has_test = 0;
             for (int j = 0; j < g_tag_count; j++) {
-                if (!strcmp(g_tags[j].req_id, g_reqs[i].id)) {
-                    const char *k = g_tags[j].kind == KIND_IMPL ? "impl" :
-                                    g_tags[j].kind == KIND_TEST ? "test" : "sec-test";
-                    fprintf(out, "%s{\"kind\":\"%s\",\"file\":\"%s\",\"line\":%d}",
-                            first ? "" : ",", k, g_tags[j].file, g_tags[j].line);
-                    first = 0;
-                }
+                if (!strcmp(g_tags[j].req_id, g_reqs[i].id) &&
+                    g_tags[j].kind != KIND_IMPL)
+                    has_test = 1;
             }
-            fprintf(out, "]}%s\n", (i < g_req_count - 1) ? "," : "");
+            if (show_gaps && has_test) continue;
+            fprintf(out, "    {\"id\": \"%s\", \"title\": \"%s\"",
+                    g_reqs[i].id, g_reqs[i].title);
+            if (g_reqs[i].standard[0])
+                fprintf(out, ", \"standard\": \"%s\"", g_reqs[i].standard);
+            if (g_reqs[i].level[0])
+                fprintf(out, ", \"level\": \"%s\"", g_reqs[i].level);
+            fprintf(out, "}");
+            /* Check if there are more non-filtered reqs */
+            int more = 0;
+            for (int k = i + 1; k < g_req_count; k++) {
+                if (!show_gaps) { more = 1; break; }
+                int ht2 = 0;
+                for (int j = 0; j < g_tag_count; j++)
+                    if (!strcmp(g_tags[j].req_id, g_reqs[k].id) &&
+                        g_tags[j].kind != KIND_IMPL) { ht2 = 1; break; }
+                if (!ht2) { more = 1; break; }
+            }
+            fprintf(out, "%s\n", more ? "," : "");
         }
-        fprintf(out, "  ]\n}\n");
+
+        fprintf(out, "  ],\n  \"tags\": [\n");
+
+        /* In --gaps mode, only emit tags for untested requirements */
+        int tag_first = 1;
+        for (int j = 0; j < g_tag_count; j++) {
+            if (show_gaps) {
+                int req_has_test = 0;
+                for (int k = 0; k < g_tag_count; k++) {
+                    if (!strcmp(g_tags[k].req_id, g_tags[j].req_id) &&
+                        g_tags[k].kind != KIND_IMPL) { req_has_test = 1; break; }
+                }
+                if (req_has_test) continue;
+            }
+            const char *k = g_tags[j].kind == KIND_IMPL ? "impl" :
+                            g_tags[j].kind == KIND_TEST ? "test" : "sec-test";
+            if (!tag_first) fprintf(out, ",\n");
+            fprintf(out, "    {\"requirementId\": \"%s\", \"file\": \"%s\","
+                    " \"line\": %d, \"kind\": \"%s\"}",
+                    g_tags[j].req_id, g_tags[j].file, g_tags[j].line, k);
+            tag_first = 0;
+        }
+        if (!tag_first) fprintf(out, "\n");
+
+        /* coverage always reports full totals even in --gaps mode */
+        fprintf(out,
+            "  ],\n"
+            "  \"coverage\": {\n"
+            "    \"totalRequirements\": %d,\n"
+            "    \"tracedRequirements\": %d,\n"
+            "    \"testedRequirements\": %d,\n"
+            "    \"secTestedRequirements\": %d\n"
+            "  }\n"
+            "}\n",
+            total, traced, tested, sec_tested_count);
     } else if (fmt == FMT_MD) {
         fprintf(out, "# Requirements Traceability Matrix\n\n");
         if (g_req_count > 0) {
@@ -313,6 +391,25 @@ int cmd_trace(int argc, char **argv)
                 traced, total, tested, total);
     } else {
         /* text */
+        if (show_gaps) {
+            /* --gaps text mode: list untested requirements */
+            int gaps = 0;
+            fprintf(out, "Test coverage gaps:\n\n");
+            for (int i = 0; i < g_req_count; i++) {
+                int ht = 0;
+                for (int j = 0; j < g_tag_count; j++)
+                    if (!strcmp(g_tags[j].req_id, g_reqs[i].id) &&
+                        g_tags[j].kind != KIND_IMPL) ht = 1;
+                if (!ht) {
+                    fprintf(out, "  %-24s  %s\n", g_reqs[i].id, g_reqs[i].title);
+                    gaps++;
+                }
+            }
+            fprintf(out, "\n%d / %d requirements untested\n", gaps, g_req_count);
+            if (out_path && out != stdout) fclose(out);
+            return (gaps > 0) ? 1 : 0;
+        }
+
         fprintf(out, "Requirements Traceability Matrix\n");
         if (g_req_count > 0) {
             fprintf(out, "%-24s  %-32s  %-22s  %-22s\n",
@@ -352,7 +449,7 @@ int cmd_trace(int argc, char **argv)
                         g_tags[j].req_id,
                         cfusa_basename(g_tags[j].file), g_tags[j].line);
             fprintf(out, "\nTotal: %d annotation(s)  "
-                    "(create .cfusa-reqs.json to register requirements)\n",
+                    "(create .fusa-reqs.json to register requirements)\n",
                     g_tag_count);
         } else {
             fprintf(out,

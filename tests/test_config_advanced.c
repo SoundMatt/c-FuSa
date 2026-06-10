@@ -77,7 +77,7 @@ void test_defaults_two_calls_equal(void)
 void test_save_creates_file(void)
 {
     char path[256];
-    snprintf(path, sizeof(path), "%s/.cfusa.json", CFG_DIR);
+    snprintf(path, sizeof(path), "%s/.fusa.json", CFG_DIR);
     (void)remove(path);
 
     cfusa_config_t cfg;
@@ -96,7 +96,7 @@ void test_save_creates_file(void)
 void test_save_then_load_roundtrip(void)
 {
     char path[256];
-    snprintf(path, sizeof(path), "%s/.cfusa.json", CFG_DIR);
+    snprintf(path, sizeof(path), "%s/.fusa.json", CFG_DIR);
     (void)remove(path);
 
     cfusa_config_t orig, loaded;
@@ -129,7 +129,7 @@ void test_load_no_file_returns_nonzero(void)
 void test_load_malformed_json_graceful(void)
 {
     char path[256];
-    snprintf(path, sizeof(path), "%s/.cfusa.json", CFG_DIR);
+    snprintf(path, sizeof(path), "%s/.fusa.json", CFG_DIR);
 
     FILE *f = fopen(path, "w");
     TEST_ASSERT_NOT_NULL(f);
@@ -222,7 +222,7 @@ void test_strict_defaults_value(void)
 void test_strict_roundtrip(void)
 {
     char path[256];
-    snprintf(path, sizeof(path), "%s/.cfusa.json", CFG_DIR);
+    snprintf(path, sizeof(path), "%s/.fusa.json", CFG_DIR);
     (void)remove(path);
 
     cfusa_config_t orig, loaded;

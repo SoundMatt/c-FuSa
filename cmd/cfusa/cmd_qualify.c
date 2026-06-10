@@ -107,17 +107,31 @@ int cmd_qualify(int argc, char **argv)
 
     char ts[32]; cfusa_timestamp_now(ts);
 
+    const char *default_output = "qualify-report.json";
+    if (!output && !strcmp(fmt_s, "json")) output = default_output;
+
     FILE *out = stdout;
     if (output) { out = fopen(output,"w"); if (!out){perror(output);return 1;} }
 
+    int total_tests = pass + fail;
+
     if (!strcmp(fmt_s,"json")) {
         fprintf(out,
-            "{\n  \"tool\": \"cfusa\", \"version\": \"%s\","
-            " \"timestamp\": \"%s\",\n"
-            "  \"binary_sha256\": \"%s\",\n"
-            "  \"tests_passed\": %d, \"tests_failed\": %d,\n"
-            "  \"qualified\": %s,\n  \"tests\": [\n",
-            CFUSA_VERSION_STRING, ts, bin_hash, pass, fail,
+            "{\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"qualification\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"%s\",\n"
+            "  \"language\": \"c\",\n"
+            "  \"generatedAt\": \"%s\",\n"
+            "  \"binarySha256\": \"%s\",\n"
+            "  \"total\": %d,\n"
+            "  \"passed\": %d,\n"
+            "  \"failed\": %d,\n"
+            "  \"qualified\": %s,\n"
+            "  \"results\": [\n",
+            CFUSA_VERSION_STRING, ts, bin_hash,
+            total_tests, pass, fail,
             (fail==0)?"true":"false");
         for (int i=0;g_tests[i].name;i++)
             fprintf(out,"    {\"name\": \"%s\", \"result\": \"%s\"}%s\n",

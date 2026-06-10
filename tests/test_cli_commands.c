@@ -32,11 +32,11 @@ void tearDown(void) {}
 void test_init_creates_config(void)
 {
     char path[256];
-    snprintf(path, sizeof(path), "%s/.cfusa.json", CLI_TEST_DIR);
+    snprintf(path, sizeof(path), "%s/.fusa.json", CLI_TEST_DIR);
     (void)remove(path);
 
-    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
-    int rc = cmd_init(3, argv);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--project", "test-proj", NULL};
+    int rc = cmd_init(5, argv);
     TEST_ASSERT_EQUAL(0, rc);
 
     FILE *f = fopen(path, "r");

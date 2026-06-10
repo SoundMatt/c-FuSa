@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
 #include "cfusa/engine.h"
@@ -32,12 +33,19 @@ int cmd_report(int argc, char **argv)
         case 's': strict = 1;     break;
         case 'h':
             printf("Usage: cfusa report [--dir <path>] [--format text|json|sarif|html|md]\n"
-                   "                    [--output <file>] [--strict]\n\n"
+                   "                    [--output <file>]\n\n"
                    "Runs all checks and produces a compliance report.\n"
-                   "Use --format html for a browsable report.\n");
+                   "Use --format html for a browsable report.\n"
+                   "Note: --strict is a usage error on report (use 'check' for gating).\n");
             return 0;
         default: return 1;
         }
+    }
+
+    /* §9.1: --strict on report is a usage error */
+    if (strict) {
+        fprintf(stderr, "cfusa report: --strict is invalid; use 'cfusa check --strict' for gating\n");
+        return 2;
     }
 
     cfusa_engine_reset();
@@ -47,12 +55,18 @@ int cmd_report(int argc, char **argv)
 
     cfusa_config_t cfg;
     cfusa_config_load(dir, &cfg);
-    if (strict) cfg.strict = 1;
 
     cfusa_report_t rpt;
     cfusa_report_init(&rpt);
     strncpy(rpt.project, cfg.project, sizeof(rpt.project) - 1);
     strncpy(rpt.version, cfg.version, sizeof(rpt.version) - 1);
+    {
+        char abs[512];
+        if (realpath(dir, abs))
+            strncpy(rpt.project_root, abs, sizeof(rpt.project_root) - 1);
+        else
+            strncpy(rpt.project_root, dir, sizeof(rpt.project_root) - 1);
+    }
 
     char std_buf[128] = "";
     for (int i=0; i<cfg.standards_count; i++) {
@@ -69,7 +83,6 @@ int cmd_report(int argc, char **argv)
     else
         cfusa_report_print(&rpt, stdout, fmt);
 
-    int rc = (rpt.error_count>0)||(cfg.strict&&rpt.warning_count>0);
     cfusa_report_free(&rpt);
-    return rc;
+    return 0;
 }

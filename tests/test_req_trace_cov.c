@@ -115,8 +115,9 @@ void test_trace_req_coverage_gate_pass(void)
 //cfusa:test REQ-TRA008
 void test_trace_req_coverage_gate_fail(void)
 {
-    /* Remove impl so req-coverage drops to 0% < 100% → fail */
+    /* Remove both source files so tracedRequirements = 0 < 100% → fail */
     rm_file("impl.c");
+    rm_file("test_impl.c");
     char *argv[] = {"cfusa", "--dir", RTC_DIR, "--req-coverage", "100", NULL};
     int rc = cmd_trace(5, argv);
     TEST_ASSERT_TRUE(rc != 0);
@@ -124,6 +125,9 @@ void test_trace_req_coverage_gate_fail(void)
     write_file("impl.c",
         "//cfusa:req REQ-A001\nvoid alpha(void) {}\n"
         "//cfusa:req REQ-A002\nvoid beta(void) {}\n");
+    write_file("test_impl.c",
+        "//cfusa:test REQ-A001\nvoid test_alpha(void) {}\n"
+        "//cfusa:test REQ-A002\nvoid test_beta(void) {}\n");
 }
 
 //cfusa:req REQ-TRA009

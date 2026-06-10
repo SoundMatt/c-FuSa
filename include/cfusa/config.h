@@ -1,7 +1,8 @@
 #ifndef CFUSA_CONFIG_H
 #define CFUSA_CONFIG_H
 
-#define CFUSA_CONFIG_FILE   ".cfusa.json"
+#define CFUSA_CONFIG_FILE          ".fusa.json"
+#define CFUSA_CONFIG_FILE_LEGACY   ".cfusa.json"
 #define CFUSA_MAX_EXCLUDES  64
 #define CFUSA_MAX_STANDARDS 8
 #define CFUSA_MAX_EXTS      8

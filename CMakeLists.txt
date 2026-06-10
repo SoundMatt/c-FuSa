@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(cfusa
-    VERSION 0.2.0
+    VERSION 0.3.0
     DESCRIPTION "C functional safety toolkit"
     LANGUAGES C
 )
@@ -83,6 +83,7 @@ add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_coupling.c
     cmd/cfusa/cmd_iso21434.c
     cmd/cfusa/cmd_unece.c
+    cmd/cfusa/cmd_capabilities.c
     cmd/cfusa/cmd_version.c
 )
 target_link_libraries(cfusa_cmds PUBLIC cfusa_core)

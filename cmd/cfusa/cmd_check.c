@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
 #include "cfusa/engine.h"
@@ -53,6 +54,13 @@ int cmd_check(int argc, char **argv)
     cfusa_report_init(&rpt);
     strncpy(rpt.project,  cfg.project, sizeof(rpt.project)  - 1);
     strncpy(rpt.version,  cfg.version, sizeof(rpt.version)  - 1);
+    {
+        char abs[512];
+        if (realpath(dir, abs))
+            strncpy(rpt.project_root, abs, sizeof(rpt.project_root) - 1);
+        else
+            strncpy(rpt.project_root, dir, sizeof(rpt.project_root) - 1);
+    }
 
     /* Build standard string from config */
     char std_buf[128] = "";

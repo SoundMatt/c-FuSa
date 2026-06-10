@@ -42,6 +42,7 @@ const cfusa_command_t CFUSA_COMMANDS[] = {
     {"coupling",    "Data/control coupling analysis (DO-178C §6.4.4.3)",cmd_coupling},
     {"iso21434",    "ISO 21434 cybersecurity compliance gap report",    cmd_iso21434},
     {"unece",       "UN R.155 cybersecurity compliance gap report",     cmd_unece},
+    {"capabilities","Emit supported commands/formats (FuSaOps discovery)", cmd_capabilities},
     {"version",     "Print version",                                    cmd_version},
     {"help",        "Show this help",                                   cmd_help},
     {NULL, NULL, NULL}
@@ -87,5 +88,5 @@ int main(int argc, char **argv)
 
     fprintf(stderr, "cfusa: unknown command '%s'\n"
             "Run 'cfusa help' for a list of commands.\n", cmd_name);
-    return 1;
+    return 2;
 }

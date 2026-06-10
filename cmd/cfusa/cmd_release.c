@@ -9,6 +9,7 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 #include "cfusa/commands.h"
+#include "cfusa/version.h"
 
 /* Generates SPDX JSON SBOM (2.2, 2.3, or 3.0.1), SLSA provenance, and artifact manifest. */
 
@@ -97,13 +98,13 @@ static int write_sbom(const char *dir, const cfusa_config_t *cfg,
 int cmd_release(int argc, char **argv)
 {
     const char *dir      = ".";
-    const char *output   = ".cfusa_release";
-    const char *spdx_ver = "3.0.1";
+    const char *output   = NULL;   /* default: resolved to dir after arg parsing */
+    const char *spdx_ver = "2.3";
     int full = 0;
 
     static const struct option long_opts[] = {
         {"dir",          required_argument, NULL, 'd'},
-        {"output",       required_argument, NULL, 'o'},
+        {"output-dir",   required_argument, NULL, 'o'},
         {"full",         no_argument,       NULL, 'f'},
         {"spdx-version", required_argument, NULL, 's'},
         {"help",         no_argument,       NULL, 'h'},
@@ -119,15 +120,19 @@ int cmd_release(int argc, char **argv)
         case 'f': full     = 1;      break;
         case 's': spdx_ver = optarg; break;
         case 'h':
-            printf("Usage: cfusa release [--dir <path>] [--output <dir>]\n"
+            printf("Usage: cfusa release [--dir <path>] [--output-dir <dir>]\n"
                    "                     [--spdx-version 2.2|2.3|3.0.1] [--full]\n\n"
                    "Generates SBOM (SPDX), build provenance, and artifact hashes.\n"
-                   "--spdx-version selects SPDX format (default: 3.0.1).\n"
+                   "--output-dir defaults to the project root (--dir value).\n"
+                   "--spdx-version selects SPDX format (default: 2.3).\n"
                    "--full also produces fmea, boundary, vuln report, and SHA256SUMS.\n");
             return 0;
         default: return 1;
         }
     }
+
+    /* §7: --output-dir defaults to the project root */
+    if (!output) output = dir;
 
     cfusa_config_t cfg;
     cfusa_config_load(dir, &cfg);
@@ -136,12 +141,38 @@ int cmd_release(int argc, char **argv)
 
     char ts[32]; cfusa_timestamp_now(ts);
 
-    /* SBOM */
+    /* x-FuSa sbom.json (canonical, consumed by FuSaOps) */
     char sbom_path[512];
-    snprintf(sbom_path, sizeof(sbom_path), "%s/%s-%s.spdx.json",
+    snprintf(sbom_path, sizeof(sbom_path), "%s/sbom.json", output);
+    {
+        FILE *sf = fopen(sbom_path, "w");
+        if (sf) {
+            char module[256];
+            snprintf(module, sizeof(module), "%s@%s", cfg.project, cfg.version);
+            fprintf(sf,
+                "{\n"
+                "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+                "  \"kind\": \"sbom\",\n"
+                "  \"tool\": \"c-FuSa\",\n"
+                "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+                "  \"language\": \"c\",\n"
+                "  \"generatedAt\": \"%s\",\n"
+                "  \"format\": \"x-FuSa SBOM v1\",\n"
+                "  \"module\": \"%s\",\n"
+                "  \"components\": []\n"
+                "}\n",
+                ts, module);
+            fclose(sf);
+            printf("SBOM written:      %s\n", sbom_path);
+        }
+    }
+
+    /* SPDX document (optional; also written for tooling that reads SPDX) */
+    char spdx_path[512];
+    snprintf(spdx_path, sizeof(spdx_path), "%s/%s-%s.spdx.json",
              output, cfg.project, cfg.version);
-    write_sbom(dir, &cfg, sbom_path, ts, spdx_ver);
-    printf("SBOM written:      %s\n", sbom_path);
+    write_sbom(dir, &cfg, spdx_path, ts, spdx_ver);
+    printf("SPDX written:      %s\n", spdx_path);
 
     /* SLSA provenance — capture git commit SHA via popen if available */
     char commit[64] = "unknown";
@@ -169,30 +200,57 @@ int cmd_release(int argc, char **argv)
 
     char prov_path[512];
     snprintf(prov_path, sizeof(prov_path), "%s/provenance.json", output);
-    FILE *pf = fopen(prov_path,"w");
-    if (pf) {
-        fprintf(pf,
-            "{\n"
-            "  \"_type\": \"https://in-toto.io/Statement/v0.1\",\n"
-            "  \"subject\": [{\"name\": \"%s\", \"digest\": {\"sha256\": \"\"}}],\n"
-            "  \"predicateType\": \"https://slsa.dev/provenance/v0.2\",\n"
-            "  \"predicate\": {\n"
-            "    \"builder\": {\"id\": \"https://github.com/SoundMatt/c-FuSa\"},\n"
-            "    \"buildType\": \"cmake\",\n"
-            "    \"invocationEnvironment\": {\n"
-            "      \"commit\": \"%s\",\n"
-            "      \"branch\": \"%s\"\n"
-            "    },\n"
-            "    \"metadata\": {\n"
-            "      \"buildStartedOn\": \"%s\",\n"
-            "      \"completeness\": {\"arguments\": false, \"environment\": false, \"materials\": false}\n"
-            "    },\n"
-            "    \"materials\": []\n"
-            "  }\n"
-            "}\n",
-            cfg.project, commit, branch, ts);
-        fclose(pf);
-        printf("Provenance written: %s  (commit: %.8s)\n", prov_path, commit);
+    {
+        char module[256];
+        snprintf(module, sizeof(module), "%s@%s", cfg.project, cfg.version);
+        FILE *pf = fopen(prov_path,"w");
+        if (pf) {
+            fprintf(pf,
+                "{\n"
+                "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+                "  \"kind\": \"provenance\",\n"
+                "  \"tool\": \"c-FuSa\",\n"
+                "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+                "  \"language\": \"c\",\n"
+                "  \"generatedAt\": \"%s\",\n"
+                "  \"format\": \"x-FuSa provenance v1\",\n"
+                "  \"module\": \"%s\",\n"
+                "  \"builder\": \"local\",\n"
+                "  \"vcsRevision\": \"%s\",\n"
+                "  \"vcsBranch\": \"%s\",\n"
+                "  \"vcsModified\": false\n"
+                "}\n",
+                ts, module, commit, branch);
+            fclose(pf);
+            printf("Provenance written: %s  (commit: %.8s)\n", prov_path, commit);
+        }
+    }
+
+    /* artifact-manifest.json */
+    char artmfst_path[512];
+    snprintf(artmfst_path, sizeof(artmfst_path), "%s/artifact-manifest.json", output);
+    {
+        char hex[65];
+        cfusa_sha256_file(sbom_path, hex);
+        FILE *af = fopen(artmfst_path, "w");
+        if (af) {
+            fprintf(af,
+                "{\n"
+                "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+                "  \"kind\": \"artifact-manifest\",\n"
+                "  \"tool\": \"c-FuSa\",\n"
+                "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+                "  \"language\": \"c\",\n"
+                "  \"generatedAt\": \"%s\",\n"
+                "  \"format\": \"x-FuSa manifest v1\",\n"
+                "  \"artifacts\": [\n"
+                "    {\"path\": \"sbom.json\", \"sha256\": \"%s\"}\n"
+                "  ]\n"
+                "}\n",
+                ts, hex);
+            fclose(af);
+            printf("Manifest written:   %s\n", artmfst_path);
+        }
     }
 
     if (full) {

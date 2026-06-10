@@ -246,7 +246,7 @@ void test_release_spdx_version_flag(void)
 {
     char *argv[] = {"cfusa release",
                     "--dir",         NC_DIR,
-                    "--output",      NC_DIR,
+                    "--output-dir",  NC_DIR,
                     "--spdx-version","2.3", NULL};
     int rc = cmd_release(7, argv);
     TEST_ASSERT_EQUAL_INT(0, rc);
@@ -262,11 +262,11 @@ void test_release_spdx_version_flag(void)
     }
 }
 
-void test_release_spdx_301_default(void)
+void test_release_spdx_23_default(void)
 {
     char *argv[] = {"cfusa release",
-                    "--dir",    NC_DIR,
-                    "--output", NC_DIR, NULL};
+                    "--dir",        NC_DIR,
+                    "--output-dir", NC_DIR, NULL};
     cmd_release(5, argv);
     char sbom[512];
     snprintf(sbom, sizeof(sbom), "%s/nc-test-1.0.0.spdx.json", NC_DIR);
@@ -274,7 +274,7 @@ void test_release_spdx_301_default(void)
     if (f) {
         char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
         buf[n] = '\0'; fclose(f);
-        TEST_ASSERT_NOT_NULL(strstr(buf, "SPDX-3.0.1"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "SPDX-2.3"));
     }
 }
 
@@ -330,7 +330,7 @@ int main(void)
     RUN_TEST(test_disposition_add_requires_rule);
     /* release */
     RUN_TEST(test_release_spdx_version_flag);
-    RUN_TEST(test_release_spdx_301_default);
+    RUN_TEST(test_release_spdx_23_default);
     /* report JSON keys */
     RUN_TEST(test_report_json_uses_camel_case);
     return UNITY_END();

@@ -34,6 +34,8 @@ typedef struct {
     char             version[32];
     char             standard[128];
     char             timestamp[32];
+    char             project_root[512];
+    char             kind[32];
 } cfusa_report_t;
 
 typedef enum {

@@ -49,7 +49,21 @@ void cfusa_report_add(cfusa_report_t *rpt, const char *rule_id,
     memset(f, 0, sizeof(*f));
     strncpy(f->rule_id,  rule_id,  sizeof(f->rule_id)  - 1);
     strncpy(f->category, category, sizeof(f->category) - 1);
-    strncpy(f->file,     file,     sizeof(f->file)     - 1);
+
+    /* Relativize file path against project_root (§4 location.file MUST be
+     * relative to --dir, using '/' separators). */
+    {
+        const char *rel = file;
+        if (rpt->project_root[0]) {
+            size_t prlen = strlen(rpt->project_root);
+            if (strncmp(file, rpt->project_root, prlen) == 0 &&
+                (file[prlen] == '/' || file[prlen] == '\0'))
+                rel = file + prlen + (file[prlen] == '/');
+        }
+        while (rel[0] == '.' && rel[1] == '/') rel += 2;
+        strncpy(f->file, rel[0] ? rel : ".", sizeof(f->file) - 1);
+    }
+
     f->line     = line;
     f->severity = sev;
 
@@ -121,23 +135,33 @@ static void print_text(const cfusa_report_t *rpt, FILE *out)
 /* ---- JSON output ---- */
 static void print_json(const cfusa_report_t *rpt, FILE *out)
 {
-    char esc_proj[256], esc_ts[64], esc_std[256];
-    cfusa_str_escape_json(rpt->project,   esc_proj, sizeof(esc_proj));
-    cfusa_str_escape_json(rpt->timestamp, esc_ts,   sizeof(esc_ts));
-    cfusa_str_escape_json(rpt->standard,  esc_std,  sizeof(esc_std));
+    char esc_proj[256], esc_ts[64], esc_std[256], esc_root[512];
+    cfusa_str_escape_json(rpt->project,      esc_proj, sizeof(esc_proj));
+    cfusa_str_escape_json(rpt->timestamp,    esc_ts,   sizeof(esc_ts));
+    cfusa_str_escape_json(rpt->standard,     esc_std,  sizeof(esc_std));
+    cfusa_str_escape_json(rpt->project_root, esc_root, sizeof(esc_root));
+
+    int total = rpt->error_count + rpt->warning_count + rpt->info_count;
 
     fprintf(out,
         "{\n"
-        "  \"project\": \"%s\",\n"
-        "  \"version\": \"%s\",\n"
+        "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+        "  \"kind\": \"%s\",\n"
+        "  \"tool\": \"c-FuSa\",\n"
+        "  \"toolVersion\": \"%s\",\n"
+        "  \"language\": \"c\",\n"
         "  \"generatedAt\": \"%s\",\n"
+        "  \"projectRoot\": \"%s\",\n"
+        "  \"project\": \"%s\",\n"
         "  \"standard\": \"%s\",\n"
         "  \"score\": %.1f,\n"
-        "  \"summary\": {\"errors\": %d, \"warnings\": %d, \"infos\": %d},\n"
+        "  \"summary\": {\"total\": %d, \"errors\": %d, \"warnings\": %d, \"infos\": %d},\n"
         "  \"findings\": [\n",
-        esc_proj, rpt->version, esc_ts, esc_std,
+        rpt->kind[0] ? rpt->kind : "check-report",
+        rpt->version[0] ? rpt->version : CFUSA_VERSION_STRING,
+        esc_ts, esc_root, esc_proj, esc_std,
         cfusa_report_score(rpt),
-        rpt->error_count, rpt->warning_count, rpt->info_count);
+        total, rpt->error_count, rpt->warning_count, rpt->info_count);
 
     for (int i = 0; i < rpt->count; i++) {
         const cfusa_finding_t *f = &rpt->findings[i];
@@ -147,7 +171,7 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
         fprintf(out,
             "    {\"ruleId\": \"%s\", \"category\": \"%s\","
             " \"severity\": \"%s\","
-            " \"file\": \"%s\", \"line\": %d,"
+            " \"location\": {\"file\": \"%s\", \"line\": %d},"
             " \"message\": \"%s\"}%s\n",
             f->rule_id, f->category,
             cfusa_severity_str(f->severity),

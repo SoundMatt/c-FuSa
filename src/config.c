@@ -98,20 +98,80 @@ int cfusa_config_load(const char *dir, cfusa_config_t *cfg)
 
     size_t len;
     char *json = cfusa_read_file(path, &len);
+    if (!json) {
+        /* §1.2 fallback: try legacy .cfusa.json with deprecation warning */
+        cfusa_path_join(path, sizeof(path), dir, CFUSA_CONFIG_FILE_LEGACY);
+        json = cfusa_read_file(path, &len);
+        if (json)
+            fprintf(stderr, "cfusa: WARNING: %s is deprecated; rename to %s\n",
+                    CFUSA_CONFIG_FILE_LEGACY, CFUSA_CONFIG_FILE);
+    }
     if (!json) return -1;
 
-    extract_string(json, "project", cfg->project, sizeof(cfg->project));
-    extract_string(json, "version", cfg->version, sizeof(cfg->version));
+    /* §1.2.1: accept both flat "project":"name" and nested "project":{"name":…} */
+    {
+        const char *p = strstr(json, "\"project\"");
+        if (p) {
+            p += 9; while (*p == ' ' || *p == ':') p++;
+            if (*p == '{') {
+                /* nested form: extract "name" and "version" */
+                const char *bs = p;
+                const char *be = strchr(bs, '}');
+                if (be) {
+                    char obj[256] = "";
+                    size_t ol = (size_t)(be - bs + 1);
+                    if (ol > sizeof(obj) - 1) ol = sizeof(obj) - 1;
+                    memcpy(obj, bs, ol);
+                    extract_string(obj, "name",    cfg->project, sizeof(cfg->project));
+                    extract_string(obj, "version", cfg->version, sizeof(cfg->version));
+                }
+            } else {
+                /* flat form */
+                extract_string(json, "project", cfg->project, sizeof(cfg->project));
+                extract_string(json, "version", cfg->version, sizeof(cfg->version));
+            }
+        }
+    }
+    /* Also try top-level "version" for legacy flat configs */
+    if (!cfg->version[0])
+        extract_string(json, "version", cfg->version, sizeof(cfg->version));
     cfg->strict             = extract_int(json, "strict", cfg->strict);
     cfg->max_function_lines = extract_int(json, "max_function_lines",
                                           cfg->max_function_lines);
 
-    extract_str_array_n(json, "standards",   (char *)cfg->standards,
-                        (int)sizeof(cfg->standards[0]),
-                        CFUSA_MAX_STANDARDS, &cfg->standards_count);
-    extract_str_array_n(json, "exclude_dirs",(char *)cfg->exclude_dirs,
-                        (int)sizeof(cfg->exclude_dirs[0]),
-                        CFUSA_MAX_EXCLUDES, &cfg->exclude_count);
+    /* §1.2.1 "standard" (single canonical id) — also accept old "standards" array */
+    {
+        char std1[32] = "";
+        extract_string(json, "standard", std1, sizeof(std1));
+        if (std1[0]) {
+            strncpy(cfg->standards[0], std1, 31);
+            cfg->standards_count = 1;
+        } else {
+            extract_str_array_n(json, "standards", (char *)cfg->standards,
+                                (int)sizeof(cfg->standards[0]),
+                                CFUSA_MAX_STANDARDS, &cfg->standards_count);
+        }
+    }
+
+    /* §1.2.1 "excludePatterns" — strip trailing glob suffix for internal storage */
+    {
+        int count = 0;
+        char raw[CFUSA_MAX_EXCLUDES][256];
+        extract_str_array_n(json, "excludePatterns", (char *)raw,
+                            256, CFUSA_MAX_EXCLUDES, &count);
+        if (count > 0) {
+            cfg->exclude_count = count;
+            for (int i = 0; i < count; i++) {
+                char *sl = strstr(raw[i], "/**");
+                if (sl) *sl = '\0';
+                strncpy(cfg->exclude_dirs[i], raw[i], 255);
+            }
+        } else {
+            extract_str_array_n(json, "exclude_dirs", (char *)cfg->exclude_dirs,
+                                (int)sizeof(cfg->exclude_dirs[0]),
+                                CFUSA_MAX_EXCLUDES, &cfg->exclude_count);
+        }
+    }
 
     free(json);
     return 0;
@@ -125,25 +185,23 @@ int cfusa_config_save(const char *dir, const cfusa_config_t *cfg)
     FILE *f = fopen(path, "w");
     if (!f) { perror(path); return -1; }
 
+    /* §1.2.1 conformant schema (configVersion is its own series, stays "1.0") */
     fprintf(f, "{\n");
-    fprintf(f, "  \"project\": \"%s\",\n", cfg->project);
-    fprintf(f, "  \"version\": \"%s\",\n", cfg->version);
-    fprintf(f, "  \"strict\": %s,\n",       cfg->strict ? "true" : "false");
+    fprintf(f, "  \"configVersion\": \"1.0\",\n");
+    fprintf(f, "  \"project\": {\"name\": \"%s\", \"version\": \"%s\"},\n",
+            cfg->project, cfg->version[0] ? cfg->version : "0.1.0");
+    /* primary standard (first in the list) */
+    if (cfg->standards_count > 0)
+        fprintf(f, "  \"standard\": \"%s\",\n", cfg->standards[0]);
+    fprintf(f, "  \"strict\": %s,\n", cfg->strict ? "true" : "false");
+    /* tool-defined extension: keep max_function_lines for internal use */
     fprintf(f, "  \"max_function_lines\": %d,\n", cfg->max_function_lines);
 
-    fprintf(f, "  \"standards\": [");
-    for (int i = 0; i < cfg->standards_count; i++)
-        fprintf(f, "%s\"%s\"", i ? ", " : "", cfg->standards[i]);
-    fprintf(f, "],\n");
+    fprintf(f, "  \"sourceDirs\": [\".\"],\n");
 
-    fprintf(f, "  \"exclude_dirs\": [");
+    fprintf(f, "  \"excludePatterns\": [");
     for (int i = 0; i < cfg->exclude_count; i++)
-        fprintf(f, "%s\"%s\"", i ? ", " : "", cfg->exclude_dirs[i]);
-    fprintf(f, "],\n");
-
-    fprintf(f, "  \"src_extensions\": [");
-    for (int i = 0; i < cfg->ext_count; i++)
-        fprintf(f, "%s\"%s\"", i ? ", " : "", cfg->src_exts[i]);
+        fprintf(f, "%s\"%s/**\"", i ? ", " : "", cfg->exclude_dirs[i]);
     fprintf(f, "]\n");
 
     fprintf(f, "}\n");
