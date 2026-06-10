@@ -39,7 +39,7 @@ void test_tara_generates_json(void)
     (void)remove(path);
 
     char md_path[256];
-    snprintf(md_path, sizeof(md_path), "%s/TARA.md", SC_TEST_DIR);
+    snprintf(md_path, sizeof(md_path), "%s/tara.md", SC_TEST_DIR);
     (void)remove(md_path);
 }
 

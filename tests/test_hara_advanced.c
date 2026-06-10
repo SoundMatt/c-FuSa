@@ -150,7 +150,7 @@ void test_hara_s5_returns_qm(void)
 void test_hara_init_creates_file(void)
 {
     char path[256];
-    snprintf(path, sizeof(path), "%s/.cfusa-hara.json", HARA_DIR);
+    snprintf(path, sizeof(path), "%s/.fusa-hara.json", HARA_DIR);
     (void)remove(path);
 
     char *argv[] = {"cfusa", "init", "--dir", HARA_DIR, NULL};

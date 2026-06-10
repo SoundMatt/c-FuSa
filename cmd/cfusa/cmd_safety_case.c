@@ -12,7 +12,7 @@
 int cmd_safety_case(int argc, char **argv)
 {
     const char *dir      = ".";
-    const char *output   = "SAFETY_CASE.md";
+    const char *output   = "safety-case.md";
     const char *standard = NULL;
     int gsn_only = 0;
 
@@ -34,7 +34,7 @@ int cmd_safety_case(int argc, char **argv)
         case 'S': standard = optarg; break;
         case 'g': gsn_only = 1;     break;
         case 'h':
-            printf("Usage: cfusa safety-case [--dir <path>] [--output SAFETY_CASE.md]\n"
+            printf("Usage: cfusa safety-case [--dir <path>] [--output safety-case.md]\n"
                    "                          [--standard iso26262|do178c|iec61508]\n"
                    "                          [--gsn]\n\n"
                    "Generates a GSN safety case skeleton with evidence index.\n");
@@ -64,14 +64,14 @@ int cmd_safety_case(int argc, char **argv)
         "> **%s is acceptably safe for its intended use in its intended environment**\n\n"
         "### Evidence for G1\n\n"
         "| Evidence Item | Source | Status |\n|---|---|---|\n"
-        "| Hazard analysis complete | HARA.md | [ ] |\n"
-        "| Safety requirements defined | SAFETY_PLAN.md | [ ] |\n"
+        "| Hazard analysis complete | hara.md | [ ] |\n"
+        "| Safety requirements defined | safety-plan.md | [ ] |\n"
         "| MISRA-C lint clean | cfusa lint | [ ] |\n"
         "| Static analysis clean | cfusa analyze | [ ] |\n"
-        "| Cybersecurity analysis complete | cfusa cyber / TARA.md | [ ] |\n"
+        "| Cybersecurity analysis complete | cfusa cyber / tara.md | [ ] |\n"
         "| Test evidence complete | cfusa verify | [ ] |\n"
         "| Coverage targets met | cfusa coverage | [ ] |\n"
-        "| FMEA complete | FMEA.md | [ ] |\n"
+        "| FMEA complete | fmea.md | [ ] |\n"
         "| Tool qualification | cfusa qualify | [ ] |\n"
         "| SCI produced | cfusa sci | [ ] |\n\n"
         "---\n\n"
@@ -81,7 +81,7 @@ int cmd_safety_case(int argc, char **argv)
         "- Strategy: S1 — Argue over identified hazardous events\n\n"
         "### G1.1 Sub-goals\n\n"
         "| ID | Sub-goal | Evidence |\n|---|---|---|\n"
-        "| G1.1.1 | Hazardous event HE-001 risk is [ASIL] or below | HARA.md §2 |\n"
+        "| G1.1.1 | Hazardous event HE-001 risk is [ASIL] or below | hara.md §2 |\n"
         "| G1.1.2 | Software contributes no additional hazards | cfusa check (exit 0) |\n\n"
         "---\n\n"
         "## G1.2 — Process Confidence\n\n"
@@ -108,8 +108,8 @@ int cmd_safety_case(int argc, char **argv)
                 "| File | Present | SHA-256 |\n|---|---|---|\n");
 
         static const char * const evidence_files[] = {
-            "HARA.md","SAFETY_PLAN.md","TARA.md","FMEA.md",
-            "TEST_EVIDENCE.md","SAS.md",".cfusa.json",NULL
+            "hara.md","safety-plan.md","tara.md","fmea.md",
+            "test-evidence.md","sas.md",".fusa.json",NULL
         };
         for (int i=0; evidence_files[i]; i++) {
             char ep[512];

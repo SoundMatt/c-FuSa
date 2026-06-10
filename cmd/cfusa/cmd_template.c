@@ -14,7 +14,7 @@ typedef struct {
 static const template_t TEMPLATES[] = {
     {
         "safety-plan",
-        "SAFETY_PLAN.md",
+        "safety-plan.md",
         "Software Safety Plan (ISO 26262 / IEC 61508)",
         "# Software Safety Plan\n\n"
         "**Project:** {PROJECT}  \n**Version:** {VERSION}  \n**Standard:** ISO 26262 Part 6\n\n"
@@ -34,7 +34,7 @@ static const template_t TEMPLATES[] = {
     },
     {
         "test-evidence",
-        "TEST_EVIDENCE.md",
+        "test-evidence.md",
         "Test Evidence Summary (DO-178C / ISO 26262)",
         "# Test Evidence Summary\n\n"
         "**Project:** {PROJECT}  \n**Version:** {VERSION}  \n**Generated:** {TIMESTAMP}\n\n"
@@ -50,7 +50,7 @@ static const template_t TEMPLATES[] = {
     },
     {
         "hara",
-        "HARA.md",
+        "hara.md",
         "Hazard Analysis and Risk Assessment (ISO 26262 Part 3)",
         "# Hazard Analysis and Risk Assessment (HARA)\n\n"
         "**Project:** {PROJECT}  \n**Version:** {VERSION}\n\n"
@@ -65,7 +65,7 @@ static const template_t TEMPLATES[] = {
     },
     {
         "psac",
-        "PSAC.md",
+        "psac.md",
         "Plan for Software Aspects of Certification (DO-178C §11.1)",
         "# Plan for Software Aspects of Certification (PSAC)\n\n"
         "**Project:** {PROJECT}  \n**Version:** {VERSION}  \n**DAL:** [A/B/C/D]\n\n"

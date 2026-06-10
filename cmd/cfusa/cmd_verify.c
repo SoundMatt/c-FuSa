@@ -13,7 +13,7 @@
 int cmd_verify(int argc, char **argv)
 {
     const char *dir    = ".";
-    const char *output = "TEST_EVIDENCE.md";
+    const char *output = "test-evidence.md";
     const char *fmt_s  = "md";
 
     static const struct option long_opts[] = {
@@ -32,7 +32,7 @@ int cmd_verify(int argc, char **argv)
         case 'o': output = optarg; break;
         case 'f': fmt_s  = optarg; break;
         case 'h':
-            printf("Usage: cfusa verify [--dir <path>] [--output TEST_EVIDENCE.md]\n"
+            printf("Usage: cfusa verify [--dir <path>] [--output test-evidence.md]\n"
                    "                    [--format md|text|json]\n\n"
                    "Collects test result files and coverage data into a verification bundle.\n");
             return 0;

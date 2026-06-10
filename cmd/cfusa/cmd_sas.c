@@ -39,7 +39,7 @@ static const sas_item_t SAS_ITEMS[] = {
 int cmd_sas(int argc, char **argv)
 {
     const char *dir    = ".";
-    const char *output = "SAS.md";
+    const char *output = "sas.md";
     const char *fmt_s  = "md";
 
     static const struct option long_opts[] = {
@@ -58,7 +58,7 @@ int cmd_sas(int argc, char **argv)
         case 'o': output = optarg; break;
         case 'f': fmt_s  = optarg; break;
         case 'h':
-            printf("Usage: cfusa sas [--dir <path>] [--output SAS.md]\n"
+            printf("Usage: cfusa sas [--dir <path>] [--output sas.md]\n"
                    "                 [--format md|text|json]\n\n"
                    "Generates a Software Accomplishment Summary skeleton (DO-178C §11.20).\n");
             return 0;

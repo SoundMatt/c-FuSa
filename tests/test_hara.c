@@ -81,7 +81,7 @@ void test_hara_init_creates_file(void)
     TEST_ASSERT_EQUAL(0, rc);
 
     char path[256];
-    snprintf(path, sizeof(path), "%s/.cfusa-hara.json", HARA_TEST_DIR);
+    snprintf(path, sizeof(path), "%s/.fusa-hara.json", HARA_TEST_DIR);
     FILE *f = fopen(path, "r");
     TEST_ASSERT_NOT_NULL(f);
     if (f) fclose(f);

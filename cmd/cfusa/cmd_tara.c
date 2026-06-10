@@ -99,10 +99,10 @@ int cmd_tara(int argc, char **argv)
         case 'D': output_dir = optarg; break;
         case 'f': fmt_s      = optarg; break;
         case 'h':
-            printf("Usage: cfusa tara [--dir <path>] [--output TARA.md]\n"
+            printf("Usage: cfusa tara [--dir <path>] [--output tara.md]\n"
                    "                  [--output-dir <dir>] [--format md|json]\n\n"
                    "Generates an ISO 21434 Clause 9 TARA document skeleton.\n"
-                   "Default: writes both tara.json and TARA.md.\n");
+                   "Default: writes both tara.json and tara.md.\n");
             return 0;
         default: return 1;
         }
@@ -136,7 +136,7 @@ int cmd_tara(int argc, char **argv)
     /* Single format */
     if (fmt_s) {
         char out_path[512];
-        const char *fname = !strcmp(fmt_s,"json") ? "tara.json" : "TARA.md";
+        const char *fname = !strcmp(fmt_s,"json") ? "tara.json" : "tara.md";
         cfusa_path_join(out_path, sizeof(out_path), base, fname);
         FILE *f = fopen(out_path, "w");
         if (!f) { perror(out_path); return 1; }
@@ -156,7 +156,7 @@ int cmd_tara(int argc, char **argv)
     /* Default: write both tara.json and TARA.md */
     char json_path[512], md_path[512];
     cfusa_path_join(json_path, sizeof(json_path), base, "tara.json");
-    cfusa_path_join(md_path,   sizeof(md_path),   base, "TARA.md");
+    cfusa_path_join(md_path,   sizeof(md_path),   base, "tara.md");
 
     FILE *jf = fopen(json_path, "w");
     if (!jf) { perror(json_path); return 1; }

@@ -117,7 +117,7 @@ int cmd_fmea(int argc, char **argv)
                    "                  [--format md|json|csv] [--cyber]\n\n"
                    "Generates a design FMEA skeleton from function signatures.\n"
                    "Default: generates both fmea.json and fmea.csv (IEC 60812 / ISO 26262-5).\n"
-                   "--format md  generates FMEA.md instead.\n"
+                   "--format md  generates fmea.md instead.\n"
                    "--cyber      enriches entries with cybersecurity failure modes.\n");
             return 0;
         default: return 1;
@@ -203,7 +203,7 @@ int cmd_fmea(int argc, char **argv)
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
     const char *def_name = (fmt == FMT_JSON) ? "fmea.json" :
-                           (fmt == FMT_CSV)  ? "fmea.csv"  : "FMEA.md";
+                           (fmt == FMT_CSV)  ? "fmea.csv"  : "fmea.md";
     FILE *f;
     OPEN_OUT(def_name, f);
 

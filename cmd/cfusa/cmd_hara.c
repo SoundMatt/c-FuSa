@@ -1,5 +1,5 @@
 #if defined(__linux__) || defined(__unix__)
-#define _POSIX_C_SOURCE 200809L
+#  define _GNU_SOURCE
 #endif
 
 #include <stdio.h>
@@ -18,7 +18,8 @@
  *   asil  — compute ASIL from S/E/C parameters
  */
 
-#define HARA_FILE ".cfusa-hara.json"
+#define HARA_FILE        ".fusa-hara.json"
+#define HARA_FILE_LEGACY ".cfusa-hara.json"
 
 /*
  * ISO 26262-3:2018 Table 4 ASIL determination.
@@ -111,9 +112,17 @@ static void do_show(const char *dir)
     size_t len;
     char *content = cfusa_read_file(path, &len);
     if (!content) {
-        fprintf(stderr, "cfusa hara: no %s found — run 'cfusa hara init' first\n",
-                HARA_FILE);
-        return;
+        /* legacy fallback */
+        char legacy[512];
+        cfusa_path_join(legacy, sizeof(legacy), dir, HARA_FILE_LEGACY);
+        content = cfusa_read_file(legacy, &len);
+        if (content) {
+            strncpy(path, legacy, sizeof(path) - 1);
+        } else {
+            fprintf(stderr, "cfusa hara: no %s found — run 'cfusa hara init' first\n",
+                    HARA_FILE);
+            return;
+        }
     }
 
     printf("Hazard Analysis and Risk Assessment\n");
@@ -226,7 +235,7 @@ int cmd_hara(int argc, char **argv)
         case 'h':
             printf("Usage: cfusa hara <subcommand> [options]\n\n"
                    "Subcommands:\n"
-                   "  init   Write a .cfusa-hara.json skeleton\n"
+                   "  init   Write a .fusa-hara.json skeleton\n"
                    "  show   Display all hazard entries with ASIL rating\n"
                    "  asil   Compute ASIL from S/E/C parameters\n\n"
                    "Options for 'asil':\n"
