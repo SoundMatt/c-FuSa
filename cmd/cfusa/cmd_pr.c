@@ -7,10 +7,11 @@
 
 /*
  * Problem Report CRUD log (DO-178C §11.17 / ISO 26262-8 §8).
- * Stores PRs in .cfusa_prs.jsonl (newline-delimited JSON).
+ * Stores PRs in .fusa-prs.jsonl (newline-delimited JSON).
  */
 
-#define PR_LOG_FILE ".cfusa_prs.jsonl"
+#define PR_LOG_FILE        ".fusa-prs.jsonl"
+#define PR_LOG_FILE_LEGACY ".cfusa_prs.jsonl"
 
 static void new_pr(const char *dir, const char *title,
                    const char *severity, const char *description)
@@ -53,6 +54,11 @@ static void list_prs(const char *dir, const char *filter_status)
 
     FILE *f = fopen(path,"r");
     if (!f) {
+        char legacy[512];
+        cfusa_path_join(legacy, sizeof(legacy), dir, PR_LOG_FILE_LEGACY);
+        f = fopen(legacy,"r");
+    }
+    if (!f) {
         printf("No problem reports found.\n");
         return;
     }
@@ -81,6 +87,11 @@ static void close_pr(const char *dir, const char *pr_id, const char *resolution)
 
     size_t len;
     char *content = cfusa_read_file(path, &len);
+    if (!content) {
+        char legacy[512];
+        cfusa_path_join(legacy, sizeof(legacy), dir, PR_LOG_FILE_LEGACY);
+        content = cfusa_read_file(legacy, &len);
+    }
     if (!content) { fprintf(stderr,"cfusa pr: no PRs found\n"); return; }
 
     char tmp_path[512];

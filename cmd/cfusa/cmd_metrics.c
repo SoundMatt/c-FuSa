@@ -4,16 +4,18 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /*
  * Safety metrics tracking over time.
- * Records snapshots of cfusa findings counts in .cfusa-metrics.jsonl
+ * Records snapshots of cfusa findings counts in .fusa-metrics.jsonl
  * (newline-delimited JSON, one record per snapshot).
  *
  * Subcommands: record, show
  */
 
-#define METRICS_FILE ".cfusa-metrics.jsonl"
+#define METRICS_FILE        ".fusa-metrics.jsonl"
+#define METRICS_FILE_LEGACY ".cfusa-metrics.jsonl"
 
 static void do_record(const char *dir, int errors, int warnings, int infos,
                       const char *label)
@@ -30,7 +32,11 @@ static void do_record(const char *dir, int errors, int warnings, int infos,
     if (!f) { perror(path); return; }
 
     fprintf(f,
-        "{\"timestamp\":\"%s\",\"label\":\"%s\","
+        "{\"schemaVersion\":\"" CFUSA_SCHEMA_VERSION "\","
+        "\"kind\":\"metrics-snapshot\","
+        "\"tool\":\"c-FuSa\",\"toolVersion\":\"" CFUSA_VERSION_STRING "\","
+        "\"language\":\"c\","
+        "\"timestamp\":\"%s\",\"label\":\"%s\","
         "\"errors\":%d,\"warnings\":%d,\"info\":%d,"
         "\"total\":%d}\n",
         ts, esc_label, errors, warnings, infos,
@@ -47,6 +53,12 @@ static void do_show(const char *dir)
     cfusa_path_join(path, sizeof(path), dir, METRICS_FILE);
 
     FILE *f = fopen(path, "r");
+    if (!f) {
+        /* legacy fallback */
+        char legacy[512];
+        cfusa_path_join(legacy, sizeof(legacy), dir, METRICS_FILE_LEGACY);
+        f = fopen(legacy, "r");
+    }
     if (!f) {
         printf("No metrics recorded yet. Run 'cfusa metrics record --errors N ...' to start.\n");
         return;
@@ -130,7 +142,7 @@ int cmd_metrics(int argc, char **argv)
                    "Subcommands:\n"
                    "  record  --errors N --warnings N --info N [--label <tag>]\n"
                    "  show    Display metrics history\n\n"
-                   "Metrics are appended to .cfusa-metrics.jsonl\n\n"
+                   "Metrics are appended to .fusa-metrics.jsonl\n\n"
                    "Example — record after cfusa check:\n"
                    "  cfusa check --dir src/ --format json --output report.json\n"
                    "  E=$(jq .summary.errors report.json)\n"

@@ -7,13 +7,14 @@
 
 /*
  * Finding disposition tracking.
- * Stores accepted/fixed findings in .cfusa-dispositions.json.
+ * Stores accepted/fixed findings in .fusa-dispositions.json.
  *
  * Subcommands: add, list, show
  * Flags align with go-FuSa: --reviewer, --action accept|fix, --ref
  */
 
-#define DISP_FILE ".cfusa-dispositions.json"
+#define DISP_FILE        ".fusa-dispositions.json"
+#define DISP_FILE_LEGACY ".cfusa-dispositions.json"
 
 static void write_dispositions_header(FILE *f)
 {
@@ -98,6 +99,11 @@ static void do_list(const char *dir)
     size_t len = 0;
     char *content = cfusa_read_file(path, &len);
     if (!content) {
+        char legacy[512];
+        cfusa_path_join(legacy, sizeof(legacy), dir, DISP_FILE_LEGACY);
+        content = cfusa_read_file(legacy, &len);
+    }
+    if (!content) {
         printf("No dispositions found.\n");
         return;
     }
@@ -132,6 +138,11 @@ static void do_show(const char *dir, const char *disp_id)
 
     size_t len = 0;
     char *content = cfusa_read_file(path, &len);
+    if (!content) {
+        char legacy[512];
+        cfusa_path_join(legacy, sizeof(legacy), dir, DISP_FILE_LEGACY);
+        content = cfusa_read_file(legacy, &len);
+    }
     if (!content) { fprintf(stderr, "cfusa disposition: no %s found\n", DISP_FILE); return; }
 
     char *p = content;
@@ -216,7 +227,7 @@ int cmd_disposition(int argc, char **argv)
                    "        --rationale <text> --reviewer <name> [--ref <ticket>]\n"
                    "  list  Show all dispositions\n"
                    "  show  <DISP-ID>  Show single disposition detail\n\n"
-                   "Stored in .cfusa-dispositions.json\n");
+                   "Stored in .fusa-dispositions.json\n");
             return 0;
         default: return 1;
         }

@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /* Software Configuration Index — lists all source files with SHA-256 checksums */
 
@@ -72,9 +73,18 @@ int cmd_sci(int argc, char **argv)
     char ts[32]; cfusa_timestamp_now(ts);
 
     if (!strcmp(fmt_s,"json")) {
-        fprintf(out, "{\n  \"project\": \"%s\", \"version\": \"%s\","
-                " \"timestamp\": \"%s\",\n  \"files\": [",
-                cfg.project, cfg.version, ts);
+        fprintf(out,
+                "{\n"
+                "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+                "  \"kind\": \"sci\",\n"
+                "  \"tool\": \"c-FuSa\",\n"
+                "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+                "  \"language\": \"c\",\n"
+                "  \"generatedAt\": \"%s\",\n"
+                "  \"project\": \"%s\",\n"
+                "  \"version\": \"%s\",\n"
+                "  \"files\": [",
+                ts, cfg.project, cfg.version);
     } else if (!strcmp(fmt_s,"md")) {
         fprintf(out, "# Software Configuration Index\n\n"
                 "**Project:** %s v%s  |  **Generated:** %s\n\n"
