@@ -134,7 +134,21 @@ static void scan_line(const char *path, int lineno,
 static int scan_file(const char *path, void *v)
 { cfusa_scan_lines(path, scan_line, v); return 0; }
 
-static void do_req_export(const char *dir, const char *output)
+/* XML helper: escape < > & " for attribute/element text */
+static void xml_escape(FILE *f, const char *s)
+{
+    for (; *s; s++) {
+        switch (*s) {
+        case '<':  fputs("&lt;",   f); break;
+        case '>':  fputs("&gt;",   f); break;
+        case '&':  fputs("&amp;",  f); break;
+        case '"':  fputs("&quot;", f); break;
+        default:   fputc(*s, f);      break;
+        }
+    }
+}
+
+static void do_req_export(const char *dir, const char *output, const char *fmt)
 {
     g_req_count = g_tag_count = 0;
     load_reqs(dir);
@@ -148,11 +162,83 @@ static void do_req_export(const char *dir, const char *output)
     FILE *f = output ? fopen(output, "w") : stdout;
     if (!f) { perror(output); return; }
 
-    fprintf(f, "id,title,text,standard,level\n");
-    for (int i = 0; i < g_req_count; i++) {
-        fprintf(f, "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
-                g_reqs[i].id, g_reqs[i].title, g_reqs[i].text,
-                g_reqs[i].standard, g_reqs[i].level);
+    if (fmt && !strcmp(fmt, "doors")) {
+        /* ReqIF XML (minimal) */
+        fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        fprintf(f, "<REQ-IF>\n  <CORE-CONTENT>\n    <SPEC-OBJECTS>\n");
+        for (int i = 0; i < g_req_count; i++) {
+            fprintf(f, "      <SPEC-OBJECT>\n        <VALUES>\n");
+            fprintf(f, "          <ATTRIBUTE-VALUE-STRING THE-VALUE=\"");
+            xml_escape(f, g_reqs[i].id);    fprintf(f, "\">"
+                       "<DEFINITION><ATTRIBUTE-DEFINITION-STRING-REF>attr-id</ATTRIBUTE-DEFINITION-STRING-REF></DEFINITION>"
+                       "</ATTRIBUTE-VALUE-STRING>\n");
+            fprintf(f, "          <ATTRIBUTE-VALUE-STRING THE-VALUE=\"");
+            xml_escape(f, g_reqs[i].title); fprintf(f, "\">"
+                       "<DEFINITION><ATTRIBUTE-DEFINITION-STRING-REF>attr-title</ATTRIBUTE-DEFINITION-STRING-REF></DEFINITION>"
+                       "</ATTRIBUTE-VALUE-STRING>\n");
+            fprintf(f, "          <ATTRIBUTE-VALUE-STRING THE-VALUE=\"");
+            xml_escape(f, g_reqs[i].text);  fprintf(f, "\">"
+                       "<DEFINITION><ATTRIBUTE-DEFINITION-STRING-REF>attr-text</ATTRIBUTE-DEFINITION-STRING-REF></DEFINITION>"
+                       "</ATTRIBUTE-VALUE-STRING>\n");
+            fprintf(f, "        </VALUES>\n      </SPEC-OBJECT>\n");
+        }
+        fprintf(f, "    </SPEC-OBJECTS>\n  </CORE-CONTENT>\n</REQ-IF>\n");
+    } else if (fmt && !strcmp(fmt, "polarion")) {
+        /* Polarion XML */
+        fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<workitems>\n");
+        for (int i = 0; i < g_req_count; i++) {
+            fprintf(f, "  <workitem id=\""); xml_escape(f, g_reqs[i].id); fprintf(f, "\">\n");
+            fprintf(f, "    <title>"); xml_escape(f, g_reqs[i].title); fprintf(f, "</title>\n");
+            if (g_reqs[i].text[0])
+                { fprintf(f, "    <description>"); xml_escape(f, g_reqs[i].text); fprintf(f, "</description>\n"); }
+            if (g_reqs[i].level[0]) {
+                fprintf(f, "    <customFields>\n");
+                fprintf(f, "      <customField id=\"level\" value=\""); xml_escape(f, g_reqs[i].level); fprintf(f, "\"/>\n");
+                fprintf(f, "    </customFields>\n");
+            }
+            fprintf(f, "  </workitem>\n");
+        }
+        fprintf(f, "</workitems>\n");
+    } else if (fmt && !strcmp(fmt, "codebeamer")) {
+        /* Codebeamer XML */
+        fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tracker>\n");
+        for (int i = 0; i < g_req_count; i++) {
+            fprintf(f, "  <item id=\""); xml_escape(f, g_reqs[i].id); fprintf(f, "\">\n");
+            fprintf(f, "    <summary>"); xml_escape(f, g_reqs[i].title); fprintf(f, "</summary>\n");
+            if (g_reqs[i].text[0])
+                { fprintf(f, "    <description>"); xml_escape(f, g_reqs[i].text); fprintf(f, "</description>\n"); }
+            if (g_reqs[i].level[0]) {
+                fprintf(f, "    <customFields>\n");
+                fprintf(f, "      <customField id=\"level\" value=\""); xml_escape(f, g_reqs[i].level); fprintf(f, "\"/>\n");
+                fprintf(f, "    </customFields>\n");
+            }
+            fprintf(f, "  </item>\n");
+        }
+        fprintf(f, "</tracker>\n");
+    } else if (fmt && !strcmp(fmt, "jama")) {
+        /* Jama Connect XML */
+        fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<items>\n");
+        for (int i = 0; i < g_req_count; i++) {
+            fprintf(f, "  <item id=\""); xml_escape(f, g_reqs[i].id); fprintf(f, "\" itemType=\"requirement\">\n");
+            fprintf(f, "    <name>"); xml_escape(f, g_reqs[i].title); fprintf(f, "</name>\n");
+            if (g_reqs[i].text[0])
+                { fprintf(f, "    <description>"); xml_escape(f, g_reqs[i].text); fprintf(f, "</description>\n"); }
+            if (g_reqs[i].level[0]) {
+                fprintf(f, "    <fields>\n");
+                fprintf(f, "      <field id=\"level\" value=\""); xml_escape(f, g_reqs[i].level); fprintf(f, "\"/>\n");
+                fprintf(f, "    </fields>\n");
+            }
+            fprintf(f, "  </item>\n");
+        }
+        fprintf(f, "</items>\n");
+    } else {
+        /* CSV (default) */
+        fprintf(f, "id,title,text,standard,level\n");
+        for (int i = 0; i < g_req_count; i++) {
+            fprintf(f, "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                    g_reqs[i].id, g_reqs[i].title, g_reqs[i].text,
+                    g_reqs[i].standard, g_reqs[i].level);
+        }
     }
 
     if (output) fclose(f);
@@ -497,14 +583,13 @@ int cmd_req(int argc, char **argv)
         case 'F': fmt    = optarg; break;
         case 'h':
             printf("Usage: cfusa req [--dir <path>] [REQ-ID ...]\n"
-                   "       cfusa req export [--output requirements.csv]\n"
+                   "       cfusa req export [--format csv|doors|polarion|codebeamer|jama] [--output <file>]\n"
                    "       cfusa req import [--format csv|doors|polarion|codebeamer|jama] <file>\n\n"
                    "List requirements and their source/test locations.\n"
                    "With no IDs, lists all requirements from .cfusa-reqs.json.\n"
                    "With IDs, filters to the named requirements.\n"
-                   "export: write requirements to CSV\n"
+                   "export: write requirements (csv default, doors/polarion=ReqIF XML, codebeamer, jama)\n"
                    "import: read ALM export and merge into .cfusa-reqs.json\n"
-                   "  formats: csv (default), doors/polarion (ReqIF XML), codebeamer, jama\n"
                    "  Format is auto-detected from file extension if not specified.\n");
             return 0;
         default: return 1;
@@ -512,7 +597,7 @@ int cmd_req(int argc, char **argv)
     }
 
     if (subcmd && !strcmp(subcmd, "export")) {
-        do_req_export(dir, output);
+        do_req_export(dir, output, fmt);
         return 0;
     }
     if (subcmd && !strcmp(subcmd, "import")) {

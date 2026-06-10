@@ -42,25 +42,28 @@ int cmd_sas(int argc, char **argv)
     const char *dir    = ".";
     const char *output = "sas.md";
     const char *fmt_s  = "md";
+    const char *dal    = "DAL-B";
 
     static const struct option long_opts[] = {
         {"dir",    required_argument, NULL, 'd'},
         {"output", required_argument, NULL, 'o'},
         {"format", required_argument, NULL, 'f'},
+        {"dal",    required_argument, NULL, 'D'},
         {"help",   no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:o:f:h", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:o:f:D:h", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir    = optarg; break;
         case 'o': output = optarg; break;
         case 'f': fmt_s  = optarg; break;
+        case 'D': dal    = optarg; break;
         case 'h':
             printf("Usage: cfusa sas [--dir <path>] [--output sas.md]\n"
-                   "                 [--format md|text|json]\n\n"
+                   "                 [--format md|text|json] [--dal DAL-A|B|C|D]\n\n"
                    "Generates a Software Accomplishment Summary skeleton (DO-178C §11.20).\n");
             return 0;
         default: return 1;
@@ -90,8 +93,9 @@ int cmd_sas(int argc, char **argv)
                 "  \"generatedAt\": \"%s\",\n"
                 "  \"project\": \"%s\",\n"
                 "  \"version\": \"%s\",\n"
+                "  \"dal\": \"%s\",\n"
                 "  \"items\": [\n",
-                ts, cfg.project, cfg.version);
+                ts, cfg.project, cfg.version, dal);
         for (int i=0; SAS_ITEMS[i].id; i++)
             fprintf(f,"    {\"id\": \"%s\", \"description\": \"%s\","
                     " \"evidence_type\": \"%s\", \"status\": \"pending\"}%s\n",
@@ -101,8 +105,8 @@ int cmd_sas(int argc, char **argv)
         fprintf(f,"  ]\n}\n");
     } else if (!strcmp(fmt_s,"text")) {
         fprintf(f,"Software Accomplishment Summary (SAS)\n"
-                "Project: %s v%s   Generated: %s\nStandard: DO-178C §11.20\n\n",
-                cfg.project, cfg.version, ts);
+                "Project: %s v%s   DAL: %s   Generated: %s\nStandard: DO-178C §11.20\n\n",
+                cfg.project, cfg.version, dal, ts);
         for (int i=0;SAS_ITEMS[i].id;i++)
             fprintf(f,"%-8s [ ] PENDING  %-50s  Evidence: %s\n",
                     SAS_ITEMS[i].id, SAS_ITEMS[i].description,
@@ -110,9 +114,9 @@ int cmd_sas(int argc, char **argv)
     } else {
         /* Markdown default */
         fprintf(f,"# Software Accomplishment Summary (SAS)\n\n"
-                "**Project:** %s v%s  |  **Generated:** %s  |  **Standard:** DO-178C §11.20\n\n"
+                "**Project:** %s v%s  |  **DAL:** %s  |  **Generated:** %s  |  **Standard:** DO-178C §11.20\n\n"
                 "| ID | Description | Evidence Type | Status |\n|---|---|---|---|\n",
-                cfg.project, cfg.version, ts);
+                cfg.project, cfg.version, dal, ts);
         for (int i=0;SAS_ITEMS[i].id;i++)
             fprintf(f,"| %s | %s | %s | [ ] Pending |\n",
                     SAS_ITEMS[i].id, SAS_ITEMS[i].description,
