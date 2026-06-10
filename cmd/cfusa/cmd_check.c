@@ -18,25 +18,27 @@ int cmd_check(int argc, char **argv)
     int strict = 0;
 
     static const struct option long_opts[] = {
-        {"dir",    required_argument, NULL, 'd'},
-        {"format", required_argument, NULL, 'f'},
-        {"output", required_argument, NULL, 'o'},
-        {"strict", no_argument,       NULL, 's'},
-        {"help",   no_argument,       NULL, 'h'},
+        {"dir",      required_argument, NULL, 'd'},
+        {"format",   required_argument, NULL, 'f'},
+        {"output",   required_argument, NULL, 'o'},
+        {"strict",   no_argument,       NULL, 's'},
+        {"no-color", no_argument,       NULL, 'C'},
+        {"help",     no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:f:o:sh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:f:o:sCh", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir    = optarg; break;
         case 'f': fmt_s  = optarg; break;
         case 'o': output = optarg; break;
         case 's': strict = 1;     break;
+        case 'C': break; /* no-color: text output has no ANSI codes; accepted for spec compliance */
         case 'h':
             printf("Usage: cfusa check [--dir <path>] [--format text|json|sarif|html|md]\n"
-                   "                   [--output <file>] [--strict]\n\n"
+                   "                   [--output <file>] [--strict] [--no-color]\n\n"
                    "Runs all lint + analyze + cyber rules.\n"
                    "Exits 1 on any ERROR; with --strict, exits 1 on any WARNING too.\n");
             return 0;

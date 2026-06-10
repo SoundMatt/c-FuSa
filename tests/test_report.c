@@ -128,6 +128,68 @@ void test_report_sarif_output(void)
     cfusa_report_free(&rpt);
 }
 
+/* §4.2: cfusa_report_add must populate fingerprint with sha256:<64 hex> */
+void test_report_add_sets_fingerprint(void)
+{
+    cfusa_report_t rpt;
+    cfusa_report_init(&rpt);
+    cfusa_report_add(&rpt,"CFUSA-L001","lint",SEV_ERROR,"main.c",10,"too long");
+    const char *fp = rpt.findings[0].fingerprint;
+    /* "sha256:" (7) + 64 hex chars = 71 chars */
+    TEST_ASSERT_EQUAL_INT(71, (int)strlen(fp));
+    TEST_ASSERT_EQUAL_INT(0, strncmp("sha256:", fp, 7));
+    /* all remaining chars are hex */
+    for (int i = 7; i < 71; i++) {
+        int ch = (unsigned char)fp[i];
+        TEST_ASSERT_TRUE((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f'));
+    }
+    cfusa_report_free(&rpt);
+}
+
+/* Two calls with the same inputs must yield the same fingerprint (determinism) */
+void test_report_fingerprint_deterministic(void)
+{
+    cfusa_report_t rpt;
+    cfusa_report_init(&rpt);
+    cfusa_report_add(&rpt,"CFUSA-A001","analyze",SEV_WARNING,"utils.c",5,"unsafe call");
+    cfusa_report_add(&rpt,"CFUSA-A001","analyze",SEV_WARNING,"utils.c",5,"unsafe call");
+    TEST_ASSERT_EQUAL_STRING(rpt.findings[0].fingerprint, rpt.findings[1].fingerprint);
+    cfusa_report_free(&rpt);
+}
+
+/* Digit normalization: "error at line 42" and "error at line 99" collapse to same fp */
+void test_report_fingerprint_normalizes_digits(void)
+{
+    cfusa_report_t rpt;
+    cfusa_report_init(&rpt);
+    cfusa_report_add(&rpt,"CFUSA-L001","lint",SEV_WARNING,"f.c",1,"error at line 42");
+    cfusa_report_add(&rpt,"CFUSA-L001","lint",SEV_WARNING,"f.c",1,"error at line 99");
+    TEST_ASSERT_EQUAL_STRING(rpt.findings[0].fingerprint, rpt.findings[1].fingerprint);
+    cfusa_report_free(&rpt);
+}
+
+/* JSON output must contain "fingerprint" and "sha256:" */
+void test_report_json_has_fingerprint(void)
+{
+    cfusa_report_t rpt;
+    cfusa_report_init(&rpt);
+    strncpy(rpt.project,"proj",sizeof(rpt.project)-1);
+    cfusa_report_add(&rpt,"CFUSA-L001","lint",SEV_WARNING,"a.c",5,"msg");
+
+    FILE *f = fopen("/tmp/cfusa_test_fp.json","w");
+    TEST_ASSERT_NOT_NULL(f);
+    cfusa_report_print(&rpt, f, FMT_JSON);
+    fclose(f);
+
+    size_t len;
+    char *json = cfusa_read_file("/tmp/cfusa_test_fp.json", &len);
+    TEST_ASSERT_NOT_NULL(json);
+    TEST_ASSERT_TRUE(cfusa_str_contains(json,"\"fingerprint\""));
+    TEST_ASSERT_TRUE(cfusa_str_contains(json,"sha256:"));
+    free(json);
+    cfusa_report_free(&rpt);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -140,5 +202,9 @@ int main(void)
     RUN_TEST(test_format_parse);
     RUN_TEST(test_report_json_output);
     RUN_TEST(test_report_sarif_output);
+    RUN_TEST(test_report_add_sets_fingerprint);
+    RUN_TEST(test_report_fingerprint_deterministic);
+    RUN_TEST(test_report_fingerprint_normalizes_digits);
+    RUN_TEST(test_report_json_has_fingerprint);
     return UNITY_END();
 }

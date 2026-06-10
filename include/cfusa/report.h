@@ -21,6 +21,7 @@ typedef struct {
     int              line;
     cfusa_severity_t severity;
     char             message[CFUSA_FINDING_MSG_MAX];
+    char             fingerprint[72]; /* "sha256:" + 64 hex chars + NUL (§4.2) */
 } cfusa_finding_t;
 
 typedef struct {

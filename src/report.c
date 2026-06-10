@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include "cfusa/report.h"
 #include "cfusa/engine.h"
 #include "cfusa/utils.h"
@@ -28,6 +29,29 @@ void cfusa_report_free(cfusa_report_t *rpt)
     free(rpt->findings);
     rpt->findings = NULL;
     rpt->count = rpt->capacity = 0;
+}
+
+/* Spec §4.2: replace digit runs with '#', collapse whitespace, trim ends. */
+static void cfusa_normalize_msg(const char *msg, char *out, size_t out_max)
+{
+    if (out_max == 0) return;
+    size_t wi = 0;
+    int in_space = 1; /* treat leading content as after-whitespace so it is trimmed */
+    for (const char *p = msg; *p && wi < out_max - 1; p++) {
+        if (isdigit((unsigned char)*p)) {
+            if (in_space && wi > 0) { out[wi++] = ' '; if (wi >= out_max - 1) break; }
+            if (wi == 0 || out[wi - 1] != '#') out[wi++] = '#';
+            while (isdigit((unsigned char)*(p + 1))) p++;
+            in_space = 0;
+        } else if (isspace((unsigned char)*p)) {
+            in_space = 1;
+        } else {
+            if (in_space && wi > 0) { out[wi++] = ' '; if (wi >= out_max - 1) break; }
+            out[wi++] = *p;
+            in_space = 0;
+        }
+    }
+    out[wi] = '\0';
 }
 
 void cfusa_report_add(cfusa_report_t *rpt, const char *rule_id,
@@ -80,6 +104,20 @@ void cfusa_report_add(cfusa_report_t *rpt, const char *rule_id,
     case SEV_ERROR:   rpt->error_count++;   break;
     case SEV_WARNING: rpt->warning_count++; break;
     case SEV_INFO:    rpt->info_count++;    break;
+    }
+
+    /* §4.2 fingerprint: sha256(ruleId \x1f location.file \x1f normalizedMessage) */
+    {
+        char norm_msg[CFUSA_FINDING_MSG_MAX];
+        cfusa_normalize_msg(f->message, norm_msg, sizeof(norm_msg));
+        char canonical[CFUSA_FINDING_MSG_MAX + CFUSA_FINDING_FILE_MAX + 64 + 4];
+        int clen = snprintf(canonical, sizeof(canonical), "%s\x1f%s\x1f%s",
+                            f->rule_id, f->file, norm_msg);
+        if (clen < 0 || (size_t)clen >= sizeof(canonical))
+            clen = (int)sizeof(canonical) - 1;
+        char hex[65];
+        cfusa_sha256_buf((const unsigned char *)canonical, (size_t)clen, hex);
+        snprintf(f->fingerprint, sizeof(f->fingerprint), "sha256:%s", hex);
     }
 }
 
@@ -191,11 +229,13 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
             " \"severity\": \"%s\","
             " \"location\": {\"file\": \"%s\", \"line\": %d},"
             " \"message\": \"%s\","
+            " \"fingerprint\": \"%s\","
             " \"remediation\": \"%s\","
             " \"standard\": \"%s\"}%s\n",
             f->rule_id, f->category,
             cfusa_severity_str(f->severity),
             esc_file, f->line, esc_msg,
+            f->fingerprint,
             esc_rem, esc_rulestd,
             (i < rpt->count - 1) ? "," : "");
     }
