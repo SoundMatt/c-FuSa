@@ -107,9 +107,6 @@ int cmd_qualify(int argc, char **argv)
 
     char ts[32]; cfusa_timestamp_now(ts);
 
-    const char *default_output = "qualify-report.json";
-    if (!output && !strcmp(fmt_s, "json")) output = default_output;
-
     FILE *out = stdout;
     if (output) { out = fopen(output,"w"); if (!out){perror(output);return 1;} }
 

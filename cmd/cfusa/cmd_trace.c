@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <getopt.h>
 #include "cfusa/report.h"
 #include "cfusa/utils.h"
@@ -120,11 +121,17 @@ static void add_tag(const char *path, int lineno, const char *ids, int kind)
     const char *relpath = rel[0] ? rel : path;
 
     char buf[512]; strncpy(buf, ids, sizeof(buf) - 1);
-    char *end = strpbrk(buf, "\n\r"); if (end) *end = '\0';
+    char *end = strpbrk(buf, "\n\r\""); if (end) *end = '\0';
     char *tok = strtok(buf, " \t,");
     while (tok && g_tag_count < MAX_TAGS) {
         char *t = cfusa_str_trim(tok);
-        if (*t && *t != '*' && *t != '/') {
+        /* Only accept valid IDs: non-empty, alphanumeric + '-'/'_' */
+        int valid = t[0] != '\0';
+        for (const char *p = t; *p && valid; p++) {
+            unsigned char c = (unsigned char)*p;
+            if (!isalnum(c) && c != '-' && c != '_') valid = 0;
+        }
+        if (valid) {
             strncpy(g_tags[g_tag_count].req_id, t,       MAX_ID - 1);
             strncpy(g_tags[g_tag_count].file,   relpath, 255);
             g_tags[g_tag_count].line = lineno;
