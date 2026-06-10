@@ -164,19 +164,39 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
         cfusa_report_score(rpt),
         total, rpt->error_count, rpt->warning_count, rpt->info_count);
 
+    int nrules = cfusa_engine_rule_count();
     for (int i = 0; i < rpt->count; i++) {
         const cfusa_finding_t *f = &rpt->findings[i];
         char esc_file[512], esc_msg[768];
         cfusa_str_escape_json(f->file,    esc_file, sizeof(esc_file));
         cfusa_str_escape_json(f->message, esc_msg,  sizeof(esc_msg));
+
+        /* Look up rule metadata for remediation/standard fields */
+        const char *remediation = "";
+        const char *standard    = "";
+        for (int j = 0; j < nrules; j++) {
+            const cfusa_rule_t *r = cfusa_engine_get_rule(j);
+            if (strcmp(r->id, f->rule_id) == 0) {
+                if (r->description) remediation = r->description;
+                if (r->standard)    standard    = r->standard;
+                break;
+            }
+        }
+        char esc_rem[256], esc_rulestd[64];
+        cfusa_str_escape_json(remediation, esc_rem,     sizeof(esc_rem));
+        cfusa_str_escape_json(standard,    esc_rulestd, sizeof(esc_rulestd));
+
         fprintf(out,
             "    {\"ruleId\": \"%s\", \"category\": \"%s\","
             " \"severity\": \"%s\","
             " \"location\": {\"file\": \"%s\", \"line\": %d},"
-            " \"message\": \"%s\"}%s\n",
+            " \"message\": \"%s\","
+            " \"remediation\": \"%s\","
+            " \"standard\": \"%s\"}%s\n",
             f->rule_id, f->category,
             cfusa_severity_str(f->severity),
             esc_file, f->line, esc_msg,
+            esc_rem, esc_rulestd,
             (i < rpt->count - 1) ? "," : "");
     }
     fprintf(out, "  ]\n}\n");
