@@ -28,9 +28,10 @@ int  cfusa_engine_run_all(const char *dir, const cfusa_config_t *cfg,
 int  cfusa_engine_run_category(const char *category, const char *dir,
                                 const cfusa_config_t *cfg,
                                 cfusa_report_t *rpt);
-int  cfusa_engine_rule_count(void);
-void cfusa_engine_list_rules(void);
-void cfusa_engine_reset(void);
+int                  cfusa_engine_rule_count(void);
+const cfusa_rule_t  *cfusa_engine_get_rule(int i);
+void                 cfusa_engine_list_rules(void);
+void                 cfusa_engine_reset(void);
 
 /* Called by cmd_lint / cmd_analyze / cmd_cyber to register their rule sets. */
 void cfusa_lint_register_rules(void);

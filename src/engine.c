@@ -25,6 +25,12 @@ int cfusa_engine_rule_count(void)
     return g_rule_count;
 }
 
+const cfusa_rule_t *cfusa_engine_get_rule(int i)
+{
+    if (i < 0 || i >= g_rule_count) return NULL;
+    return g_rules[i];
+}
+
 void cfusa_engine_list_rules(void)
 {
     printf("%-18s %-10s %-40s %s\n", "ID", "CATEGORY", "NAME", "STANDARD");

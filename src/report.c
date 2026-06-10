@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "cfusa/report.h"
+#include "cfusa/engine.h"
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
@@ -181,19 +182,51 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
     fprintf(out, "  ]\n}\n");
 }
 
+/* djb2 hash for SARIF partialFingerprints */
+static unsigned long sarif_hash(const char *s)
+{
+    unsigned long h = 5381;
+    int c;
+    while ((c = (unsigned char)*s++)) h = h * 33 ^ (unsigned long)c;
+    return h;
+}
+
 /* ---- SARIF 2.1.0 output ---- */
 static void print_sarif(const cfusa_report_t *rpt, FILE *out)
 {
+    int nrules = cfusa_engine_rule_count();
+
     fprintf(out,
         "{\n"
         "  \"version\": \"2.1.0\",\n"
         "  \"$schema\": \"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json\",\n"
         "  \"runs\": [{\n"
-        "    \"tool\": {\"driver\": {\"name\": \"cfusa\","
-        " \"version\": \"%s\","
-        " \"informationUri\": \"https://github.com/SoundMatt/c-FuSa\"}},\n"
-        "    \"results\": [\n",
+        "    \"tool\": {\"driver\": {\n"
+        "      \"name\": \"cfusa\",\n"
+        "      \"version\": \"%s\",\n"
+        "      \"informationUri\": \"https://github.com/SoundMatt/c-FuSa\",\n"
+        "      \"rules\": [\n",
         rpt->version[0] ? rpt->version : CFUSA_VERSION_STRING);
+
+    for (int i = 0; i < nrules; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        char esc_name[128], esc_desc[256], esc_std[64];
+        cfusa_str_escape_json(r->name,                         esc_name, sizeof(esc_name));
+        cfusa_str_escape_json(r->description ? r->description : r->name, esc_desc, sizeof(esc_desc));
+        cfusa_str_escape_json(r->standard    ? r->standard    : "",      esc_std,  sizeof(esc_std));
+        fprintf(out,
+            "        {\"id\": \"%s\","
+            " \"name\": \"%s\","
+            " \"fullDescription\": {\"text\": \"%s\"},"
+            " \"help\": {\"text\": \"%s\"}}%s\n",
+            r->id, esc_name, esc_desc, esc_std,
+            (i < nrules - 1) ? "," : "");
+    }
+
+    fprintf(out,
+        "      ]\n"
+        "    }},\n"
+        "    \"results\": [\n");
 
     for (int i = 0; i < rpt->count; i++) {
         const cfusa_finding_t *f = &rpt->findings[i];
@@ -203,14 +236,21 @@ static void print_sarif(const cfusa_report_t *rpt, FILE *out)
         char esc_file[512], esc_msg[768];
         cfusa_str_escape_json(f->file,    esc_file, sizeof(esc_file));
         cfusa_str_escape_json(f->message, esc_msg,  sizeof(esc_msg));
+
+        /* partialFingerprints: stable hash of rule+file+line for deduplication */
+        char fp_input[320];
+        snprintf(fp_input, sizeof(fp_input), "%s:%s:%d", f->rule_id, f->file, f->line);
+        unsigned long fp = sarif_hash(fp_input);
+
         fprintf(out,
             "      {\"ruleId\": \"%s\","
             " \"level\": \"%s\","
             " \"message\": {\"text\": \"%s\"},"
+            " \"partialFingerprints\": {\"primaryLocationLineHash\": \"%08lx\"},"
             " \"locations\": [{\"physicalLocation\":"
             " {\"artifactLocation\": {\"uri\": \"%s\"},"
             " \"region\": {\"startLine\": %d}}}]}%s\n",
-            f->rule_id, level, esc_msg, esc_file, f->line,
+            f->rule_id, level, esc_msg, fp, esc_file, f->line,
             (i < rpt->count - 1) ? "," : "");
     }
     fprintf(out, "    ]\n  }]\n}\n");

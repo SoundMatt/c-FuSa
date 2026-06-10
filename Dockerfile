@@ -39,6 +39,13 @@ RUN apk add --no-cache git zip ca-certificates
 
 COPY --from=builder /build/build/cfusa /usr/local/bin/cfusa
 
+LABEL org.opencontainers.image.title="c-FuSa" \
+      org.opencontainers.image.description="C functional safety toolkit (ISO 26262, IEC 61508, DO-178C, MISRA-C)" \
+      org.opencontainers.image.source="https://github.com/SoundMatt/c-FuSa" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="SoundMatt" \
+      org.opencontainers.image.version="0.3.0"
+
 # Default working directory is /project; mount your C project here.
 WORKDIR /project
 
