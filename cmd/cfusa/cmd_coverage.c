@@ -5,6 +5,7 @@
 #include "cfusa/report.h"
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /* Parses lcov .info files for line, function, and branch coverage */
 
@@ -169,15 +170,24 @@ int cmd_coverage(int argc, char **argv)
     FILE *out_f = stdout;
     if (output) { out_f = fopen(output, "w"); if (!out_f) { perror(output); return 1; } }
 
+    char ts[32]; cfusa_timestamp_now(ts);
+
     if (fmt == FMT_JSON) {
         fprintf(out_f,
             "{\n"
-            "  \"lcov_file\": \"%s\",\n"
-            "  \"line_coverage\":     {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
-            "  \"function_coverage\": {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
-            "  \"branch_coverage\":   {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"coverage\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+            "  \"language\": \"c\",\n"
+            "  \"generatedAt\": \"%s\",\n"
+            "  \"lcovFile\": \"%s\",\n"
+            "  \"lineCoverage\":     {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
+            "  \"functionCoverage\": {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
+            "  \"branchCoverage\":   {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
             "  \"threshold\": %.1f,\n"
             "  \"passed\": %s",
+            ts,
             lcov_in ? lcov_in : "",
             state.lines_hit,    state.lines_found,    line_pct,
             state.funcs_hit,    state.funcs_found,    func_pct,
