@@ -122,13 +122,15 @@ int cmd_iso26262(int argc, char **argv)
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
+            "  \"projectRoot\": \"%s\",\n"
+            "  \"standard\": \"ISO 26262\",\n"
             "  \"project\": \"%s\",\n"
             "  \"asil\": \"%s\",\n"
             "  \"covered\": %d,\n"
             "  \"gaps\": %d,\n"
             "  \"na\": %d,\n"
             "  \"objectives\": [\n",
-            ts, cfg.project, asil, covered, gaps, na);
+            ts, dir, cfg.project, asil, covered, gaps, na);
         int first = 1;
         for (int i = 0; OBJECTIVES[i].clause; i++) {
             const iso26262_row_t *r = &OBJECTIVES[i];

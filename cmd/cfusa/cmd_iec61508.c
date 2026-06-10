@@ -127,6 +127,8 @@ int cmd_iec61508(int argc, char **argv)
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
+            "  \"projectRoot\": \"%s\",\n"
+            "  \"standard\": \"IEC 61508\",\n"
             "  \"project\": \"%s\",\n"
             "  \"sil\": \"%s\",\n"
             "  \"covered\": %d,\n"
@@ -134,7 +136,7 @@ int cmd_iec61508(int argc, char **argv)
             "  \"recommendedGaps\": %d,\n"
             "  \"na\": %d,\n"
             "  \"objectives\": [\n",
-            ts, cfg.project, sil, covered, gaps_m, gaps_r, na);
+            ts, dir, cfg.project, sil, covered, gaps_m, gaps_r, na);
         int first = 1;
         for (int i = 0; OBJECTIVES[i].clause; i++) {
             const iec61508_row_t *r = &OBJECTIVES[i];

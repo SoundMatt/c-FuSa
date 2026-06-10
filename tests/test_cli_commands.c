@@ -16,6 +16,8 @@ extern int cmd_sign(int argc, char **argv);
 extern int cmd_iso26262(int argc, char **argv);
 extern int cmd_iec61508(int argc, char **argv);
 extern int cmd_misra(int argc, char **argv);
+extern int cmd_do178(int argc, char **argv);
+extern int cmd_iso21434(int argc, char **argv);
 extern int cmd_audit_pack(int argc, char **argv);
 extern int cmd_diff(int argc, char **argv);
 extern int cmd_badge(int argc, char **argv);
@@ -179,6 +181,8 @@ void test_iso26262_json_format(void)
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"iso26262-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
     }
 }
@@ -197,6 +201,8 @@ void test_iec61508_json_format(void)
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"iec61508-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
     }
 }
@@ -215,7 +221,49 @@ void test_misra_json_format(void)
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"misra-coverage\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"rules\""));
+    }
+}
+
+void test_do178_json_format(void)
+{
+    char out[256];
+    snprintf(out, sizeof(out), "%s/do178.json", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--format", "json", "--output", out, NULL};
+    cmd_do178(7, argv);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"do178c-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
+    }
+}
+
+void test_iso21434_json_format(void)
+{
+    char out[256];
+    snprintf(out, sizeof(out), "%s/iso21434.json", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--format", "json", "--output", out, NULL};
+    cmd_iso21434(7, argv);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iso21434-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
     }
 }
 
@@ -271,6 +319,8 @@ int main(void)
     RUN_TEST(test_iec61508_json_format);
     RUN_TEST(test_misra_help_returns_zero);
     RUN_TEST(test_misra_json_format);
+    RUN_TEST(test_do178_json_format);
+    RUN_TEST(test_iso21434_json_format);
     RUN_TEST(test_audit_pack_runs_no_crash);
     RUN_TEST(test_diff_help_returns_zero);
     RUN_TEST(test_badge_runs_no_crash);

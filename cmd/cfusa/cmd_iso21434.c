@@ -152,6 +152,8 @@ int cmd_iso21434(int argc, char **argv)
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
+            "  \"projectRoot\": \"%s\",\n"
+            "  \"standard\": \"ISO 21434\",\n"
             "  \"project\": \"%s\",\n"
             "  \"cal\": \"%s\",\n"
             "  \"pass\": %d,\n"
@@ -159,7 +161,7 @@ int cmd_iso21434(int argc, char **argv)
             "  \"manual\": %d,\n"
             "  \"na\": %d,\n"
             "  \"objectives\": [\n",
-            ts, cfg.project, cal, pass, gap, manual, na);
+            ts, dir, cfg.project, cal, pass, gap, manual, na);
 
         int first = 1;
         for (int i = 0; OBJECTIVES[i].id; i++) {

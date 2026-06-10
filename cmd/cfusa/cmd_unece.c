@@ -117,13 +117,14 @@ int cmd_unece(int argc, char **argv)
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
-            "  \"regulation\": \"UN R.155\",\n"
+            "  \"projectRoot\": \"%s\",\n"
+            "  \"standard\": \"UN R.155\",\n"
             "  \"project\": \"%s\",\n"
             "  \"pass\": %d,\n"
             "  \"gap\": %d,\n"
             "  \"manual\": %d,\n"
             "  \"categories\": [\n",
-            ts, cfg.project, pass, gap, manual);
+            ts, dir, cfg.project, pass, gap, manual);
 
         int first = 1;
         for (int i = 0; CATEGORIES[i].id; i++) {

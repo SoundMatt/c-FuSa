@@ -185,10 +185,12 @@ int cmd_do178(int argc, char **argv)
                 "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
                 "  \"language\": \"c\",\n"
                 "  \"generatedAt\": \"%s\",\n"
+                "  \"projectRoot\": \"%s\",\n"
+                "  \"standard\": \"DO-178C\",\n"
                 "  \"project\": \"%s\",\n"
                 "  \"dal\": \"%c\","
                 " \"applicable\": %d, \"total\": %d,\n  \"objectives\": [\n",
-                ts, cfg.project,(char)('A'+dal_col),applicable,total);
+                ts, dir, cfg.project,(char)('A'+dal_col),applicable,total);
         int first=1;
         for (int i=0;OBJECTIVES[i].id;i++){
             int applies[4]={OBJECTIVES[i].dal_a,OBJECTIVES[i].dal_b,

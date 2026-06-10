@@ -110,11 +110,13 @@ int cmd_misra(int argc, char **argv)
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
+            "  \"projectRoot\": \"%s\",\n"
+            "  \"standard\": \"MISRA C:2012\",\n"
             "  \"project\": \"%s\",\n"
             "  \"covered\": %d,\n"
             "  \"gaps\": %d,\n"
             "  \"rules\": [\n",
-            ts, cfg.project, covered, not_covered);
+            ts, dir, cfg.project, covered, not_covered);
         int first = 1;
         for (int i = 0; MISRA_RULES[i].rule; i++) {
             const misra_row_t *r = &MISRA_RULES[i];
