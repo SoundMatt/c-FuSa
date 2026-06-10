@@ -76,6 +76,7 @@ add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_hara.c
     cmd/cfusa/cmd_iso26262.c
     cmd/cfusa/cmd_iec61508.c
+    cmd/cfusa/cmd_iec62443.c
     cmd/cfusa/cmd_misra.c
     cmd/cfusa/cmd_disposition.c
     cmd/cfusa/cmd_impact.c

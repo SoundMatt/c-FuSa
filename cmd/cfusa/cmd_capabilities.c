@@ -42,7 +42,7 @@ int cmd_capabilities(int argc, char **argv)
                "    \"lint\", \"analyze\", \"cyber\", \"vuln\", \"fmea\",\n"
                "    \"boundary\", \"safety-case\", \"tara\", \"hara\",\n"
                "    \"coverage\", \"diff\", \"req\", \"disposition\",\n"
-               "    \"iso26262\", \"iec61508\", \"do178\", \"misra\",\n"
+               "    \"iso26262\", \"iec61508\", \"iec62443\", \"do178\", \"misra\",\n"
                "    \"iso21434\", \"unece\", \"sign\", \"fix\"\n"
                "  ],\n"
                "  \"formats\": {\n"
@@ -54,6 +54,7 @@ int cmd_capabilities(int argc, char **argv)
                "    \"do178\":     [\"text\", \"md\", \"json\"],\n"
                "    \"iso26262\":  [\"text\", \"json\"],\n"
                "    \"iec61508\":  [\"text\", \"json\"],\n"
+               "    \"iec62443\":  [\"text\", \"json\"],\n"
                "    \"misra\":     [\"text\", \"json\"],\n"
                "    \"iso21434\":  [\"text\", \"json\"],\n"
                "    \"unece\":     [\"text\", \"json\"],\n"
@@ -63,14 +64,14 @@ int cmd_capabilities(int argc, char **argv)
                "    \"coupling\":  [\"json\"],\n"
                "    \"version\":   [\"text\", \"json\"]\n"
                "  },\n"
-               "  \"standards\": [\"iso26262\", \"iec61508\", \"do178c\", \"misra-c\",\n"
+               "  \"standards\": [\"iso26262\", \"iec61508\", \"iec62443\", \"do178c\", \"misra-c\",\n"
                "               \"iso21434\", \"unece-r155\"]\n"
                "}\n",
                ts);
     } else {
         printf("c-FuSa %s (spec %s)\n", CFUSA_VERSION_STRING, CFUSA_SPEC_VERSION);
         printf("Required commands: version capabilities init check trace qualify release audit-pack report\n");
-        printf("Standards: iso26262 iec61508 do178c misra-c iso21434 unece-r155\n");
+        printf("Standards: iso26262 iec61508 iec62443 do178c misra-c iso21434 unece-r155\n");
     }
     return 0;
 }

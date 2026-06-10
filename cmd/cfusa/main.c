@@ -35,6 +35,7 @@ const cfusa_command_t CFUSA_COMMANDS[] = {
     {"hara",        "Hazard Analysis & Risk Assessment (ISO 26262 §3)", cmd_hara},
     {"iso26262",    "ISO 26262 Part 6 compliance gap report",           cmd_iso26262},
     {"iec61508",    "IEC 61508 Parts 1–3 compliance gap report",        cmd_iec61508},
+    {"iec62443",    "IEC 62443-4-2 Component Security Requirements gap report", cmd_iec62443},
     {"misra",       "MISRA-C:2012 rule coverage mapping",               cmd_misra},
     {"disposition", "Manage finding disposition entries",               cmd_disposition},
     {"impact",      "Change impact analysis on requirements",           cmd_impact},

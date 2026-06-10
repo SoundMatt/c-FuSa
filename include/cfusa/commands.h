@@ -41,6 +41,7 @@ int cmd_pr(int argc, char **argv);
 int cmd_hara(int argc, char **argv);
 int cmd_iso26262(int argc, char **argv);
 int cmd_iec61508(int argc, char **argv);
+int cmd_iec62443(int argc, char **argv);
 int cmd_misra(int argc, char **argv);
 int cmd_disposition(int argc, char **argv);
 int cmd_impact(int argc, char **argv);

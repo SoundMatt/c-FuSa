@@ -18,6 +18,7 @@ extern int cmd_iec61508(int argc, char **argv);
 extern int cmd_misra(int argc, char **argv);
 extern int cmd_do178(int argc, char **argv);
 extern int cmd_iso21434(int argc, char **argv);
+extern int cmd_iec62443(int argc, char **argv);
 extern int cmd_audit_pack(int argc, char **argv);
 extern int cmd_diff(int argc, char **argv);
 extern int cmd_badge(int argc, char **argv);
@@ -267,6 +268,26 @@ void test_iso21434_json_format(void)
     }
 }
 
+void test_iec62443_json_format(void)
+{
+    char out[256];
+    snprintf(out, sizeof(out), "%s/iec62443.json", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--format", "json", "--output", out, NULL};
+    cmd_iec62443(7, argv);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iec62443-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"requirements\""));
+    }
+}
+
 /* ---- audit_pack ---- */
 
 //cfusa:req REQ-AUDIT
@@ -321,6 +342,7 @@ int main(void)
     RUN_TEST(test_misra_json_format);
     RUN_TEST(test_do178_json_format);
     RUN_TEST(test_iso21434_json_format);
+    RUN_TEST(test_iec62443_json_format);
     RUN_TEST(test_audit_pack_runs_no_crash);
     RUN_TEST(test_diff_help_returns_zero);
     RUN_TEST(test_badge_runs_no_crash);
