@@ -7,6 +7,30 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-10
+
+### Added
+- `iso26262 --format json` / `--output` — JSON gap report with x-FuSa spec §1.8 envelope (`kind: iso26262-gap`)
+- `iec61508 --format json` / `--output` — JSON gap report with spec envelope (`kind: iec61508-gap`)
+- `misra --format json` / `--output` — JSON coverage report with spec envelope (`kind: misra-coverage`)
+- SARIF 2.1.0 `driver.rules[]` array (all 27 registered rules) and `partialFingerprints.primaryLocationLineHash` (djb2) on every finding
+
+### Changed
+- All JSON outputs now carry x-FuSa spec §1.8 envelope: `schemaVersion`, `kind`, `tool`, `toolVersion`, `language`, `generatedAt`
+  - Affected commands: `do178`, `iso21434`, `unece`, `coverage`, `fmea`, `tara`, `hara`, `sas`, `verify`
+  - Coverage JSON field names aligned to camelCase: `lcovFile`, `lineCoverage`, `functionCoverage`, `branchCoverage`
+  - FMEA, TARA, SAS, verify: `generated`/`timestamp`/`created` → `generatedAt`
+- `qualify --format json` now writes to stdout by default (was writing to `qualify-report.json`)
+- `cfusa capabilities --format json` formats map updated to list all JSON-capable commands
+- Evidence filenames lowercased to kebab-case: `safety-case.md`, `tara.md`, `fmea.md`, `hara.md`, `safety-plan.md`, `test-evidence.md`, `sas.md`
+- Data files renamed `.cfusa-*` → `.fusa-*` (`.fusa-hara.json`, `.fusa-dispositions.json`, `.fusa-metrics.jsonl`, `.fusa-prs.jsonl`) with legacy fallback reads
+- `unece --format json` adds `regulation: "UN R.155"` field
+- Trace/req scanner: false-positive annotations filtered by ID format validation (`[a-zA-Z0-9\-_]+`); line break on `"` to prevent string literal leakage
+
+### Fixed
+- `cfusa engine_get_rule(i)` accessor exposed for SARIF rules-array and JSON remediation fields
+- OCI image labels added to Dockerfile (`org.opencontainers.image.*`)
+
 ## [0.2.0] — 2026-06-09
 
 ### Added
