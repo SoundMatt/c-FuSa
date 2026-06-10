@@ -235,7 +235,11 @@ int cmd_trace(int argc, char **argv)
 
     g_req_count = g_tag_count = 0;
     g_dir_abs[0] = '\0';
-    if (!realpath(dir, g_dir_abs)) strncpy(g_dir_abs, dir, sizeof(g_dir_abs) - 1);
+    {
+        char *tmp = realpath(dir, NULL);
+        if (tmp) { strncpy(g_dir_abs, tmp, sizeof(g_dir_abs) - 1); free(tmp); }
+        else strncpy(g_dir_abs, dir, sizeof(g_dir_abs) - 1);
+    }
     load_reqs(dir);
 
     scan_ctx_t sctx = {legacy};

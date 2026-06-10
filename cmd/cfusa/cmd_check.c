@@ -55,11 +55,13 @@ int cmd_check(int argc, char **argv)
     strncpy(rpt.project,  cfg.project, sizeof(rpt.project)  - 1);
     strncpy(rpt.version,  cfg.version, sizeof(rpt.version)  - 1);
     {
-        char abs[512];
-        if (realpath(dir, abs))
+        char *abs = realpath(dir, NULL);
+        if (abs) {
             strncpy(rpt.project_root, abs, sizeof(rpt.project_root) - 1);
-        else
+            free(abs);
+        } else {
             strncpy(rpt.project_root, dir, sizeof(rpt.project_root) - 1);
+        }
     }
 
     /* Build standard string from config */
