@@ -77,10 +77,14 @@ static int file_has_annotation(const char *filepath, const char *req_id)
 static int load_req_ids(const char *dir, char ids[][64], int max_ids)
 {
     char path[512];
-    cfusa_path_join(path, sizeof(path), dir, ".cfusa-reqs.json");
+    cfusa_path_join(path, sizeof(path), dir, ".fusa-reqs.json");
 
     size_t len = 0;
     char *content = cfusa_read_file(path, &len);
+    if (!content) {
+        cfusa_path_join(path, sizeof(path), dir, ".cfusa-reqs.json");
+        content = cfusa_read_file(path, &len);
+    }
     if (!content) return 0;
 
     int n = 0;

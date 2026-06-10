@@ -12,6 +12,7 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 //cfusa:req REQ-COUP001 REQ-COUP002 REQ-COUP003
 
@@ -78,7 +79,11 @@ static void write_json(FILE *out, const char *project, const char *ts,
 {
     fprintf(out,
         "{\n"
-        "  \"format\": \"c-FuSa Coupling Report v1\",\n"
+        "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+        "  \"kind\": \"coupling\",\n"
+        "  \"tool\": \"c-FuSa\",\n"
+        "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+        "  \"language\": \"c\",\n"
         "  \"generatedAt\": \"%s\",\n"
         "  \"project\": \"%s\",\n"
         "  \"dataCoupling\": [\n", ts, project);

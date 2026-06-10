@@ -10,6 +10,7 @@
 #include "cfusa/config.h"
 #include "cfusa/report.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 typedef struct {
     const char *pattern;
@@ -145,8 +146,12 @@ int cmd_vuln(int argc, char **argv)
         char ts[32]; cfusa_timestamp_now(ts);
         fprintf(out,
             "{\n"
-            "  \"tool\": \"cfusa vuln\",\n"
-            "  \"generated\": \"%s\",\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"vuln\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+            "  \"language\": \"c\",\n"
+            "  \"generatedAt\": \"%s\",\n"
             "  \"total\": %d,\n"
             "  \"findings\": [\n", ts, g_hit_count);
         for (int i = 0; i < g_hit_count; i++) {
