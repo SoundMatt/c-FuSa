@@ -39,6 +39,9 @@ const cfusa_command_t CFUSA_COMMANDS[] = {
     {"disposition", "Manage finding disposition entries",               cmd_disposition},
     {"impact",      "Change impact analysis on requirements",           cmd_impact},
     {"metrics",     "Track safety metrics over time",                   cmd_metrics},
+    {"coupling",    "Data/control coupling analysis (DO-178C §6.4.4.3)",cmd_coupling},
+    {"iso21434",    "ISO 21434 cybersecurity compliance gap report",    cmd_iso21434},
+    {"unece",       "UN R.155 cybersecurity compliance gap report",     cmd_unece},
     {"version",     "Print version",                                    cmd_version},
     {"help",        "Show this help",                                   cmd_help},
     {NULL, NULL, NULL}

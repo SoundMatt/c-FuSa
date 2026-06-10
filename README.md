@@ -40,14 +40,14 @@ sudo cmake --install build        # installs to /usr/local/bin/cfusa
 
 ```bash
 docker pull ghcr.io/soundmatt/c-fusa:latest
-docker run --rm -v "$(pwd)":/workspace ghcr.io/soundmatt/c-fusa check --dir /workspace/src
+docker run --rm -v "$(pwd)":/project ghcr.io/soundmatt/c-fusa check --dir /project/src
 ```
 
 Or build locally:
 
 ```bash
 docker build -t cfusa .
-docker run --rm -v "$(pwd)":/workspace cfusa check --dir /workspace/src
+docker run --rm -v "$(pwd)":/project cfusa check --dir /project/src
 ```
 
 ### Requirements
@@ -125,6 +125,9 @@ cfusa fix --dir src/
 | `disposition` | Finding disposition tracking — `add`/`list`/`show` |
 | `impact` | Change impact analysis on requirements (`--from`/`--to` git refs) |
 | `metrics` | Safety metrics tracking over time — `record`/`show` |
+| `coupling` | Data/control coupling analysis → `coupling-report.json` (DO-178C §6.4.4.3) |
+| `iso21434` | ISO 21434 cybersecurity compliance gap report (`--cal CAL-1|2|3|4`) |
+| `unece` | UN R.155 Annex 5 cybersecurity compliance gap report |
 | `version` | Print version |
 
 Run `cfusa <command> --help` for per-command options.
@@ -244,9 +247,10 @@ cfusa misra --gaps                        # MISRA C:2012 uncovered rules only
 
 ```bash
 cfusa disposition add --rule CFUSA-L003 \
-    --disposition accepted \
+    --action accept \
     --rationale "Heap used only at startup under supervision" \
-    --owner "jane.doe"
+    --reviewer "jane.doe" \
+    --ref "JIRA-123"
 cfusa disposition list
 cfusa disposition show DISP-0001
 ```
@@ -288,7 +292,7 @@ docker compose run pipeline
 Or run individual commands:
 
 ```bash
-docker compose run cfusa check --dir /workspace/src
+docker compose run cfusa check --dir /project/src
 docker compose run cfusa hara show
 ```
 

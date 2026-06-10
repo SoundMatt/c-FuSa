@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include "cfusa/report.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 #define INITIAL_CAPACITY 256
 
@@ -129,10 +130,10 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
         "{\n"
         "  \"project\": \"%s\",\n"
         "  \"version\": \"%s\",\n"
-        "  \"timestamp\": \"%s\",\n"
+        "  \"generatedAt\": \"%s\",\n"
         "  \"standard\": \"%s\",\n"
         "  \"score\": %.1f,\n"
-        "  \"summary\": {\"errors\": %d, \"warnings\": %d, \"info\": %d},\n"
+        "  \"summary\": {\"errors\": %d, \"warnings\": %d, \"infos\": %d},\n"
         "  \"findings\": [\n",
         esc_proj, rpt->version, esc_ts, esc_std,
         cfusa_report_score(rpt),
@@ -144,7 +145,7 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
         cfusa_str_escape_json(f->file,    esc_file, sizeof(esc_file));
         cfusa_str_escape_json(f->message, esc_msg,  sizeof(esc_msg));
         fprintf(out,
-            "    {\"rule_id\": \"%s\", \"category\": \"%s\","
+            "    {\"ruleId\": \"%s\", \"category\": \"%s\","
             " \"severity\": \"%s\","
             " \"file\": \"%s\", \"line\": %d,"
             " \"message\": \"%s\"}%s\n",
@@ -168,7 +169,7 @@ static void print_sarif(const cfusa_report_t *rpt, FILE *out)
         " \"version\": \"%s\","
         " \"informationUri\": \"https://github.com/SoundMatt/c-FuSa\"}},\n"
         "    \"results\": [\n",
-        rpt->version[0] ? rpt->version : "0.1.0");
+        rpt->version[0] ? rpt->version : CFUSA_VERSION_STRING);
 
     for (int i = 0; i < rpt->count; i++) {
         const cfusa_finding_t *f = &rpt->findings[i];

@@ -10,7 +10,7 @@
 #include "cfusa/utils.h"
 #include "cfusa/commands.h"
 
-/* Generates SPDX-3.0.1 JSON SBOM, SLSA provenance, and artifact manifest. */
+/* Generates SPDX JSON SBOM (2.2, 2.3, or 3.0.1), SLSA provenance, and artifact manifest. */
 
 typedef struct {
     FILE *out;
@@ -37,17 +37,23 @@ static int sbom_file(const char *path, void *vctx)
     return 0;
 }
 
-/* Generates SPDX 3.0.1 JSON SBOM (matches go-FuSa output format) */
+/* Generates SPDX JSON SBOM — version selectable via spdx_ver ("2.2","2.3","3.0.1") */
 static int write_sbom(const char *dir, const cfusa_config_t *cfg,
-                       const char *out_path, const char *ts)
+                       const char *out_path, const char *ts, const char *spdx_ver)
 {
     FILE *f = fopen(out_path,"w");
     if (!f) { perror(out_path); return -1; }
 
+    char spdx_ver_str[16];
+    snprintf(spdx_ver_str, sizeof(spdx_ver_str), "SPDX-%s", spdx_ver);
+
     fprintf(f,
         "{\n"
-        "  \"spdxVersion\": \"SPDX-3.0.1\",\n"
+        "  \"spdxVersion\": \"%s\",\n",
+        spdx_ver_str);
+    fprintf(f,
         "  \"dataLicense\": \"CC0-1.0\",\n"
+
         "  \"SPDXID\": \"SPDXRef-DOCUMENT\",\n"
         "  \"name\": \"%s\",\n"
         "  \"documentNamespace\": \"https://github.com/SoundMatt/c-FuSa/sbom/%s-%s\",\n"
@@ -90,29 +96,34 @@ static int write_sbom(const char *dir, const cfusa_config_t *cfg,
 
 int cmd_release(int argc, char **argv)
 {
-    const char *dir    = ".";
-    const char *output = ".cfusa_release";
+    const char *dir      = ".";
+    const char *output   = ".cfusa_release";
+    const char *spdx_ver = "3.0.1";
     int full = 0;
 
     static const struct option long_opts[] = {
-        {"dir",    required_argument, NULL, 'd'},
-        {"output", required_argument, NULL, 'o'},
-        {"full",   no_argument,       NULL, 'f'},
-        {"help",   no_argument,       NULL, 'h'},
+        {"dir",          required_argument, NULL, 'd'},
+        {"output",       required_argument, NULL, 'o'},
+        {"full",         no_argument,       NULL, 'f'},
+        {"spdx-version", required_argument, NULL, 's'},
+        {"help",         no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:o:fh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:o:fs:h", long_opts, NULL)) != -1) {
         switch (c) {
-        case 'd': dir    = optarg; break;
-        case 'o': output = optarg; break;
-        case 'f': full   = 1;     break;
+        case 'd': dir      = optarg; break;
+        case 'o': output   = optarg; break;
+        case 'f': full     = 1;      break;
+        case 's': spdx_ver = optarg; break;
         case 'h':
-            printf("Usage: cfusa release [--dir <path>] [--output <dir>] [--full]\n\n"
-                   "Generates SBOM (SPDX-2.3), build provenance, and artifact hashes.\n"
-                   "--full also produces signed checksums for all artifacts.\n");
+            printf("Usage: cfusa release [--dir <path>] [--output <dir>]\n"
+                   "                     [--spdx-version 2.2|2.3|3.0.1] [--full]\n\n"
+                   "Generates SBOM (SPDX), build provenance, and artifact hashes.\n"
+                   "--spdx-version selects SPDX format (default: 3.0.1).\n"
+                   "--full also produces fmea, boundary, vuln report, and SHA256SUMS.\n");
             return 0;
         default: return 1;
         }
@@ -129,7 +140,7 @@ int cmd_release(int argc, char **argv)
     char sbom_path[512];
     snprintf(sbom_path, sizeof(sbom_path), "%s/%s-%s.spdx.json",
              output, cfg.project, cfg.version);
-    write_sbom(dir, &cfg, sbom_path, ts);
+    write_sbom(dir, &cfg, sbom_path, ts, spdx_ver);
     printf("SBOM written:      %s\n", sbom_path);
 
     /* SLSA provenance — capture git commit SHA via popen if available */

@@ -3,24 +3,24 @@ services:
     build: .
     image: cfusa:local
     volumes:
-      - .:/workspace
-    working_dir: /workspace
+      - .:/project
+    working_dir: /project
 
   # Full pipeline: check → trace → qualify → release
   pipeline:
     build: .
     image: cfusa:local
     volumes:
-      - .:/workspace
-    working_dir: /workspace
+      - .:/project
+    working_dir: /project
     entrypoint: /bin/sh
     command:
       - -c
       - |
         set -e
         echo "=== cfusa pipeline ==="
-        cfusa check --dir /workspace/src --format sarif --output /workspace/results.sarif
-        cfusa trace --dir /workspace --gaps
-        cfusa qualify --dir /workspace
-        cfusa release --dir /workspace --full
+        cfusa check --dir /project/src --format sarif --output /project/results.sarif
+        cfusa trace --dir /project --gaps
+        cfusa qualify --dir /project
+        cfusa release --dir /project --full
         echo "=== pipeline complete ==="

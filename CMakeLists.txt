@@ -80,6 +80,9 @@ add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_disposition.c
     cmd/cfusa/cmd_impact.c
     cmd/cfusa/cmd_metrics.c
+    cmd/cfusa/cmd_coupling.c
+    cmd/cfusa/cmd_iso21434.c
+    cmd/cfusa/cmd_unece.c
     cmd/cfusa/cmd_version.c
 )
 target_link_libraries(cfusa_cmds PUBLIC cfusa_core)
@@ -136,6 +139,7 @@ cfusa_test(test_report_advanced)
 cfusa_test(test_hara_advanced)
 cfusa_test(test_engine_advanced)
 cfusa_test(test_req_trace_cov)
+cfusa_test(test_new_commands)
 
 # ---- Installation ----
 include(GNUInstallDirs)

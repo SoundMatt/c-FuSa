@@ -115,9 +115,9 @@ void test_disp_add_creates_entry(void)
 
     char *argv[] = {"cfusa", "add",
                     "--rule", "CFUSA-L003",
-                    "--disposition", "accepted",
+                    "--action", "accept",
                     "--rationale", "host tool",
-                    "--owner", "test",
+                    "--reviewer", "test",
                     "--dir", TR_TEST_DIR, NULL};
     int rc = cmd_disposition(12, argv);
     TEST_ASSERT_EQUAL(0, rc);
@@ -139,9 +139,9 @@ void test_disp_list_after_add(void)
     /* add first */
     char *add_argv[] = {"cfusa", "add",
                         "--rule", "CFUSA-CY001",
-                        "--disposition", "waived",
+                        "--action", "accept",
                         "--rationale", "bounded copies",
-                        "--owner", "test",
+                        "--reviewer", "test",
                         "--dir", TR_TEST_DIR, NULL};
     (void)cmd_disposition(12, add_argv);
 

@@ -45,6 +45,9 @@ int cmd_misra(int argc, char **argv);
 int cmd_disposition(int argc, char **argv);
 int cmd_impact(int argc, char **argv);
 int cmd_metrics(int argc, char **argv);
+int cmd_coupling(int argc, char **argv);
+int cmd_iso21434(int argc, char **argv);
+int cmd_unece(int argc, char **argv);
 int cmd_version(int argc, char **argv);
 int cmd_help(int argc, char **argv);
 

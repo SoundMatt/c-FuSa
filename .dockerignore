@@ -1,0 +1,5 @@
+build/
+build-cov/
+.git/
+*.o
+*.a
