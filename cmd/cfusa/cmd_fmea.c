@@ -11,6 +11,7 @@
 #include "cfusa/config.h"
 #include "cfusa/report.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 #define MAX_FUNS 1024
 
@@ -210,13 +211,17 @@ int cmd_fmea(int argc, char **argv)
     if (fmt == FMT_JSON) {
         fprintf(f,
             "{\n"
-            "  \"tool\": \"cfusa fmea\",\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"fmea\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+            "  \"language\": \"c\",\n"
+            "  \"generatedAt\": \"%s\",\n"
             "  \"project\": \"%s\",\n"
             "  \"version\": \"%s\",\n"
-            "  \"generated\": \"%s\",\n"
             "  \"standard\": \"IEC 60812 / ISO 26262-5\",\n"
             "  \"entries\": [\n",
-            cfg.project, cfg.version, ts);
+            ts, cfg.project, cfg.version);
         for (int i = 0; i < g_fn_count; i++) {
             int s = g_fns[i].severity;
             const char *sv = sev_string(s);

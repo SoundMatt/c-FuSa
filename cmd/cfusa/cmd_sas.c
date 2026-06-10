@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /* Software Accomplishment Summary (DO-178C §11.20) */
 
@@ -79,9 +80,18 @@ int cmd_sas(int argc, char **argv)
     char ts[32]; cfusa_timestamp_now(ts);
 
     if (!strcmp(fmt_s,"json")) {
-        fprintf(f,"{\n  \"project\": \"%s\", \"version\": \"%s\","
-                " \"generated\": \"%s\",\n  \"items\": [\n",
-                cfg.project, cfg.version, ts);
+        fprintf(f,
+                "{\n"
+                "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+                "  \"kind\": \"sas\",\n"
+                "  \"tool\": \"c-FuSa\",\n"
+                "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+                "  \"language\": \"c\",\n"
+                "  \"generatedAt\": \"%s\",\n"
+                "  \"project\": \"%s\",\n"
+                "  \"version\": \"%s\",\n"
+                "  \"items\": [\n",
+                ts, cfg.project, cfg.version);
         for (int i=0; SAS_ITEMS[i].id; i++)
             fprintf(f,"    {\"id\": \"%s\", \"description\": \"%s\","
                     " \"evidence_type\": \"%s\", \"status\": \"pending\"}%s\n",

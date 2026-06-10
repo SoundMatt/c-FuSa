@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /*
  * Collects test evidence: scans for test result files, coverage data,
@@ -59,9 +60,18 @@ int cmd_verify(int argc, char **argv)
     if (!f) { perror(out_path); return 1; }
 
     if (!strcmp(fmt_s,"json")) {
-        fprintf(f,"{\n  \"project\": \"%s\", \"version\": \"%s\","
-                " \"timestamp\": \"%s\",\n  \"evidence\": [\n",
-                cfg.project, cfg.version, ts);
+        fprintf(f,
+                "{\n"
+                "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+                "  \"kind\": \"test-evidence\",\n"
+                "  \"tool\": \"c-FuSa\",\n"
+                "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+                "  \"language\": \"c\",\n"
+                "  \"generatedAt\": \"%s\",\n"
+                "  \"project\": \"%s\",\n"
+                "  \"version\": \"%s\",\n"
+                "  \"evidence\": [\n",
+                ts, cfg.project, cfg.version);
         int first=1;
         for (int i=0; evidence[i]; i++) {
             char ep[512];

@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /* Generates a Threat Analysis & Risk Assessment skeleton (ISO 21434 Clause 9) */
 
@@ -47,10 +48,14 @@ static void write_tara_json(FILE *f, const char *project,
 {
     fprintf(f,
         "{\n"
-        "  \"tool\": \"cfusa tara\",\n"
+        "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+        "  \"kind\": \"tara\",\n"
+        "  \"tool\": \"c-FuSa\",\n"
+        "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+        "  \"language\": \"c\",\n"
+        "  \"generatedAt\": \"%s\",\n"
         "  \"project\": \"%s\",\n"
         "  \"version\": \"%s\",\n"
-        "  \"generated\": \"%s\",\n"
         "  \"standard\": \"ISO 21434:2021 Clause 9\",\n"
         "  \"assets\": [\n"
         "    {\"id\":\"ASSET-001\",\"description\":\"[describe asset]\","
@@ -71,7 +76,7 @@ static void write_tara_json(FILE *f, const char *project,
         "    }\n"
         "  ]\n"
         "}\n",
-        project, version, ts);
+        ts, project, version);
 }
 
 int cmd_tara(int argc, char **argv)
