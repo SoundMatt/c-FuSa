@@ -1,5 +1,5 @@
 #if defined(__linux__) || defined(__unix__)
-#  define _POSIX_C_SOURCE 200809L
+#  define _GNU_SOURCE
 #endif
 #include <stdio.h>
 #include <stdlib.h>
