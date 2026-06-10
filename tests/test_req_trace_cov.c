@@ -464,7 +464,7 @@ void test_coverage_mutate_score_flag(void)
                     "--output",      outpath,
                     "--mutate",
                     "--mutate-score","75.0", NULL};
-    int rc = cmd_coverage(9, argv);
+    int rc = cmd_coverage(10, argv);
     /* mutate_score < 100 => exit 1 */
     TEST_ASSERT_EQUAL(1, rc);
     FILE *f = fopen(outpath, "r");
@@ -488,7 +488,7 @@ void test_coverage_mutate_100_pass(void)
                     "--format",       "json",
                     "--output",       outpath,
                     "--mutate-score", "100.0", NULL};
-    int rc = cmd_coverage(8, argv);
+    int rc = cmd_coverage(9, argv);
     TEST_ASSERT_EQUAL(0, rc);
     remove(outpath);
 }
