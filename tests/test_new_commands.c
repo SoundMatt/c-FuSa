@@ -67,7 +67,7 @@ void test_coupling_writes_report(void)
                     "--output", out, NULL};
     int rc = cmd_coupling(5, argv);
     TEST_ASSERT_EQUAL_INT(0, rc);
-    TEST_ASSERT_TRUE(file_contains("coupling-report.json", "\"format\""));
+    TEST_ASSERT_TRUE(file_contains("coupling-report.json", "\"schemaVersion\""));
     TEST_ASSERT_TRUE(file_contains("coupling-report.json", "\"generatedAt\""));
     TEST_ASSERT_TRUE(file_contains("coupling-report.json", "\"dataCoupling\""));
     TEST_ASSERT_TRUE(file_contains("coupling-report.json", "\"controlCoupling\""));
