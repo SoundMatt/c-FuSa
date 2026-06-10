@@ -110,7 +110,7 @@ void test_disp_list_no_file_no_crash(void)
 void test_disp_add_creates_entry(void)
 {
     char path[256];
-    snprintf(path, sizeof(path), "%s/.cfusa-dispositions.json", TR_TEST_DIR);
+    snprintf(path, sizeof(path), "%s/.fusa-dispositions.json", TR_TEST_DIR);
     (void)remove(path);
 
     char *argv[] = {"cfusa", "add",
@@ -133,7 +133,7 @@ void test_disp_add_creates_entry(void)
 void test_disp_list_after_add(void)
 {
     char path[256];
-    snprintf(path, sizeof(path), "%s/.cfusa-dispositions.json", TR_TEST_DIR);
+    snprintf(path, sizeof(path), "%s/.fusa-dispositions.json", TR_TEST_DIR);
     (void)remove(path);
 
     /* add first */

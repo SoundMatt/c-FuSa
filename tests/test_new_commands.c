@@ -210,10 +210,10 @@ void test_disposition_add_reviewer_action(void)
                     "--ref",       "JIRA-42", NULL};
     int rc = cmd_disposition(14, argv);
     TEST_ASSERT_EQUAL_INT(0, rc);
-    TEST_ASSERT_TRUE(file_contains(".cfusa-dispositions.json", "\"reviewer\":\"alice\""));
-    TEST_ASSERT_TRUE(file_contains(".cfusa-dispositions.json", "\"action\":\"accept\""));
-    TEST_ASSERT_TRUE(file_contains(".cfusa-dispositions.json", "\"ref\":\"JIRA-42\""));
-    TEST_ASSERT_TRUE(file_contains(".cfusa-dispositions.json", "\"createdAt\""));
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "\"reviewer\":\"alice\""));
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "\"action\":\"accept\""));
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "\"ref\":\"JIRA-42\""));
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "\"createdAt\""));
 }
 
 void test_disposition_list_shows_reviewer(void)
