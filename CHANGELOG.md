@@ -7,6 +7,23 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-10
+
+### Added
+- `iec62443` — IEC 62443-4-2 Component Security Requirements gap report (`--sl SL-1|2|3|4`)
+  - 28 CRs across FR 1–7 mapped to cfusa rules; spec envelope with `kind: iec62443-gap`
+- `sas --dal DAL-A|B|C|D` — Design Assurance Level flag for Software Accomplishment Summary
+  - DAL included in JSON, text, and Markdown output headers
+- `req export --format doors|polarion|codebeamer|jama` — ALM XML export formats
+  - DOORS: ReqIF XML; Polarion: workitems XML; Codebeamer: tracker XML; Jama: items XML
+- All gap report JSON outputs now carry `"standard"` and `"projectRoot"` per x-FuSa spec 1.9 canonical envelope
+  - Affected: `iso26262`, `iec61508`, `iec62443`, `do178c`, `misra`, `iso21434`, `unece`
+  - `unece`: renames `"regulation"` key to `"standard"` for envelope consistency
+
+### Changed
+- Spec version bumped to 1.9 (`CFUSA_SCHEMA_VERSION`, `CFUSA_SPEC_VERSION`)
+- `capabilities --format json` standards list updated to include `iec62443`
+
 ## [0.3.0] — 2026-06-10
 
 ### Added
@@ -98,6 +115,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - GitHub Actions CI (multi-platform, coverage, SARIF upload, CodeQL)
 - Release pipeline with SBOM and binary artifacts
 
-[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/SoundMatt/c-FuSa/releases/tag/v0.1.0
