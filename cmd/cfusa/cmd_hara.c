@@ -8,6 +8,7 @@
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/version.h"
 
 /*
  * Hazard Analysis and Risk Assessment (ISO 26262-3:2018 Clause 6).
@@ -78,9 +79,14 @@ static void do_init(const char *dir, const char *project, const char *version)
 
     fprintf(f,
         "{\n"
+        "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+        "  \"kind\": \"hara\",\n"
+        "  \"tool\": \"c-FuSa\",\n"
+        "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+        "  \"language\": \"c\",\n"
+        "  \"generatedAt\": \"%s\",\n"
         "  \"project\": \"%s\",\n"
         "  \"version\": \"%s\",\n"
-        "  \"created\": \"%s\",\n"
         "  \"standard\": \"ISO 26262-3:2018\",\n"
         "  \"hazards\": [\n"
         "    {\n"
@@ -97,7 +103,7 @@ static void do_init(const char *dir, const char *project, const char *version)
         "    }\n"
         "  ]\n"
         "}\n",
-        project, version, ts);
+        ts, project, version);
     fclose(f);
 
     printf("HARA skeleton written to %s\n", path);
