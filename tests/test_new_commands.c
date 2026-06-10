@@ -208,7 +208,7 @@ void test_disposition_add_reviewer_action(void)
                     "--reviewer",  "alice",
                     "--rationale", "host tool only",
                     "--ref",       "JIRA-42", NULL};
-    int rc = cmd_disposition(13, argv);
+    int rc = cmd_disposition(14, argv);
     TEST_ASSERT_EQUAL_INT(0, rc);
     TEST_ASSERT_TRUE(file_contains(".cfusa-dispositions.json", "\"reviewer\":\"alice\""));
     TEST_ASSERT_TRUE(file_contains(".cfusa-dispositions.json", "\"action\":\"accept\""));
@@ -224,7 +224,7 @@ void test_disposition_list_shows_reviewer(void)
                    "--action",    "fix",
                    "--reviewer",  "bob",
                    "--rationale", "will fix", NULL};
-    cmd_disposition(11, add);
+    cmd_disposition(12, add);
     /* list should not crash */
     char *list[] = {"cfusa disposition", "list", "--dir", NC_DIR, NULL};
     int rc = cmd_disposition(4, list);
