@@ -1,0 +1,24 @@
+{
+  "tool": "cfusa tara",
+  "project": "c-FuSa",
+  "version": "0.1.0",
+  "generated": "2026-06-09T18:38:06Z",
+  "standard": "ISO 21434:2021 Clause 9",
+  "assets": [
+    {"id":"ASSET-001","description":"[describe asset]","property":"CIA"}
+  ],
+  "threats": [
+    {
+      "id": "TS-001",
+      "asset": "ASSET-001",
+      "threat": "[describe threat]",
+      "attack_vector": "[local/remote/physical]",
+      "impact": "[none/low/med/high/severe]",
+      "feasibility": "[1-4]",
+      "risk_level": "[LOW/MEDIUM/HIGH/CRITICAL]",
+      "treatment": "[avoid/reduce/share/accept]",
+      "cybersecurity_goal": "[goal]",
+      "requirement_ref": "[SRS-xxx]"
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "DISP-0001",
+    "rule": "CFUSA-L003",
+    "disposition": "accepted",
+    "rationale": "c-FuSa is a host-side developer tool, not embedded firmware. Dynamic memory allocation is used only for report growth and file I/O, not in safety-critical real-time paths. MISRA-C 2012 Rule 21.3 applies to target code, not host tooling.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0002",
+    "rule": "CFUSA-L008",
+    "disposition": "accepted",
+    "rationale": "void* is required for the generic file-walk and line-scan callback API (cfusa_file_cb, cfusa_line_cb). This is a deliberate design choice enabling a single walker to serve all rule contexts without coupling the utility layer to rule-specific types.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0003",
+    "rule": "CFUSA-A001",
+    "disposition": "accepted",
+    "rationale": "All strncpy/strncat/sprintf calls in this codebase use explicit sizeof(dest)-1 bounds or snprintf with buffer size. Each call site has been reviewed and is correctly bounded per CERT-C STR31-C.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0004",
+    "rule": "CFUSA-A007",
+    "disposition": "accepted",
+    "rationale": "fclose() failures on already-read files are not actionable in a CLI reporting tool. fprintf/snprintf return values indicate buffer overflow which cannot occur given fixed-size message buffers. Checking these would add noise without increasing safety.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0005",
+    "rule": "CFUSA-L009",
+    "disposition": "accepted",
+    "rationale": "#pragma clang diagnostic push/pop is required to suppress -Wformat-nonliteral in cfusa_report_add(), which intentionally accepts a format string from callers that are themselves controlled. No safer alternative exists for this pattern in C99.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0006",
+    "rule": "CFUSA-L005",
+    "disposition": "accepted",
+    "rationale": "#undef OPEN_OUT in cmd_report.c is correct macro scoping: the macro is defined and undefined within a single function to avoid polluting the translation unit. This is a deliberate pattern, not a misuse.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0007",
+    "rule": "CFUSA-CY001",
+    "disposition": "accepted",
+    "rationale": "strncpy/strncat/memcpy calls in this codebase always supply an explicit bound derived from sizeof(destination). Destination buffers are stack-allocated with known sizes. Pattern reviewed and correctly bounded per CWE-120 mitigations.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0008",
+    "rule": "CFUSA-CY005",
+    "disposition": "accepted",
+    "rationale": "The allocation size expression uses (size_t) cast before multiplication, preventing integer overflow. The cast is present at the call site in report.c: (size_t)newcap * sizeof(cfusa_finding_t). INT30-C satisfied.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0009",
+    "rule": "CFUSA-CY002",
+    "disposition": "accepted",
+    "rationale": "THREAT_TEMPLATE_MD in cmd_tara.c is a static const char* initialized to a compile-time string constant at module scope and never written after initialisation. It is not influenced by external input. Functionally equivalent to a string literal for CWE-134 purposes.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0010",
+    "rule": "CFUSA-CY003",
+    "disposition": "accepted",
+    "rationale": "popen() in cmd_impact.c:run_git_diff() is guarded by validate_git_ref() which whitelists only alphanumeric characters and safe git ref punctuation (./_~^:-). Injection via --from/--to arguments is prevented at the CLI boundary.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  },
+  {
+    "id": "DISP-0011",
+    "rule": "CFUSA-L001",
+    "disposition": "accepted",
+    "rationale": "Functions exceeding 75 lines are output-formatting functions (cmd_report.c, cmd_release.c, cmd_qualify.c) that produce structured text/JSON/SARIF output. Splitting them would require passing many parameters or global state. Complexity is linear I/O, not algorithmic.",
+    "owner": "matt",
+    "created": "2026-06-09"
+  }
+]

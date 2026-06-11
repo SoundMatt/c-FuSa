@@ -311,7 +311,7 @@ static void print_sarif(const cfusa_report_t *rpt, FILE *out)
             " \"locations\": [{\"physicalLocation\":"
             " {\"artifactLocation\": {\"uri\": \"%s\"},"
             " \"region\": {\"startLine\": %d}}}]}%s\n",
-            f->rule_id, level, esc_msg, fp, esc_file, f->line,
+            f->rule_id, level, esc_msg, fp, esc_file, f->line > 0 ? f->line : 1,
             (i < rpt->count - 1) ? "," : "");
     }
     fprintf(out, "    ]\n  }]\n}\n");

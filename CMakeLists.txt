@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(cfusa
-    VERSION 0.3.0
+    VERSION 0.5.0
     DESCRIPTION "C functional safety toolkit"
     LANGUAGES C
 )
@@ -36,6 +36,7 @@ add_library(cfusa_core STATIC
     src/report.c
     src/config.c
     src/utils.c
+    src/cfusa_runtime.c
 )
 target_include_directories(cfusa_core PUBLIC include)
 set_target_properties(cfusa_core PROPERTIES
@@ -86,6 +87,7 @@ add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_unece.c
     cmd/cfusa/cmd_capabilities.c
     cmd/cfusa/cmd_version.c
+    cmd/cfusa/cmd_safety_rules.c
 )
 target_link_libraries(cfusa_cmds PUBLIC cfusa_core)
 target_include_directories(cfusa_cmds PUBLIC include)
@@ -142,6 +144,8 @@ cfusa_test(test_hara_advanced)
 cfusa_test(test_engine_advanced)
 cfusa_test(test_req_trace_cov)
 cfusa_test(test_new_commands)
+cfusa_test(test_safety_rules)
+cfusa_test(test_runtime)
 
 # ---- Installation ----
 include(GNUInstallDirs)

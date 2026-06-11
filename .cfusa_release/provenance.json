@@ -1,0 +1,18 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [{"name": "my-project", "digest": {"sha256": ""}}],
+  "predicateType": "https://slsa.dev/provenance/v0.2",
+  "predicate": {
+    "builder": {"id": "https://github.com/SoundMatt/c-FuSa"},
+    "buildType": "cmake",
+    "invocationEnvironment": {
+      "commit": "1ab63780e8b69517fce18c5058d5b00445586899",
+      "branch": "main"
+    },
+    "metadata": {
+      "buildStartedOn": "2026-06-09T20:47:45Z",
+      "completeness": {"arguments": false, "environment": false, "materials": false}
+    },
+    "materials": []
+  }
+}

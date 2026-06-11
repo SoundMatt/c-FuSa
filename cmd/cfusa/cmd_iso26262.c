@@ -6,14 +6,15 @@
 #include "cfusa/version.h"
 
 /*
- * ISO 26262 Part 6 compliance gap report.
- * Maps CFUSA rules to Part 6 objectives and identifies gaps for the given ASIL.
+ * ISO 26262 Parts 6–11 compliance gap report.
+ * Maps CFUSA rules and evidence files to objectives by ASIL.
  */
 
 typedef struct {
     const char *clause;
     const char *title;
-    const char *cfusa_rule;  /* NULL = not yet covered */
+    const char *cfusa_rule;    /* NULL = not covered by a rule */
+    const char *evidence_file; /* NULL = no file check; checked on disk if set */
     int         asil_a;
     int         asil_b;
     int         asil_c;
@@ -21,30 +22,52 @@ typedef struct {
 } iso26262_row_t;
 
 static const iso26262_row_t OBJECTIVES[] = {
-    {"6.5",  "General software requirements specification",   NULL,          1,1,1,1},
-    {"6.6",  "Software architectural design",                 NULL,          1,1,1,1},
-    {"6.7",  "Software unit design",                          "CFUSA-L001",  1,1,1,1},
-    {"6.8",  "Software unit implementation and verification", "CFUSA-L002",  1,1,1,1},
-    {"6.9",  "Software integration and testing",              "CFUSA-A007",  1,1,1,1},
-    {"6.10", "Software qualification testing",                NULL,          0,1,1,1},
-    {"6.11", "Software safety requirements verification",     "CFUSA-A002",  1,1,1,1},
-    {"6.12", "Software configuration management",             "CFUSA-SCI",   1,1,1,1},
-    {"6.4.1","No recursion",                                  "CFUSA-L004",  0,0,1,1},
-    {"6.4.2","No dynamic memory allocation",                  "CFUSA-L003",  0,0,1,1},
-    {"6.4.3","No use of setjmp/longjmp",                      "CFUSA-L006",  1,1,1,1},
-    {"6.4.4","No goto statement",                             "CFUSA-L002",  0,1,1,1},
-    {"6.4.5","No multiple exit points from functions",        NULL,          0,0,1,1},
-    {"6.4.6","No unstructured code",                          "CFUSA-L001",  0,1,1,1},
-    {"6.4.7","No dead code",                                  NULL,          0,1,1,1},
-    {"6.4.8","No code complexity exceeds limit",              "CFUSA-L001",  0,1,1,1},
-    {"6.4.9","No use of non-standardised language ext.",      NULL,          1,1,1,1},
-    {"6.4.10","No implicit type conversions",                 "CFUSA-A003",  0,1,1,1},
-    {"6.4.11","No hiding of data flow",                       "CFUSA-L007",  0,0,1,1},
-    {"6.4.12","No use of global variables",                   "CFUSA-L007",  0,2,1,1},
-    {"6.4.13","No side-effects in conditions",                NULL,          0,0,1,1},
-    {"6.4.14","No obsolete/deprecated functions",             "CFUSA-A001",  1,1,1,1},
-    {NULL,NULL,NULL,0,0,0,0}
+    /* Part 6 — Software at the system level */
+    {"6.5",  "General software requirements specification",   NULL,         NULL,                   1,1,1,1},
+    {"6.6",  "Software architectural design",                 NULL,         NULL,                   1,1,1,1},
+    {"6.7",  "Software unit design",                          "CFUSA-L001", NULL,                   1,1,1,1},
+    {"6.8",  "Software unit implementation and verification", "CFUSA-L002", NULL,                   1,1,1,1},
+    {"6.9",  "Software integration and testing",              "CFUSA-A007", NULL,                   1,1,1,1},
+    {"6.10", "Software qualification testing",                NULL,         NULL,                   0,1,1,1},
+    {"6.11", "Software safety requirements verification",     "CFUSA-A002", NULL,                   1,1,1,1},
+    {"6.12", "Software configuration management",             "CFUSA-SCI",  NULL,                   1,1,1,1},
+    {"6.4.1","No recursion",                                  "CFUSA-L004", NULL,                   0,0,1,1},
+    {"6.4.2","No dynamic memory allocation",                  "CFUSA-L003", NULL,                   0,0,1,1},
+    {"6.4.3","No use of setjmp/longjmp",                      "CFUSA-L006", NULL,                   1,1,1,1},
+    {"6.4.4","No goto statement",                             "CFUSA-L002", NULL,                   0,1,1,1},
+    {"6.4.5","No multiple exit points from functions",        NULL,         NULL,                   0,0,1,1},
+    {"6.4.6","No unstructured code",                          "CFUSA-L001", NULL,                   0,1,1,1},
+    {"6.4.7","No dead code",                                  NULL,         NULL,                   0,1,1,1},
+    {"6.4.8","No code complexity exceeds limit",              "COMP001",    NULL,                   0,1,1,1},
+    {"6.4.9","No use of non-standardised language ext.",      NULL,         NULL,                   1,1,1,1},
+    {"6.4.10","No implicit type conversions",                 "CFUSA-A003", NULL,                   0,1,1,1},
+    {"6.4.11","No hiding of data flow",                       "CFUSA-L007", NULL,                   0,0,1,1},
+    {"6.4.12","No use of global variables",                   "CFUSA-L007", NULL,                   0,2,1,1},
+    {"6.4.13","No side-effects in conditions",                NULL,         NULL,                   0,0,1,1},
+    {"6.4.14","No obsolete/deprecated functions",             "CFUSA-A001", NULL,                   1,1,1,1},
+    /* Part 7 — Production and operation (item integration and testing) */
+    {"7.3",  "Hazard analysis and risk assessment (HARA)",    "HARA001",    ".fusa-hara.json",       1,1,1,1},
+    {"7.4",  "Functional safety concept",                     NULL,         NULL,                   0,1,1,1},
+    {"7.5",  "Safety goals",                                  "HARA003",    NULL,                   1,1,1,1},
+    /* Part 10 — Guideline on ISO 26262 */
+    {"10.4", "Software component interaction (SCI) evidence", "CFUSA-SCI",  "sci.json",             0,1,1,1},
+    /* Part 11 — Guidelines on application of ISO 26262 to semiconductors */
+    {"11.3", "Software coupling analysis evidence",           "COUP003",    "coupling-report.json", 0,0,1,1},
+    {NULL,NULL,NULL,NULL,0,0,0,0}
 };
+
+static int file_exists_in_dir(const char *dir, const char *name)
+{
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s", dir, name);
+    FILE *f = fopen(path, "r");
+    if (f) { fclose(f); return 1; }
+    /* also check .cfusa_release/ */
+    snprintf(path, sizeof(path), "%s/.cfusa_release/%s", dir, name);
+    f = fopen(path, "r");
+    if (f) { fclose(f); return 1; }
+    return 0;
+}
 
 static int asil_level(const char *asil)
 {
@@ -106,7 +129,9 @@ int cmd_iso26262(int argc, char **argv)
                   (level==2) ? r->asil_b :
                   (level==3) ? r->asil_c : r->asil_d;
         if (req == 0) { na++; continue; }
-        if (r->cfusa_rule) covered++; else gaps++;
+        int ok = r->cfusa_rule != NULL;
+        if (!ok && r->evidence_file) ok = file_exists_in_dir(dir, r->evidence_file);
+        if (ok) covered++; else gaps++;
     }
 
     FILE *out = stdout;
@@ -138,21 +163,24 @@ int cmd_iso26262(int argc, char **argv)
                       (level==2) ? r->asil_b :
                       (level==3) ? r->asil_c : r->asil_d;
             if (req == 0) continue;
-            const char *status = r->cfusa_rule ? "covered" :
-                                 (req == 2)     ? "gap-recommended" : "gap";
+            int ok = r->cfusa_rule != NULL;
+            if (!ok && r->evidence_file) ok = file_exists_in_dir(dir, r->evidence_file);
+            const char *status = ok ? "covered" : (req == 2) ? "gap-recommended" : "gap";
+            const char *rule_s = r->cfusa_rule ? r->cfusa_rule : "null";
             if (!first) fprintf(out, ",\n");
             fprintf(out,
                 "    {\"id\": \"%s\", \"title\": \"%s\","
                 " \"rule\": %s%s%s, \"status\": \"%s\"}",
                 r->clause, r->title,
-                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "null",
+                r->cfusa_rule ? "\"" : "", rule_s,
                 r->cfusa_rule ? "\"" : "",
                 status);
             first = 0;
         }
         fprintf(out, "\n  ]\n}\n");
     } else {
-        fprintf(out, "ISO 26262 Part 6 Gap Report — %s (target %s)\n", cfg.project, asil);
+        fprintf(out, "ISO 26262 Parts 6-11 Gap Report — %s (target %s)\n",
+                cfg.project, asil);
         fprintf(out, "=======================================================\n\n");
         fprintf(out, "%-8s %-45s %-14s %s\n", "Clause", "Objective", "cfusa Rule", "Status");
         fprintf(out, "%-8s %-45s %-14s %s\n",
@@ -165,11 +193,13 @@ int cmd_iso26262(int argc, char **argv)
                       (level==2) ? r->asil_b :
                       (level==3) ? r->asil_c : r->asil_d;
             if (req == 0) continue;
-            const char *status = r->cfusa_rule ? "COVERED" :
-                                 (req == 2)     ? "GAP (REC)" : "GAP";
+            int ok = r->cfusa_rule != NULL;
+            if (!ok && r->evidence_file) ok = file_exists_in_dir(dir, r->evidence_file);
+            const char *status = ok ? "COVERED" : (req == 2) ? "GAP (REC)" : "GAP";
+            const char *rule_s = r->cfusa_rule ? r->cfusa_rule :
+                                 (r->evidence_file ? r->evidence_file : "-");
             fprintf(out, "%-8s %-45s %-14s %s\n",
-                   r->clause, r->title,
-                   r->cfusa_rule ? r->cfusa_rule : "-", status);
+                   r->clause, r->title, rule_s, status);
         }
 
         fprintf(out, "\nSummary: %d covered, %d gap(s), %d not applicable for %s\n",

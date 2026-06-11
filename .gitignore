@@ -28,3 +28,5 @@ Makefile
 CTestTestfile.cmake
 install_manifest.txt
 compile_commands.json
+qualify-report.json
+.cache/

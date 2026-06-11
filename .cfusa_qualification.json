@@ -1,0 +1,12 @@
+{
+  "tool": "cfusa", "version": "0.1.0", "timestamp": "2026-06-09T18:38:12Z",
+  "binary_sha256": "400904f86bfcc19db71c90f2b8607c8e17a0b0712bf5ced44b34783bf5af842b",
+  "tests_passed": 4, "tests_failed": 0,
+  "qualified": true,
+  "tests": [
+    {"name": "SHA-256 known-answer", "result": "PASS"},
+    {"name": "HMAC-SHA256 known-answer", "result": "PASS"},
+    {"name": "Version string non-empty", "result": "PASS"},
+    {"name": "Source walker no crash", "result": "PASS"}
+  ]
+}

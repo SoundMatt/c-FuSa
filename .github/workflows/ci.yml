@@ -97,7 +97,7 @@ jobs:
           lcov --list coverage.info
 
       - name: cfusa coverage analysis
-        run: ./build-cov/cfusa coverage --lcov coverage.info --threshold 60
+        run: ./build-cov/cfusa coverage --lcov coverage.info --threshold 68
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -174,11 +174,30 @@ jobs:
         run: ./build/cfusa qualify --binary ./build/cfusa --format json --output .cfusa_qualification.json
 
       - name: Run trace coverage check
-        run: ./build/cfusa trace --dir . || true
+        run: ./build/cfusa trace --dir . --format json --output trace-report.json || true
+
+      - name: Run ISO 26262 gap report
+        run: |
+          ./build/cfusa iso26262 --dir . --format json --output iso26262-gap-report.json || true
+
+      - name: Run HARA validation
+        run: |
+          ./build/cfusa hara show --dir . || true
+
+      - name: docs — version consistency check
+        run: |
+          # Verify README and CHANGELOG mention current version
+          VERSION=$(./build/cfusa version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          echo "Checking version $VERSION in docs"
+          grep -q "$VERSION" CHANGELOG.md || echo "WARN: $VERSION not in CHANGELOG.md"
+          grep -q "$VERSION" README.md    || echo "WARN: $VERSION not in README.md"
 
       - name: Upload qualification record
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: qualification-record
-          path: .cfusa_qualification*.json
+          path: |
+            .cfusa_qualification*.json
+            iso26262-gap-report.json
+            trace-report.json

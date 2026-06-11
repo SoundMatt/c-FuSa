@@ -50,6 +50,7 @@ int cmd_check(int argc, char **argv)
     cfusa_lint_register_rules();
     cfusa_analyze_register_rules();
     cfusa_cyber_register_rules();
+    cfusa_safety_register_rules();
 
     cfusa_config_t cfg;
     cfusa_config_load(dir, &cfg);
