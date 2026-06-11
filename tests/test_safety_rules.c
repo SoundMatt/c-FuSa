@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include "unity.h"
 #include "cfusa/engine.h"
@@ -22,8 +24,11 @@
 
 static void write_file(const char *path, const char *body)
 {
-    FILE *f = fopen(path, "w");
-    if (f) { fputs(body, f); fclose(f); }
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd < 0) return;
+    size_t n = strlen(body);
+    if (n) { (void)write(fd, body, n); }
+    close(fd);
 }
 
 static void make_dir(void)

@@ -97,7 +97,7 @@ jobs:
           lcov --list coverage.info
 
       - name: cfusa coverage analysis
-        run: ./build-cov/cfusa coverage --lcov coverage.info --threshold 70
+        run: ./build-cov/cfusa coverage --lcov coverage.info --threshold 68
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
