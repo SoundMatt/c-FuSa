@@ -49,6 +49,7 @@ int cmd_metrics(int argc, char **argv);
 int cmd_coupling(int argc, char **argv);
 int cmd_iso21434(int argc, char **argv);
 int cmd_unece(int argc, char **argv);
+int cmd_slsa(int argc, char **argv);
 int cmd_version(int argc, char **argv);
 int cmd_capabilities(int argc, char **argv);
 int cmd_help(int argc, char **argv);

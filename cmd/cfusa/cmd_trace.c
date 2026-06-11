@@ -290,6 +290,8 @@ int cmd_trace(int argc, char **argv)
 
     if (fmt == FMT_JSON) {
         char ts[32]; cfusa_timestamp_now(ts);
+
+        /* spec §5: requirements[] + tags[] + coverage{} */
         fprintf(out,
             "{\n"
             "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
@@ -297,39 +299,54 @@ int cmd_trace(int argc, char **argv)
             "  \"tool\": \"c-FuSa\",\n"
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
-            "  \"generatedAt\": \"%s\",\n"
-            "  \"total\": %d,\n"
-            "  \"traced\": %d,\n"
-            "  \"tested\": %d,\n"
-            "  \"matrix\": [\n",
-            ts, total, traced, tested);
+            "  \"generatedAt\": \"%s\",\n", ts);
 
-        int mat_first = 1;
+        /* requirements[] */
+        fprintf(out, "  \"requirements\": [\n");
         for (int i = 0; i < g_req_count; i++) {
-            int has_impl = 0, has_test = 0, has_sec = 0;
-            for (int j = 0; j < g_tag_count; j++) {
-                if (!strcmp(g_tags[j].req_id, g_reqs[i].id)) {
-                    if (g_tags[j].kind == KIND_IMPL)     has_impl = 1;
-                    if (g_tags[j].kind == KIND_TEST)     has_test = 1;
-                    if (g_tags[j].kind == KIND_SEC_TEST) { has_test = 1; has_sec = 1; }
-                }
-            }
-            if (show_gaps && has_test) continue;
-            if (!mat_first) fprintf(out, ",\n");
+            char esc_id[MAX_ID*2], esc_title[MAX_TITLE*2],
+                 esc_std[128], esc_lvl[64];
+            cfusa_str_escape_json(g_reqs[i].id,       esc_id,    sizeof(esc_id));
+            cfusa_str_escape_json(g_reqs[i].title,    esc_title, sizeof(esc_title));
+            cfusa_str_escape_json(g_reqs[i].standard, esc_std,   sizeof(esc_std));
+            cfusa_str_escape_json(g_reqs[i].level,    esc_lvl,   sizeof(esc_lvl));
             fprintf(out, "    {\"id\": \"%s\", \"title\": \"%s\"",
-                    g_reqs[i].id, g_reqs[i].title);
-            if (g_reqs[i].standard[0])
-                fprintf(out, ", \"standard\": \"%s\"", g_reqs[i].standard);
-            if (g_reqs[i].level[0])
-                fprintf(out, ", \"level\": \"%s\"", g_reqs[i].level);
-            fprintf(out, ", \"traced\": %s, \"tested\": %s, \"secTested\": %s}",
-                    has_impl ? "true" : "false",
-                    has_test ? "true" : "false",
-                    has_sec  ? "true" : "false");
-            mat_first = 0;
+                    esc_id, esc_title);
+            if (esc_std[0])
+                fprintf(out, ", \"standard\": \"%s\"", esc_std);
+            if (esc_lvl[0])
+                fprintf(out, ", \"level\": \"%s\"",    esc_lvl);
+            fprintf(out, "}%s\n", (i < g_req_count - 1) ? "," : "");
         }
-        if (!mat_first) fprintf(out, "\n");
-        fprintf(out, "  ]\n}\n");
+        fprintf(out, "  ],\n");
+
+        /* tags[] */
+        fprintf(out, "  \"tags\": [\n");
+        for (int j = 0; j < g_tag_count; j++) {
+            char esc_rid[MAX_ID*2], esc_file[512];
+            cfusa_str_escape_json(g_tags[j].req_id, esc_rid,  sizeof(esc_rid));
+            cfusa_str_escape_json(g_tags[j].file,   esc_file, sizeof(esc_file));
+            const char *kind_s = (g_tags[j].kind == KIND_TEST)    ? "test"
+                               : (g_tags[j].kind == KIND_SEC_TEST) ? "sec-test"
+                               :                                      "impl";
+            fprintf(out,
+                "    {\"requirementId\": \"%s\", \"file\": \"%s\","
+                " \"line\": %d, \"kind\": \"%s\"}%s\n",
+                esc_rid, esc_file, g_tags[j].line, kind_s,
+                (j < g_tag_count - 1) ? "," : "");
+        }
+        fprintf(out, "  ],\n");
+
+        /* coverage{} */
+        fprintf(out,
+            "  \"coverage\": {\n"
+            "    \"totalRequirements\": %d,\n"
+            "    \"tracedRequirements\": %d,\n"
+            "    \"testedRequirements\": %d,\n"
+            "    \"secTestedRequirements\": %d\n"
+            "  }\n"
+            "}\n",
+            total, traced, tested, sec_tested_count);
     } else if (fmt == FMT_MD) {
         fprintf(out, "# Requirements Traceability Matrix\n\n");
         if (g_req_count > 0) {

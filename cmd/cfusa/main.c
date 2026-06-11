@@ -43,6 +43,7 @@ const cfusa_command_t CFUSA_COMMANDS[] = {
     {"coupling",    "Data/control coupling analysis (DO-178C §6.4.4.3)",cmd_coupling},
     {"iso21434",    "ISO 21434 cybersecurity compliance gap report",    cmd_iso21434},
     {"unece",       "UN R.155 cybersecurity compliance gap report",     cmd_unece},
+    {"slsa",        "SLSA v1.0 provenance gap report (--level 1|2|3|4)", cmd_slsa},
     {"capabilities","Emit supported commands/formats (FuSaOps discovery)", cmd_capabilities},
     {"version",     "Print version",                                    cmd_version},
     {"help",        "Show this help",                                   cmd_help},

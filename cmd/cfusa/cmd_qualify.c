@@ -122,9 +122,9 @@ int cmd_qualify(int argc, char **argv)
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
             "  \"binarySha256\": \"%s\",\n"
-            "  \"tests_total\": %d,\n"
-            "  \"tests_passed\": %d,\n"
-            "  \"tests_failed\": %d,\n"
+            "  \"total\": %d,\n"
+            "  \"passed\": %d,\n"
+            "  \"failed\": %d,\n"
             "  \"qualified\": %s,\n"
             "  \"results\": [\n",
             CFUSA_VERSION_STRING, ts, bin_hash,

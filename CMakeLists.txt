@@ -85,6 +85,7 @@ add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_coupling.c
     cmd/cfusa/cmd_iso21434.c
     cmd/cfusa/cmd_unece.c
+    cmd/cfusa/cmd_slsa.c
     cmd/cfusa/cmd_capabilities.c
     cmd/cfusa/cmd_version.c
     cmd/cfusa/cmd_safety_rules.c
