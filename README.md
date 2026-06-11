@@ -101,7 +101,7 @@ cfusa fix --dir src/
 | `report` | Compliance report (text/json/sarif/html/md) |
 | `template` | Safety doc templates (HARA, PSAC, safety-plan, test-evidence) |
 | `trace` | Requirements traceability matrix from `.cfusa-reqs.json` |
-| `req` | Show requirements and their impl/test source locations — `export`/`import` CSV |
+| `req` | Show requirements and their impl/test source locations — `export`/`import` CSV/XML (DOORS/Polarion/Codebeamer/Jama) |
 | `verify` | Collect and bundle test evidence |
 | `release` | SBOM (SPDX-3.0.1 JSON), SLSA v0.2 provenance, artifact manifest |
 | `qualify` | Tool self-test and qualification record |
@@ -119,7 +119,7 @@ cfusa fix --dir src/
 | `coverage` | Structural coverage from gcov/lcov |
 | `pr` | Problem report CRUD log (DO-178C §11.17) |
 | `hara` | Hazard Analysis & Risk Assessment (ISO 26262-3 §6) — `init`/`show`/`asil` |
-| `iso26262` | ISO 26262 Part 6 compliance gap report (`--asil ASIL-A|B|C|D`) |
+| `iso26262` | ISO 26262 Parts 6–11 compliance gap report (`--asil ASIL-A|B|C|D`) |
 | `iec61508` | IEC 61508 Parts 1–3 compliance gap report (`--sil SIL-1|2|3|4`) |
 | `misra` | MISRA C:2012 rule coverage mapping (`--gaps`) |
 | `disposition` | Finding disposition tracking — `add`/`list`/`show` |
@@ -131,6 +131,35 @@ cfusa fix --dir src/
 | `version` | Print version |
 
 Run `cfusa <command> --help` for per-command options.
+
+---
+
+## Safety Runtime Library
+
+`include/cfusa/runtime.h` provides five polling-based safety monitors for embedded C targets:
+
+| Component | API | Purpose |
+|-----------|-----|---------|
+| `cfusa_watchdog_t` | `init / kick / check / stop` | Kick-based timeout detection (ISO 26262 ASIL-D, IEC 61508 SIL-4) |
+| `cfusa_heartbeat_t` | `init / beat / check / stop` | Periodic beat health checking |
+| `cfusa_state_mgr_t` | `init / get / transition` | Formal safe-state machine — 4 states, `EmergencyStop` is terminal (ISO 26262-4 §6.4.6) |
+| `cfusa_diag_mgr_t` | `init / record / get / clear` | Bounded ring buffer of diagnostic events (CRITICAL/ERROR/WARNING/INFO) |
+| `cfusa_fault_monitor_t` | `init / record / reset / count` | Per-fault occurrence counters with threshold callbacks |
+
+All components are **thread-oblivious** (no internal threads — the caller drives the check loop), **zero-dependency** (only `<string.h>` and `<time.h>`), and suitable for MISRA-C:2012 environments.
+
+```c
+#include "cfusa/runtime.h"
+
+/* Watchdog: fire safe state if not kicked within 100 ms */
+static void on_expired(void *u) { (void)u; enter_safe_state(); }
+cfusa_watchdog_t wd;
+cfusa_watchdog_init(&wd, 0.1, on_expired, NULL);
+
+/* In main loop */
+cfusa_watchdog_kick(&wd);   /* reset from monitored task */
+cfusa_watchdog_check(&wd);  /* check from scheduler tick */
+```
 
 ---
 

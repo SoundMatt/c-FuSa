@@ -1,0 +1,68 @@
+{
+  "project": "c-FuSa",
+  "version": "0.1.0",
+  "created": "2026-06-09T18:34:23Z",
+  "standard": "ISO 26262-3:2018",
+  "hazards": [
+    {
+      "id": "HAZ-001",
+      "item": "cfusa check / cfusa lint",
+      "hazardous_event": "Tool reports no violations on a file that contains real safety violations (false-negative), leading developer to believe code is safe when it is not",
+      "severity": 3,
+      "exposure": 4,
+      "controllability": 2,
+      "asil": "ASIL-C",
+      "safe_state": "Developer independently reviews code and uses additional static analysis tools",
+      "safety_goal": "cfusa shall not suppress or omit any finding for which the rule engine is configured to detect",
+      "ftti_ms": 0
+    },
+    {
+      "id": "HAZ-002",
+      "item": "cfusa check / cfusa lint",
+      "hazardous_event": "Tool reports excessive false-positives causing developer to disable checks or ignore findings, masking real violations",
+      "severity": 2,
+      "exposure": 4,
+      "controllability": 3,
+      "asil": "ASIL-C",
+      "safe_state": "Developer uses disposition system to explicitly accept findings with rationale",
+      "safety_goal": "cfusa shall limit false-positive rate to a level that does not cause systematic check-disabling",
+      "ftti_ms": 0
+    },
+    {
+      "id": "HAZ-003",
+      "item": "cfusa impact",
+      "hazardous_event": "Command injection via unsanitised --from/--to git refs passed to popen(), allowing arbitrary shell execution on developer machine",
+      "severity": 3,
+      "exposure": 2,
+      "controllability": 1,
+      "asil": "QM",
+      "safe_state": "validate_git_ref() whitelist prevents injection; tool exits 1 with error message",
+      "safety_goal": "cfusa impact shall validate all git ref arguments before constructing shell commands",
+      "ftti_ms": 0
+    },
+    {
+      "id": "HAZ-004",
+      "item": "cfusa release / cfusa qualify",
+      "hazardous_event": "SBOM or qualification record is generated with incorrect checksums or version info, leading to incorrect evidence being submitted to a safety case",
+      "severity": 2,
+      "exposure": 3,
+      "controllability": 2,
+      "asil": "ASIL-A",
+      "safe_state": "Reviewer independently verifies SBOM checksums against source",
+      "safety_goal": "cfusa release shall compute SHA-256 checksums deterministically and embed correct project/version from .cfusa.json",
+      "ftti_ms": 0
+    },
+    {
+      "id": "HAZ-005",
+      "item": "cfusa hara asil",
+      "hazardous_event": "Incorrect ASIL determination output (wrong table lookup) causes developer to under-design safety measures for a hazardous item",
+      "severity": 3,
+      "exposure": 3,
+      "controllability": 2,
+      "asil": "ASIL-B",
+      "safe_state": "Developer cross-checks ASIL with ISO 26262-3:2018 Table 4 directly",
+      "safety_goal": "cfusa hara asil shall implement ISO 26262-3:2018 Table 4 correctly for all S/E/C combinations",
+      "ftti_ms": 0
+    }
+  ]
+}

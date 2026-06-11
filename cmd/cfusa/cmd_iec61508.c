@@ -14,39 +14,53 @@ typedef struct {
     const char *clause;
     const char *title;
     const char *cfusa_rule;
+    const char *evidence_file; /* checked on disk if set */
     int         sil1;
     int         sil2;
     int         sil3;
     int         sil4;
 } iec61508_row_t;
 
+static int iec61508_file_exists(const char *dir, const char *name)
+{
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s", dir, name);
+    FILE *f = fopen(path, "r");
+    if (f) { fclose(f); return 1; }
+    return 0;
+}
+
 /* 1=required (M), 2=recommended (R), 0=not applicable (-) */
 static const iec61508_row_t OBJECTIVES[] = {
-    {"7.2.2",  "Structured programming",           "CFUSA-L001",  2,1,1,1},
-    {"7.2.2",  "No dynamic objects / memory",       "CFUSA-L003",  0,2,1,1},
-    {"7.2.2",  "No recursion",                      "CFUSA-L004",  0,2,1,1},
-    {"7.2.2",  "No goto",                            "CFUSA-L002",  2,1,1,1},
-    {"7.2.2",  "No setjmp/longjmp",                 "CFUSA-L006",  2,1,1,1},
-    {"7.2.2",  "Limited use of interrupts",         NULL,           2,2,1,1},
-    {"7.3.2",  "Defensive programming",             "CFUSA-A002",  1,1,1,1},
-    {"7.3.2",  "Fault detection/recovery routines", NULL,           1,1,1,1},
-    {"7.3.2",  "Safety bag techniques",             NULL,           0,2,1,1},
-    {"7.4.2",  "Static analysis",                   "CFUSA-A003",  2,1,1,1},
-    {"7.4.2",  "Dynamic analysis and testing",      NULL,           2,1,1,1},
-    {"7.4.2",  "Data recording and analysis",       NULL,           2,1,1,1},
-    {"7.4.4",  "Diverse programming",               NULL,           0,0,2,1},
-    {"7.4.4",  "Multi-version dissimilar SW",       NULL,           0,0,2,1},
-    {"7.4.7",  "Formal methods",                    NULL,           0,0,2,2},
-    {"7.5.1",  "Software module testing",           "CFUSA-A007",  1,1,1,1},
-    {"7.5.2",  "Statement coverage",               "CFUSA-COV",    1,1,1,1},
-    {"7.5.2",  "Branch coverage",                  "CFUSA-COV",    0,1,1,1},
-    {"7.5.2",  "MC/DC coverage",                   "CFUSA-COV",    0,0,2,1},
-    {"7.6",    "Software integration testing",     NULL,            1,1,1,1},
-    {"7.7",    "Programmable electronics",         NULL,            1,1,1,1},
-    {"7.8",    "Software safety validation",       "CFUSA-QUALIFY", 1,1,1,1},
-    {"7.9",    "Software modification",            NULL,            1,1,1,1},
-    {"7.10",   "Software verification",            "CFUSA-TRACE",   1,1,1,1},
-    {NULL,NULL,NULL,0,0,0,0}
+    {"7.2.2",  "Structured programming",           "CFUSA-L001",    NULL,                 2,1,1,1},
+    {"7.2.2",  "No dynamic objects / memory",       "CFUSA-L003",    NULL,                 0,2,1,1},
+    {"7.2.2",  "No recursion",                      "CFUSA-L004",    NULL,                 0,2,1,1},
+    {"7.2.2",  "No goto",                            "CFUSA-L002",    NULL,                 2,1,1,1},
+    {"7.2.2",  "No setjmp/longjmp",                 "CFUSA-L006",    NULL,                 2,1,1,1},
+    {"7.2.2",  "Limited use of interrupts",         NULL,             NULL,                 2,2,1,1},
+    {"7.3.2",  "Defensive programming",             "CFUSA-A002",    NULL,                 1,1,1,1},
+    {"7.3.2",  "Fault detection/recovery routines", NULL,             NULL,                 1,1,1,1},
+    {"7.3.2",  "Safety bag techniques",             NULL,             NULL,                 0,2,1,1},
+    {"7.4.2",  "Static analysis",                   "CFUSA-A003",    NULL,                 2,1,1,1},
+    {"7.4.2",  "Dynamic analysis and testing",      NULL,             NULL,                 2,1,1,1},
+    {"7.4.2",  "Data recording and analysis",       NULL,             NULL,                 2,1,1,1},
+    {"7.4.4",  "Diverse programming",               NULL,             NULL,                 0,0,2,1},
+    {"7.4.4",  "Multi-version dissimilar SW",       NULL,             NULL,                 0,0,2,1},
+    {"7.4.7",  "Formal methods",                    NULL,             NULL,                 0,0,2,2},
+    {"7.5.1",  "Software module testing",           "CFUSA-A007",    NULL,                 1,1,1,1},
+    {"7.5.2",  "Statement coverage",               "CFUSA-COV",      NULL,                 1,1,1,1},
+    {"7.5.2",  "Branch coverage",                  "CFUSA-COV",      NULL,                 0,1,1,1},
+    {"7.5.2",  "MC/DC coverage",                   "CFUSA-COV",      NULL,                 0,0,2,1},
+    {"7.6",    "Software integration testing",     NULL,              NULL,                 1,1,1,1},
+    {"7.7",    "Programmable electronics",         NULL,              NULL,                 1,1,1,1},
+    {"7.8",    "Software safety validation",       "CFUSA-QUALIFY",   NULL,                 1,1,1,1},
+    {"7.9",    "Software modification",            NULL,              NULL,                 1,1,1,1},
+    {"7.10",   "Software verification",            "CFUSA-TRACE",     NULL,                 1,1,1,1},
+    /* Evidence-file–checked objectives (IEC 61508-2/3 clause refs) */
+    {"1.3",    "Hazard and risk analysis present", "HARA001",         ".fusa-hara.json",    1,1,1,1},
+    {"4.2",    "FMEA failure mode evidence",        NULL,              "fmea.json",          0,1,1,1},
+    {"5.4",    "SCI evidence present",              "CFUSA-SCI",       "sci.json",           0,1,1,1},
+    {NULL,NULL,NULL,NULL,0,0,0,0}
 };
 
 static int sil_level(const char *sil)
@@ -109,7 +123,9 @@ int cmd_iec61508(int argc, char **argv)
                   (level==2) ? r->sil2 :
                   (level==3) ? r->sil3 : r->sil4;
         if (req == 0) { na++; continue; }
-        if (r->cfusa_rule) covered++;
+        int ok = r->cfusa_rule != NULL;
+        if (!ok && r->evidence_file) ok = iec61508_file_exists(dir, r->evidence_file);
+        if (ok) covered++;
         else if (req == 2) gaps_r++;
         else gaps_m++;
     }
@@ -144,9 +160,10 @@ int cmd_iec61508(int argc, char **argv)
                       (level==2) ? r->sil2 :
                       (level==3) ? r->sil3 : r->sil4;
             if (req == 0) continue;
+            int ok = r->cfusa_rule != NULL;
+            if (!ok && r->evidence_file) ok = iec61508_file_exists(dir, r->evidence_file);
             const char *level_str = (req == 1) ? "mandatory" : "recommended";
-            const char *status    = r->cfusa_rule ? "covered" :
-                                    (req == 2)    ? "gap-recommended" : "gap";
+            const char *status    = ok ? "covered" : (req == 2) ? "gap-recommended" : "gap";
             if (!first) fprintf(out, ",\n");
             fprintf(out,
                 "    {\"id\": \"%s\", \"title\": \"%s\","
@@ -172,12 +189,14 @@ int cmd_iec61508(int argc, char **argv)
                       (level==2) ? r->sil2 :
                       (level==3) ? r->sil3 : r->sil4;
             if (req == 0) continue;
+            int ok = r->cfusa_rule != NULL;
+            if (!ok && r->evidence_file) ok = iec61508_file_exists(dir, r->evidence_file);
             const char *reqmt  = (req == 1) ? "Mandatory" : "Recommended";
-            const char *status = r->cfusa_rule ? "COVERED" :
-                                 (req == 2)    ? "GAP (R)" : "GAP (M)";
+            const char *status = ok ? "COVERED" : (req == 2) ? "GAP (R)" : "GAP (M)";
+            const char *rule_s = r->cfusa_rule ? r->cfusa_rule :
+                                 (r->evidence_file ? r->evidence_file : "-");
             fprintf(out, "%-8s %-45s %-15s %-10s %s\n",
-                   r->clause, r->title,
-                   r->cfusa_rule ? r->cfusa_rule : "-", reqmt, status);
+                   r->clause, r->title, rule_s, reqmt, status);
         }
 
         fprintf(out, "\nSummary: %d covered, %d mandatory gap(s), %d recommended gap(s), "

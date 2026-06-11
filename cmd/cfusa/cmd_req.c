@@ -328,6 +328,168 @@ static int import_reqif(const char *path, const char *dir,
     return 0;
 }
 
+/*
+ * XML import helpers — simple tag-content extraction.
+ * Extract the text content between <tag> and </tag>.
+ */
+//cfusa:req REQ-REQXML001 REQ-REQXML002 REQ-REQXML003 REQ-REQXML004
+static void xml_tag_content(const char *src, const char *tag,
+                              char *out, size_t out_sz)
+{
+    out[0] = '\0';
+    char open_tag[64], close_tag[72];
+    snprintf(open_tag, sizeof(open_tag), "<%s", tag);
+    snprintf(close_tag, sizeof(close_tag), "</%s>", tag);
+    const char *p = strstr(src, open_tag);
+    if (!p) return;
+    const char *start = strchr(p, '>');
+    if (!start) return;
+    start++;
+    const char *end = strstr(start, close_tag);
+    if (!end) return;
+    size_t len = (size_t)(end - start);
+    if (len >= out_sz) len = out_sz - 1;
+    memcpy(out, start, len);
+    out[len] = '\0';
+}
+
+/* Extract attribute value: tag="..." or tag='...' */
+static void xml_attr(const char *elem, const char *attr,
+                      char *out, size_t out_sz)
+{
+    out[0] = '\0';
+    char pat[72]; snprintf(pat, sizeof(pat), "%s=\"", attr);
+    const char *p = strstr(elem, pat);
+    if (!p) { snprintf(pat, sizeof(pat), "%s='", attr); p = strstr(elem, pat); }
+    if (!p) return;
+    p += strlen(pat);
+    char delim = *(p - 1);
+    size_t i = 0;
+    while (*p && *p != delim && i < out_sz - 1) out[i++] = *p++;
+    out[i] = '\0';
+}
+
+/* Polarion XML: <workitems><workitem id="REQ-001"><title>...</title>...</workitem></workitems> */
+static int import_polarion_xml(const char *path,
+                                char *new_entries, size_t buf_sz,
+                                size_t *ne_len_out, int *imported)
+{
+    size_t flen; char *xml = cfusa_read_file(path, &flen);
+    if (!xml) { perror(path); return 3; }
+
+    const char *p = xml;
+    int idx = 0;
+    while ((p = strstr(p, "<workitem")) != NULL) {
+        char id[MAX_ID] = "", title[MAX_TITLE] = "", text[512] = "", level[32] = "";
+        const char *end_tag = strstr(p, "</workitem>");
+        if (!end_tag) break;
+        size_t blen = (size_t)(end_tag - p);
+        char *blk = (char *)malloc(blen + 1);
+        if (!blk) break;
+        memcpy(blk, p, blen); blk[blen] = '\0';
+
+        xml_attr(blk, "id", id, sizeof(id));
+        xml_tag_content(blk, "title", title, sizeof(title));
+        xml_tag_content(blk, "description", text, sizeof(text));
+        xml_tag_content(blk, "level", level, sizeof(level));
+        /* customField id="level" value="..." */
+        if (!level[0]) {
+            const char *cf = strstr(blk, "id=\"level\"");
+            if (cf) xml_attr(cf, "value", level, sizeof(level));
+        }
+        if (!id[0]) snprintf(id, sizeof(id), "POL-%04d", ++idx);
+        if (!title[0] && text[0]) strncpy(title, text, MAX_TITLE - 1);
+
+        *ne_len_out = append_entry(new_entries, buf_sz, *ne_len_out,
+                                   id, title, text, "", level, imported);
+        free(blk);
+        p = end_tag + 1;
+    }
+    free(xml);
+    return 0;
+}
+
+/* Codebeamer XML: <tracker><item id="..."><summary>...</summary>...</item></tracker> */
+static int import_codebeamer_xml(const char *path,
+                                  char *new_entries, size_t buf_sz,
+                                  size_t *ne_len_out, int *imported)
+{
+    size_t flen; char *xml = cfusa_read_file(path, &flen);
+    if (!xml) { perror(path); return 3; }
+
+    const char *p = xml;
+    int idx = 0;
+    while ((p = strstr(p, "<item")) != NULL) {
+        /* Skip <items> wrapper if any */
+        if (*(p + 5) == 's') { p++; continue; }
+        char id[MAX_ID] = "", title[MAX_TITLE] = "", text[512] = "", level[32] = "";
+        const char *end_tag = strstr(p, "</item>");
+        if (!end_tag) break;
+        size_t blen = (size_t)(end_tag - p);
+        char *blk = (char *)malloc(blen + 1);
+        if (!blk) break;
+        memcpy(blk, p, blen); blk[blen] = '\0';
+
+        xml_attr(blk, "id", id, sizeof(id));
+        xml_tag_content(blk, "summary", title, sizeof(title));
+        xml_tag_content(blk, "description", text, sizeof(text));
+        /* customField id="level" value="..." */
+        const char *cf = strstr(blk, "id=\"level\"");
+        if (cf) xml_attr(cf, "value", level, sizeof(level));
+
+        if (!id[0]) snprintf(id, sizeof(id), "CB-%04d", ++idx);
+        else { char tmp[MAX_ID]; snprintf(tmp, sizeof(tmp), "CB-%s", id); strncpy(id, tmp, sizeof(id)-1); }
+        if (!title[0] && text[0]) strncpy(title, text, MAX_TITLE - 1);
+
+        *ne_len_out = append_entry(new_entries, buf_sz, *ne_len_out,
+                                   id, title, text, "", level, imported);
+        free(blk);
+        p = end_tag + 1;
+    }
+    free(xml);
+    return 0;
+}
+
+/* Jama XML: <items><item id="..." itemType="..."><name>...</name>...</item></items> */
+static int import_jama_xml(const char *path,
+                            char *new_entries, size_t buf_sz,
+                            size_t *ne_len_out, int *imported)
+{
+    size_t flen; char *xml = cfusa_read_file(path, &flen);
+    if (!xml) { perror(path); return 3; }
+
+    const char *p = xml;
+    int idx = 0;
+    while ((p = strstr(p, "<item")) != NULL) {
+        if (*(p + 5) == 's') { p++; continue; }
+        char id[MAX_ID] = "", title[MAX_TITLE] = "", text[512] = "", level[32] = "";
+        const char *end_tag = strstr(p, "</item>");
+        if (!end_tag) break;
+        size_t blen = (size_t)(end_tag - p);
+        char *blk = (char *)malloc(blen + 1);
+        if (!blk) break;
+        memcpy(blk, p, blen); blk[blen] = '\0';
+
+        xml_attr(blk, "id", id, sizeof(id));
+        xml_tag_content(blk, "name", title, sizeof(title));
+        xml_tag_content(blk, "description", text, sizeof(text));
+        /* <field id="level" value="..." /> */
+        const char *cf = strstr(blk, "id=\"level\"");
+        if (cf) xml_attr(cf, "value", level, sizeof(level));
+
+        if (!id[0]) snprintf(id, sizeof(id), "JAMA-%04d", ++idx);
+        else { char tmp[MAX_ID]; snprintf(tmp, sizeof(tmp), "JAMA-%s", id); strncpy(id, tmp, sizeof(id)-1); }
+        if (!title[0] && text[0]) strncpy(title, text, MAX_TITLE - 1);
+
+        *ne_len_out = append_entry(new_entries, buf_sz, *ne_len_out,
+                                   id, title, text, "", level, imported);
+        free(blk);
+        p = end_tag + 1;
+    }
+    free(xml);
+    return 0;
+}
+
 /* Codebeamer CSV: columns differ from cfusa CSV */
 static size_t import_cb_csv(FILE *f, char *new_entries, size_t buf_sz,
                               size_t ne_len, int *imported)
@@ -475,19 +637,41 @@ static void do_req_import(const char *dir, const char *input_file,
     char new_entries[65536] = "";
     size_t ne_len = 0;
 
-    if (!strcmp(fmt, "doors") || !strcmp(fmt, "polarion")) {
+    const char *ext = strrchr(input_file, '.');
+    int is_xml = ext && (!strcmp(ext, ".xml") || !strcmp(ext, ".reqif") ||
+                         !strcmp(ext, ".reqifz"));
+
+    if (!strcmp(fmt, "doors") ||
+        (!strcmp(fmt, "polarion") && is_xml && strstr(fmt, "reqif"))) {
         import_reqif(input_file, dir, new_entries, sizeof(new_entries),
                      &ne_len, &imported);
+    } else if (!strcmp(fmt, "polarion")) {
+        if (is_xml)
+            import_polarion_xml(input_file, new_entries, sizeof(new_entries),
+                                &ne_len, &imported);
+        else
+            import_reqif(input_file, dir, new_entries, sizeof(new_entries),
+                         &ne_len, &imported);
     } else if (!strcmp(fmt, "codebeamer")) {
-        FILE *f = fopen(input_file, "r");
-        if (!f) { perror(input_file); free(existing); return; }
-        ne_len = import_cb_csv(f, new_entries, sizeof(new_entries), ne_len, &imported);
-        fclose(f);
+        if (is_xml) {
+            import_codebeamer_xml(input_file, new_entries, sizeof(new_entries),
+                                  &ne_len, &imported);
+        } else {
+            FILE *f = fopen(input_file, "r");
+            if (!f) { perror(input_file); free(existing); return; }
+            ne_len = import_cb_csv(f, new_entries, sizeof(new_entries), ne_len, &imported);
+            fclose(f);
+        }
     } else if (!strcmp(fmt, "jama")) {
-        FILE *f = fopen(input_file, "r");
-        if (!f) { perror(input_file); free(existing); return; }
-        ne_len = import_jama_csv(f, new_entries, sizeof(new_entries), ne_len, &imported);
-        fclose(f);
+        if (is_xml) {
+            import_jama_xml(input_file, new_entries, sizeof(new_entries),
+                            &ne_len, &imported);
+        } else {
+            FILE *f = fopen(input_file, "r");
+            if (!f) { perror(input_file); free(existing); return; }
+            ne_len = import_jama_csv(f, new_entries, sizeof(new_entries), ne_len, &imported);
+            fclose(f);
+        }
     } else {
         /* csv (default) */
         FILE *f = fopen(input_file, "r");

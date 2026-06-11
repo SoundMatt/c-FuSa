@@ -33,9 +33,11 @@ const cfusa_rule_t  *cfusa_engine_get_rule(int i);
 void                 cfusa_engine_list_rules(void);
 void                 cfusa_engine_reset(void);
 
-/* Called by cmd_lint / cmd_analyze / cmd_cyber to register their rule sets. */
+/* Called by cmd_lint / cmd_analyze / cmd_cyber / cmd_safety_rules to register rule sets. */
 void cfusa_lint_register_rules(void);
 void cfusa_analyze_register_rules(void);
 void cfusa_cyber_register_rules(void);
+void cfusa_safety_register_rules(void);
+int  cfusa_safety_rule_count(void);
 
 #endif /* CFUSA_ENGINE_H */

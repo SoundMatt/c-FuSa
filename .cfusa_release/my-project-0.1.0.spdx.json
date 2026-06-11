@@ -1,0 +1,32 @@
+{
+  "spdxVersion": "SPDX-3.0.1",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "my-project",
+  "documentNamespace": "https://github.com/SoundMatt/c-FuSa/sbom/my-project-0.1.0",
+  "creationInfo": {
+    "created": "2026-06-09T20:47:45Z",
+    "creators": ["Tool: cfusa"]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package",
+      "name": "my-project",
+      "versionInfo": "0.1.0",
+      "downloadLocation": "https://github.com/SoundMatt/c-FuSa",
+      "licenseConcluded": "MPL-2.0",
+      "licenseDeclared": "MPL-2.0",
+      "copyrightText": "NOASSERTION"
+    }
+  ],
+  "files": [
+
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package"
+    }
+  ]
+}

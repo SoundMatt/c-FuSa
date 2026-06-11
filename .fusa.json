@@ -1,6 +1,6 @@
 {
   "configVersion": "1.0",
-  "project": {"name": "c-FuSa", "version": "0.4.0"},
+  "project": {"name": "c-FuSa", "version": "0.5.0"},
   "standard": "iso26262",
   "strict": false,
   "max_function_lines": 75,
