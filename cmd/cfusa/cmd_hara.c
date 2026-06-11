@@ -250,7 +250,7 @@ int cmd_hara(int argc, char **argv)
                    "  --controllability N Controllability class C1-C3 (1-3)\n\n"
                    "ISO 26262-3:2018 Clause 6 — Hazard Analysis and Risk Assessment.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

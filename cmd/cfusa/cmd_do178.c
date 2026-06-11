@@ -127,7 +127,7 @@ int cmd_do178(int argc, char **argv)
                    "                   [--format text|md|json] [--output <file>]\n\n"
                    "Reports DO-178C Annex A objective status for the given DAL.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -197,7 +197,7 @@ int cmd_do178(int argc, char **argv)
                              OBJECTIVES[i].dal_c,OBJECTIVES[i].dal_d};
             if(!applies[dal_col]) continue;
             fprintf(out,"%s    {\"id\":\"%s\",\"process\":\"%s\","
-                    "\"objective\":\"%s\",\"status\":\"pending\"}",
+                    "\"title\":\"%s\",\"rule\":null,\"status\":\"pending\"}",
                     first?"":",\n",
                     OBJECTIVES[i].id,OBJECTIVES[i].process,
                     OBJECTIVES[i].objective);

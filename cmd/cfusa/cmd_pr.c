@@ -186,7 +186,7 @@ int cmd_pr(int argc, char **argv)
                    "Problem report CRUD log per DO-178C §11.17 / ISO 26262-8 §8.\n"
                    "Stored in .cfusa_prs.jsonl\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

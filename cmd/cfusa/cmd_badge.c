@@ -31,7 +31,7 @@ int cmd_badge(int argc, char **argv)
                    "[--output cfusa-badge.svg] [--label cfusa]\n\n"
                    "Generates an SVG status badge from a cfusa JSON report.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -64,7 +64,7 @@ int cmd_badge(int argc, char **argv)
     int total_w  = label_w + value_w;
 
     FILE *f = fopen(output,"w");
-    if (!f) { perror(output); return 1; }
+    if (!f) { perror(output); return 3; }
 
     fprintf(f,
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"20\">\n"

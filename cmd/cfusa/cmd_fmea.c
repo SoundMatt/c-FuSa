@@ -121,7 +121,7 @@ int cmd_fmea(int argc, char **argv)
                    "--format md  generates fmea.md instead.\n"
                    "--cyber      enriches entries with cybersecurity failure modes.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -139,7 +139,7 @@ int cmd_fmea(int argc, char **argv)
 #define OPEN_OUT(name, var)  do { \
     char _p[512]; cfusa_path_join(_p, sizeof(_p), base, (name)); \
     (var) = fopen(_p, "w"); \
-    if (!(var)) { perror(_p); return 1; } \
+    if (!(var)) { perror(_p); return 3; } \
     printf("FMEA written to %s  (%d functions)\n", _p, g_fn_count); \
 } while(0)
 

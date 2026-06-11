@@ -81,7 +81,7 @@ int cmd_unece(int argc, char **argv)
                    "UN R.155 Annex 5 cybersecurity compliance gap report.\n"
                    "Checks for cfusa pipeline evidence against UN R.155 threat categories.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -91,7 +91,7 @@ int cmd_unece(int argc, char **argv)
     FILE *out = stdout;
     if (output) {
         out = fopen(output, "w");
-        if (!out) { perror(output); return 1; }
+        if (!out) { perror(output); return 3; }
     }
 
     int pass = 0, gap = 0, manual = 0;
@@ -120,10 +120,10 @@ int cmd_unece(int argc, char **argv)
             "  \"projectRoot\": \"%s\",\n"
             "  \"standard\": \"UN R.155\",\n"
             "  \"project\": \"%s\",\n"
-            "  \"pass\": %d,\n"
-            "  \"gap\": %d,\n"
+            "  \"covered\": %d,\n"
+            "  \"gaps\": %d,\n"
             "  \"manual\": %d,\n"
-            "  \"categories\": [\n",
+            "  \"objectives\": [\n",
             ts, dir, cfg.project, pass, gap, manual);
 
         int first = 1;
@@ -131,16 +131,16 @@ int cmd_unece(int argc, char **argv)
             const unece_cat_t *cat = &CATEGORIES[i];
             const char *status;
             if (!cat->evidence_file && cat->note && strncmp(cat->note, "MANUAL", 6) == 0) {
-                status = "MANUAL";
+                status = "manual";
             } else if (cat->evidence_file) {
-                status = file_exists(dir, cat->evidence_file) ? "PASS" : "GAP";
+                status = file_exists(dir, cat->evidence_file) ? "covered" : "gap";
             } else {
-                status = "GAP";
+                status = "gap";
             }
             if (!first) fprintf(out, ",\n");
             fprintf(out,
-                "    {\"id\": \"%s\", \"description\": \"%s\","
-                " \"iso21434\": \"%s\", \"status\": \"%s\"}",
+                "    {\"id\": \"%s\", \"title\": \"%s\","
+                " \"rule\": null, \"iso21434\": \"%s\", \"status\": \"%s\"}",
                 cat->id, cat->description,
                 cat->iso21434_clauses ? cat->iso21434_clauses : "",
                 status);

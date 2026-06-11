@@ -143,7 +143,7 @@ int cmd_coupling(int argc, char **argv)
                    "  Data coupling:    extern variable declarations\n"
                    "  Control coupling: function pointer parameters\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -170,7 +170,7 @@ int cmd_coupling(int argc, char **argv)
     }
 
     FILE *f = fopen(out_path, "w");
-    if (!f) { perror(out_path); return 1; }
+    if (!f) { perror(out_path); return 3; }
     write_json(f, cfg.project, ts, data_n, ctrl_n);
     fclose(f);
 

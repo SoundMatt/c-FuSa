@@ -42,7 +42,7 @@ int cmd_check(int argc, char **argv)
                    "Runs all lint + analyze + cyber rules.\n"
                    "Exits 1 on any ERROR; with --strict, exits 1 on any WARNING too.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

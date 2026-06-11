@@ -107,7 +107,7 @@ int cmd_coverage(int argc, char **argv)
                    "MC/DC mutation-testing evidence for DO-178C DAL A/B.\n"
                    "Generate lcov data with: lcov --capture --directory . -o coverage.info\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -168,7 +168,7 @@ int cmd_coverage(int argc, char **argv)
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
     FILE *out_f = stdout;
-    if (output) { out_f = fopen(output, "w"); if (!out_f) { perror(output); return 1; } }
+    if (output) { out_f = fopen(output, "w"); if (!out_f) { perror(output); return 3; } }
 
     char ts[32]; cfusa_timestamp_now(ts);
 

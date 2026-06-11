@@ -229,7 +229,7 @@ int cmd_disposition(int argc, char **argv)
                    "  show  <DISP-ID>  Show single disposition detail\n\n"
                    "Stored in .fusa-dispositions.json\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

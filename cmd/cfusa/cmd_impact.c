@@ -130,7 +130,7 @@ int cmd_impact(int argc, char **argv)
                    "Diffs files between two git refs and maps to //cfusa:req annotations.\n"
                    "Defaults: --from HEAD~1 --to HEAD\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

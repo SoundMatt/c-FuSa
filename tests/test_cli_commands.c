@@ -284,7 +284,7 @@ void test_iec62443_json_format(void)
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"iec62443-gap\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"requirements\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
     }
 }
 

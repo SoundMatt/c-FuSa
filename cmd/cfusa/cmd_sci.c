@@ -60,7 +60,7 @@ int cmd_sci(int argc, char **argv)
                    "Generates a Software Configuration Index with SHA-256 checksums\n"
                    "for all C source files (DO-178C §11.16 / ISO 26262 Part 8).\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

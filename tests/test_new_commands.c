@@ -152,7 +152,7 @@ void test_iso21434_bad_cal(void)
                     "--dir", NC_DIR,
                     "--cal", "INVALID", NULL};
     int rc = cmd_iso21434(5, argv);
-    TEST_ASSERT_EQUAL_INT(1, rc);
+    TEST_ASSERT_EQUAL_INT(2, rc);  /* invalid argument → exit 2 */
 }
 
 /* ── unece ────────────────────────────────────────────────────────── */
@@ -181,7 +181,7 @@ void test_unece_json_format(void)
                     "--output", out, NULL};
     cmd_unece(7, argv);
     TEST_ASSERT_TRUE(file_contains("unece.json", "\"generatedAt\""));
-    TEST_ASSERT_TRUE(file_contains("unece.json", "\"categories\""));
+    TEST_ASSERT_TRUE(file_contains("unece.json", "\"objectives\""));
     TEST_ASSERT_TRUE(file_contains("unece.json", "\"UN R.155\""));
 }
 
@@ -194,7 +194,7 @@ void test_unece_json_has_manual_entries(void)
                     "--format", "json",
                     "--output", out, NULL};
     cmd_unece(7, argv);
-    TEST_ASSERT_TRUE(file_contains("unece.json", "MANUAL"));
+    TEST_ASSERT_TRUE(file_contains("unece.json", "\"manual\""));
 }
 
 /* ── disposition (aligned flags) ─────────────────────────────────── */

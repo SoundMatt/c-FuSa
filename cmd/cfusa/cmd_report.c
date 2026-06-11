@@ -41,7 +41,7 @@ int cmd_report(int argc, char **argv)
                    "Use --format html for a browsable report.\n"
                    "Note: --strict is a usage error on report (use 'check' for gating).\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

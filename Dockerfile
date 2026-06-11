@@ -44,7 +44,7 @@ LABEL org.opencontainers.image.title="c-FuSa" \
       org.opencontainers.image.source="https://github.com/SoundMatt/c-FuSa" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="SoundMatt" \
-      org.opencontainers.image.version="0.3.0"
+      org.opencontainers.image.version="0.4.0"
 
 # Default working directory is /project; mount your C project here.
 WORKDIR /project

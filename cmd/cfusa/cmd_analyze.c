@@ -327,7 +327,7 @@ int cmd_analyze(int argc, char **argv)
                    "Static analysis: buffer overflows, unchecked returns, integer issues.\n\n"
                    "Rules: CFUSA-A001 through CFUSA-A007\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

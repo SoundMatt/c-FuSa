@@ -42,7 +42,7 @@ int cmd_hooks(int argc, char **argv)
                    "       cfusa hooks --uninstall  [--dir <path>]\n\n"
                    "Installs or removes a git pre-commit hook that runs 'cfusa check'.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -77,7 +77,7 @@ int cmd_hooks(int argc, char **argv)
     }
 
     FILE *f = fopen(hook_path, "w");
-    if (!f) { perror(hook_path); return 1; }
+    if (!f) { perror(hook_path); return 3; }
     fputs(HOOK_CONTENT, f);
     fclose(f);
     chmod(hook_path, 0755);

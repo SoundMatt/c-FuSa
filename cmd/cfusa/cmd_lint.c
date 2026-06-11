@@ -498,7 +498,7 @@ int cmd_lint(int argc, char **argv)
                    "Checks C source for MISRA-C and CERT-C coding standard violations.\n\n"
                    "Rules: CFUSA-L001 through CFUSA-L010\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

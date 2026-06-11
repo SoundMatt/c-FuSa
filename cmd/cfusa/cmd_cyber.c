@@ -345,7 +345,7 @@ int cmd_cyber(int argc, char **argv)
                    "20 CWE-mapped cybersecurity rules (ISO 21434, CERT-C).\n\n"
                    "Rules: CFUSA-CY001 through CFUSA-CY010\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

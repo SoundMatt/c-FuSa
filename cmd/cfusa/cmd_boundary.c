@@ -97,7 +97,7 @@ int cmd_boundary(int argc, char **argv)
                    "Generates a component dependency graph from #include directives.\n"
                    "Default: writes both boundary.mermaid and boundary.dot.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -114,12 +114,12 @@ int cmd_boundary(int argc, char **argv)
         cfusa_path_join(dpath, sizeof(dpath), base, "boundary.dot");
 
         FILE *mf = fopen(mpath, "w");
-        if (!mf) { perror(mpath); return 1; }
+        if (!mf) { perror(mpath); return 3; }
         write_mermaid(mf);
         fclose(mf);
 
         FILE *df = fopen(dpath, "w");
-        if (!df) { perror(dpath); return 1; }
+        if (!df) { perror(dpath); return 3; }
         write_dot(df);
         fclose(df);
 
@@ -129,7 +129,7 @@ int cmd_boundary(int argc, char **argv)
     }
 
     FILE *out = stdout;
-    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 1; } }
+    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 3; } }
 
     if (fmt_s && !strcmp(fmt_s, "dot")) {
         write_dot(out);

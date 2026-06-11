@@ -112,14 +112,14 @@ int cmd_iec62443(int argc, char **argv)
                    "IEC 62443-4-2 Component Security Requirements gap report.\n"
                    "Checks which CRs are covered by active cfusa rules.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
     int level = sl_level(sl);
     if (level == 0) {
         fprintf(stderr, "cfusa iec62443: unknown SL '%s' (use SL-1|2|3|4)\n", sl);
-        return 1;
+        return 2;
     }
 
     cfusa_config_t cfg;
@@ -147,7 +147,7 @@ int cmd_iec62443(int argc, char **argv)
     }
 
     FILE *out = stdout;
-    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 1; } }
+    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 3; } }
 
     if (!strcmp(fmt_s, "json")) {
         char ts[32]; cfusa_timestamp_now(ts);
@@ -168,7 +168,7 @@ int cmd_iec62443(int argc, char **argv)
             "  \"mandatoryGaps\": %d,\n"
             "  \"recommendedGaps\": %d,\n"
             "  \"na\": %d,\n"
-            "  \"requirements\": [\n",
+            "  \"objectives\": [\n",
             ts, dir, cfg.project, sl,
             has_cfg ? "true" : "false",
             covered, gaps_m, gaps_r, na);
@@ -179,20 +179,17 @@ int cmd_iec62443(int argc, char **argv)
                       (level==2) ? r->sl2 :
                       (level==3) ? r->sl3 : r->sl4;
             if (req == 0) continue;
-            const char *reqmt  = (req == 1) ? "mandatory" : "recommended";
-            const char *status = r->cfusa_rule ? "COVERED" :
-                                 (req == 2)    ? "GAP (R)" : "GAP (M)";
+            const char *level_str = (req == 1) ? "mandatory" : "recommended";
+            const char *status    = r->cfusa_rule ? "covered" :
+                                    (req == 2)    ? "gap-recommended" : "gap";
             if (!first) fprintf(out, ",\n");
-            if (r->cfusa_rule)
-                fprintf(out,
-                    "    {\"cr\": \"%s\", \"fr\": \"%s\", \"title\": \"%s\","
-                    " \"cfusaRule\": \"%s\", \"reqmt\": \"%s\", \"status\": \"%s\"}",
-                    r->cr, r->fr, r->title, r->cfusa_rule, reqmt, status);
-            else
-                fprintf(out,
-                    "    {\"cr\": \"%s\", \"fr\": \"%s\", \"title\": \"%s\","
-                    " \"cfusaRule\": null, \"reqmt\": \"%s\", \"status\": \"%s\"}",
-                    r->cr, r->fr, r->title, reqmt, status);
+            fprintf(out,
+                "    {\"id\": \"%s\", \"fr\": \"%s\", \"title\": \"%s\","
+                " \"rule\": %s%s%s, \"level\": \"%s\", \"status\": \"%s\"}",
+                r->cr, r->fr, r->title,
+                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "null",
+                r->cfusa_rule ? "\"" : "",
+                level_str, status);
             first = 0;
         }
         fprintf(out, "\n  ]\n}\n");

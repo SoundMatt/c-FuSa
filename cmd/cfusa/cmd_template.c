@@ -104,7 +104,7 @@ int cmd_template(int argc, char **argv)
                    "Available templates: safety-plan, test-evidence, hara, psac\n\n"
                    "Example: cfusa template safety-plan\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
     if (optind < argc) name = argv[optind];
@@ -136,7 +136,7 @@ int cmd_template(int argc, char **argv)
     cfusa_path_join(out_path, sizeof(out_path), dir, tmpl->filename);
 
     FILE *f = fopen(out_path,"w");
-    if (!f) { perror(out_path); return 1; }
+    if (!f) { perror(out_path); return 3; }
 
     char ts[32]; cfusa_timestamp_now(ts);
 

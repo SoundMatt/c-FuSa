@@ -139,7 +139,7 @@ int cmd_fix(int argc, char **argv)
                    "Re-runs all checks and lists findings that have deterministic\n"
                    "remediation guidance, with step-by-step fix instructions.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

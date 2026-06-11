@@ -129,7 +129,7 @@ int cmd_vuln(int argc, char **argv)
                    "Scans source for known-vulnerable function patterns "
                    "mapped to CWE/CVE categories.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -140,7 +140,7 @@ int cmd_vuln(int argc, char **argv)
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
 
     FILE *out = stdout;
-    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 1; } }
+    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 3; } }
 
     if (fmt == FMT_JSON) {
         char ts[32]; cfusa_timestamp_now(ts);

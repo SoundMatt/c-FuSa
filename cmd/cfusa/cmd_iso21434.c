@@ -104,14 +104,14 @@ int cmd_iso21434(int argc, char **argv)
                    "ISO 21434 cybersecurity compliance gap report.\n"
                    "Checks for cfusa pipeline evidence files against ISO 21434 objectives.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
     int level = cal_level(cal);
     if (level == 0) {
         fprintf(stderr, "cfusa iso21434: unknown CAL '%s' (use CAL-1|2|3|4)\n", cal);
-        return 1;
+        return 2;
     }
 
     cfusa_config_t cfg;
@@ -120,7 +120,7 @@ int cmd_iso21434(int argc, char **argv)
     FILE *out = stdout;
     if (output) {
         out = fopen(output, "w");
-        if (!out) { perror(output); return 1; }
+        if (!out) { perror(output); return 3; }
     }
 
     int pass = 0, gap = 0, manual = 0, na = 0;
@@ -156,8 +156,8 @@ int cmd_iso21434(int argc, char **argv)
             "  \"standard\": \"ISO 21434\",\n"
             "  \"project\": \"%s\",\n"
             "  \"cal\": \"%s\",\n"
-            "  \"pass\": %d,\n"
-            "  \"gap\": %d,\n"
+            "  \"covered\": %d,\n"
+            "  \"gaps\": %d,\n"
             "  \"manual\": %d,\n"
             "  \"na\": %d,\n"
             "  \"objectives\": [\n",
@@ -168,18 +168,18 @@ int cmd_iso21434(int argc, char **argv)
             const iso21434_obj_t *o = &OBJECTIVES[i];
             const char *status;
             if (o->min_cal == 0) {
-                status = "MANUAL";
+                status = "manual";
             } else if (o->min_cal > level) {
-                status = "N/A";
+                status = "na";
             } else if (o->evidence_file) {
-                status = file_exists(dir, o->evidence_file) ? "PASS" : "GAP";
+                status = file_exists(dir, o->evidence_file) ? "covered" : "gap";
             } else {
-                status = "MANUAL";
+                status = "manual";
             }
             if (!first) fprintf(out, ",\n");
             fprintf(out,
-                "    {\"id\": \"%s\", \"description\": \"%s\","
-                " \"status\": \"%s\"}",
+                "    {\"id\": \"%s\", \"title\": \"%s\","
+                " \"rule\": null, \"status\": \"%s\"}",
                 o->id, o->description, status);
             first = 0;
         }

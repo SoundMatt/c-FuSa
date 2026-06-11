@@ -39,7 +39,7 @@ int cmd_safety_case(int argc, char **argv)
                    "                          [--gsn]\n\n"
                    "Generates a GSN safety case skeleton with evidence index.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -52,7 +52,7 @@ int cmd_safety_case(int argc, char **argv)
     else cfusa_path_join(out_path,sizeof(out_path),dir,output);
 
     FILE *f = fopen(out_path,"w");
-    if (!f) { perror(out_path); return 1; }
+    if (!f) { perror(out_path); return 3; }
 
     char ts[32]; cfusa_timestamp_now(ts);
 

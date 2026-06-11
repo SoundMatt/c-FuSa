@@ -86,7 +86,7 @@ int cmd_iso26262(int argc, char **argv)
                    "ISO 26262 Part 6 compliance gap report.\n"
                    "Checks which Part 6 objectives are covered by active cfusa rules.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -96,7 +96,7 @@ int cmd_iso26262(int argc, char **argv)
     int level = asil_level(asil);
     if (level == 0) {
         fprintf(stderr, "cfusa iso26262: unknown ASIL '%s' (use ASIL-A|B|C|D)\n", asil);
-        return 1;
+        return 2;
     }
 
     int covered = 0, gaps = 0, na = 0;
@@ -110,7 +110,7 @@ int cmd_iso26262(int argc, char **argv)
     }
 
     FILE *out = stdout;
-    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 1; } }
+    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 3; } }
 
     if (!strcmp(fmt_s, "json")) {
         char ts[32]; cfusa_timestamp_now(ts);
@@ -138,19 +138,16 @@ int cmd_iso26262(int argc, char **argv)
                       (level==2) ? r->asil_b :
                       (level==3) ? r->asil_c : r->asil_d;
             if (req == 0) continue;
-            const char *status = r->cfusa_rule ? "COVERED" :
-                                 (req == 2)     ? "GAP (REC)" : "GAP";
+            const char *status = r->cfusa_rule ? "covered" :
+                                 (req == 2)     ? "gap-recommended" : "gap";
             if (!first) fprintf(out, ",\n");
-            if (r->cfusa_rule)
-                fprintf(out,
-                    "    {\"clause\": \"%s\", \"title\": \"%s\","
-                    " \"cfusaRule\": \"%s\", \"status\": \"%s\"}",
-                    r->clause, r->title, r->cfusa_rule, status);
-            else
-                fprintf(out,
-                    "    {\"clause\": \"%s\", \"title\": \"%s\","
-                    " \"cfusaRule\": null, \"status\": \"%s\"}",
-                    r->clause, r->title, status);
+            fprintf(out,
+                "    {\"id\": \"%s\", \"title\": \"%s\","
+                " \"rule\": %s%s%s, \"status\": \"%s\"}",
+                r->clause, r->title,
+                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "null",
+                r->cfusa_rule ? "\"" : "",
+                status);
             first = 0;
         }
         fprintf(out, "\n  ]\n}\n");

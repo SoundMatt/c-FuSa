@@ -274,7 +274,7 @@ static int import_reqif(const char *path, const char *dir,
 {
     size_t flen;
     char *xml = cfusa_read_file(path, &flen);
-    if (!xml) { perror(path); return 1; }
+    if (!xml) { perror(path); return 3; }
 
     /* Walk SPEC-OBJECT elements */
     const char *p = xml;
@@ -592,7 +592,7 @@ int cmd_req(int argc, char **argv)
                    "import: read ALM export and merge into .cfusa-reqs.json\n"
                    "  Format is auto-detected from file extension if not specified.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

@@ -239,7 +239,8 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
             esc_rem, esc_rulestd,
             (i < rpt->count - 1) ? "," : "");
     }
-    fprintf(out, "  ]\n}\n");
+    /* §3.2: structured error channel; empty when no tool-level runtime errors occurred */
+    fprintf(out, "  ],\n  \"errors\": []\n}\n");
 }
 
 /* djb2 hash for SARIF partialFingerprints */

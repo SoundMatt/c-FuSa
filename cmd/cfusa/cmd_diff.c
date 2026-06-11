@@ -84,7 +84,7 @@ int cmd_diff(int argc, char **argv)
                    "Compares two cfusa JSON reports: shows introduced, resolved,\n"
                    "and unchanged findings.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
     if (argc - optind < 2) {

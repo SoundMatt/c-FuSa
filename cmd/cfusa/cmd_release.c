@@ -127,7 +127,7 @@ int cmd_release(int argc, char **argv)
                    "--spdx-version selects SPDX format (default: 2.3).\n"
                    "--full also produces fmea, boundary, vuln report, and SHA256SUMS.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

@@ -149,7 +149,7 @@ int cmd_metrics(int argc, char **argv)
                    "  W=$(jq .summary.warnings report.json)\n"
                    "  cfusa metrics record --errors $E --warnings $W --label ci-build-123\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 

@@ -31,7 +31,7 @@ int cmd_sign(int argc, char **argv)
                    "Signs a file with HMAC-SHA256 and writes <path>.sig,\n"
                    "or verifies an existing .sig file.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -94,7 +94,7 @@ int cmd_sign(int argc, char **argv)
 
     size_t flen;
     unsigned char *fbuf = (unsigned char *)cfusa_read_file(file, &flen);
-    if (!fbuf) { perror(file); return 1; }
+    if (!fbuf) { perror(file); return 3; }
 
     char hex[65];
     cfusa_hmac_sha256((const unsigned char *)key, strlen(key), fbuf, flen, hex);
@@ -103,7 +103,7 @@ int cmd_sign(int argc, char **argv)
     char sig_path[512];
     snprintf(sig_path, sizeof(sig_path), "%s.sig", file);
     FILE *sf = fopen(sig_path, "w");
-    if (!sf) { perror(sig_path); return 1; }
+    if (!sf) { perror(sig_path); return 3; }
     fprintf(sf, "%s\n", hex);
     fclose(sf);
 

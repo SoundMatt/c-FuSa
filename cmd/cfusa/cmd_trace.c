@@ -236,7 +236,7 @@ int cmd_trace(int argc, char **argv)
                    "  --req-coverage N exit 1 if <N%% of requirements have impl traces\n"
                    "  --sec-tested N   exit 1 if <N%% of requirements have test traces\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -286,7 +286,7 @@ int cmd_trace(int argc, char **argv)
     /* --- output --- */
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
     FILE *out = stdout;
-    if (out_path) { out = fopen(out_path, "w"); if (!out) { perror(out_path); return 1; } }
+    if (out_path) { out = fopen(out_path, "w"); if (!out) { perror(out_path); return 3; } }
 
     if (fmt == FMT_JSON) {
         char ts[32]; cfusa_timestamp_now(ts);
@@ -298,72 +298,38 @@ int cmd_trace(int argc, char **argv)
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
-            "  \"requirements\": [\n",
-            ts);
+            "  \"total\": %d,\n"
+            "  \"traced\": %d,\n"
+            "  \"tested\": %d,\n"
+            "  \"matrix\": [\n",
+            ts, total, traced, tested);
 
-        /* In --gaps mode, only emit untested requirements */
+        int mat_first = 1;
         for (int i = 0; i < g_req_count; i++) {
-            int has_test = 0;
+            int has_impl = 0, has_test = 0, has_sec = 0;
             for (int j = 0; j < g_tag_count; j++) {
-                if (!strcmp(g_tags[j].req_id, g_reqs[i].id) &&
-                    g_tags[j].kind != KIND_IMPL)
-                    has_test = 1;
+                if (!strcmp(g_tags[j].req_id, g_reqs[i].id)) {
+                    if (g_tags[j].kind == KIND_IMPL)     has_impl = 1;
+                    if (g_tags[j].kind == KIND_TEST)     has_test = 1;
+                    if (g_tags[j].kind == KIND_SEC_TEST) { has_test = 1; has_sec = 1; }
+                }
             }
             if (show_gaps && has_test) continue;
+            if (!mat_first) fprintf(out, ",\n");
             fprintf(out, "    {\"id\": \"%s\", \"title\": \"%s\"",
                     g_reqs[i].id, g_reqs[i].title);
             if (g_reqs[i].standard[0])
                 fprintf(out, ", \"standard\": \"%s\"", g_reqs[i].standard);
             if (g_reqs[i].level[0])
                 fprintf(out, ", \"level\": \"%s\"", g_reqs[i].level);
-            fprintf(out, "}");
-            /* Check if there are more non-filtered reqs */
-            int more = 0;
-            for (int k = i + 1; k < g_req_count; k++) {
-                if (!show_gaps) { more = 1; break; }
-                int ht2 = 0;
-                for (int j = 0; j < g_tag_count; j++)
-                    if (!strcmp(g_tags[j].req_id, g_reqs[k].id) &&
-                        g_tags[j].kind != KIND_IMPL) { ht2 = 1; break; }
-                if (!ht2) { more = 1; break; }
-            }
-            fprintf(out, "%s\n", more ? "," : "");
+            fprintf(out, ", \"traced\": %s, \"tested\": %s, \"secTested\": %s}",
+                    has_impl ? "true" : "false",
+                    has_test ? "true" : "false",
+                    has_sec  ? "true" : "false");
+            mat_first = 0;
         }
-
-        fprintf(out, "  ],\n  \"tags\": [\n");
-
-        /* In --gaps mode, only emit tags for untested requirements */
-        int tag_first = 1;
-        for (int j = 0; j < g_tag_count; j++) {
-            if (show_gaps) {
-                int req_has_test = 0;
-                for (int k = 0; k < g_tag_count; k++) {
-                    if (!strcmp(g_tags[k].req_id, g_tags[j].req_id) &&
-                        g_tags[k].kind != KIND_IMPL) { req_has_test = 1; break; }
-                }
-                if (req_has_test) continue;
-            }
-            const char *k = g_tags[j].kind == KIND_IMPL ? "impl" :
-                            g_tags[j].kind == KIND_TEST ? "test" : "sec-test";
-            if (!tag_first) fprintf(out, ",\n");
-            fprintf(out, "    {\"requirementId\": \"%s\", \"file\": \"%s\","
-                    " \"line\": %d, \"kind\": \"%s\"}",
-                    g_tags[j].req_id, g_tags[j].file, g_tags[j].line, k);
-            tag_first = 0;
-        }
-        if (!tag_first) fprintf(out, "\n");
-
-        /* coverage always reports full totals even in --gaps mode */
-        fprintf(out,
-            "  ],\n"
-            "  \"coverage\": {\n"
-            "    \"totalRequirements\": %d,\n"
-            "    \"tracedRequirements\": %d,\n"
-            "    \"testedRequirements\": %d,\n"
-            "    \"secTestedRequirements\": %d\n"
-            "  }\n"
-            "}\n",
-            total, traced, tested, sec_tested_count);
+        if (!mat_first) fprintf(out, "\n");
+        fprintf(out, "  ]\n}\n");
     } else if (fmt == FMT_MD) {
         fprintf(out, "# Requirements Traceability Matrix\n\n");
         if (g_req_count > 0) {

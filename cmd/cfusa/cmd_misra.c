@@ -85,7 +85,7 @@ int cmd_misra(int argc, char **argv)
                    "MISRA C:2012 rule coverage mapping.\n"
                    "  --gaps   Show only rules not covered by cfusa\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -98,7 +98,7 @@ int cmd_misra(int argc, char **argv)
     }
 
     FILE *out = stdout;
-    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 1; } }
+    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 3; } }
 
     if (!strcmp(fmt_s, "json")) {
         char ts[32]; cfusa_timestamp_now(ts);
@@ -122,17 +122,14 @@ int cmd_misra(int argc, char **argv)
             const misra_row_t *r = &MISRA_RULES[i];
             if (gaps_only && r->cfusa_rule) continue;
             if (!first) fprintf(out, ",\n");
-            const char *status = r->cfusa_rule ? "COVERED" : "GAP";
-            if (r->cfusa_rule)
-                fprintf(out,
-                    "    {\"rule\": \"%s\", \"category\": \"%s\","
-                    " \"title\": \"%s\", \"cfusaRule\": \"%s\", \"status\": \"%s\"}",
-                    r->rule, r->category, r->title, r->cfusa_rule, status);
-            else
-                fprintf(out,
-                    "    {\"rule\": \"%s\", \"category\": \"%s\","
-                    " \"title\": \"%s\", \"cfusaRule\": null, \"status\": \"%s\"}",
-                    r->rule, r->category, r->title, status);
+            const char *status = r->cfusa_rule ? "covered" : "gap";
+            fprintf(out,
+                "    {\"id\": \"%s\", \"category\": \"%s\","
+                " \"title\": \"%s\", \"rule\": %s%s%s, \"status\": \"%s\"}",
+                r->rule, r->category, r->title,
+                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "null",
+                r->cfusa_rule ? "\"" : "",
+                status);
             first = 0;
         }
         fprintf(out, "\n  ]\n}\n");

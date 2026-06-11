@@ -109,7 +109,7 @@ int cmd_tara(int argc, char **argv)
                    "Generates an ISO 21434 Clause 9 TARA document skeleton.\n"
                    "Default: writes both tara.json and tara.md.\n");
             return 0;
-        default: return 1;
+        default: return 2;
         }
     }
 
@@ -124,7 +124,7 @@ int cmd_tara(int argc, char **argv)
     /* Specific output file requested */
     if (output) {
         FILE *f = fopen(output, "w");
-        if (!f) { perror(output); return 1; }
+        if (!f) { perror(output); return 3; }
         if (fmt_s && !strcmp(fmt_s, "json")) {
             write_tara_json(f, cfg.project, cfg.version, ts);
         } else {
@@ -144,7 +144,7 @@ int cmd_tara(int argc, char **argv)
         const char *fname = !strcmp(fmt_s,"json") ? "tara.json" : "tara.md";
         cfusa_path_join(out_path, sizeof(out_path), base, fname);
         FILE *f = fopen(out_path, "w");
-        if (!f) { perror(out_path); return 1; }
+        if (!f) { perror(out_path); return 3; }
         if (!strcmp(fmt_s, "json")) {
             write_tara_json(f, cfg.project, cfg.version, ts);
         } else {
@@ -164,13 +164,13 @@ int cmd_tara(int argc, char **argv)
     cfusa_path_join(md_path,   sizeof(md_path),   base, "tara.md");
 
     FILE *jf = fopen(json_path, "w");
-    if (!jf) { perror(json_path); return 1; }
+    if (!jf) { perror(json_path); return 3; }
     write_tara_json(jf, cfg.project, cfg.version, ts);
     fclose(jf);
     printf("TARA skeleton written to %s\n", json_path);
 
     FILE *mf = fopen(md_path, "w");
-    if (!mf) { perror(md_path); return 1; }
+    if (!mf) { perror(md_path); return 3; }
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     fprintf(mf, THREAT_TEMPLATE_MD, cfg.project, cfg.version, ts);
