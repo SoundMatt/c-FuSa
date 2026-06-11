@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-06-11
+
+### Fixed
+- `cfusa trace --format json` output now conforms to spec §5: `requirements[]` + `tags[]` (with `requirementId`, `file`, `line`, `kind`) + nested `coverage{}` with camelCase keys `totalRequirements/tracedRequirements/testedRequirements/secTestedRequirements`; `secTestedRequirements` was computed but never emitted
+- `cfusa qualify --format json` key names corrected to spec §6: `total/passed/failed` (were `tests_total/tests_passed/tests_failed`)
+- Dockerfile: added required `io.x-fusa.*` OCI labels per spec §15 (`io.x-fusa.tool`, `io.x-fusa.language`, `io.x-fusa.binary`, `io.x-fusa.spec-version`)
+- Added `slsa` command — SLSA v1.0 provenance gap report (`--level 1|2|3|4`, text/md/json, spec §9.3 `objectives[]` + `summary{}`)
+
 ## [0.5.0] — 2026-06-11
 
 ### Added
@@ -158,7 +166,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - GitHub Actions CI (multi-platform, coverage, SARIF upload, CodeQL)
 - Release pipeline with SBOM and binary artifacts
 
-[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.1.0...v0.2.0
