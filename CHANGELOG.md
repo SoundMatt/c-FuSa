@@ -7,6 +7,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.6] — 2026-06-12
+
+### Fixed
+- **`init --name`** — added `--name` as an alias for `--project` (§9.1; FuSaOps conformance calls `init --name <n> --standard <s>`); project now defaults to the directory basename when neither flag is given, removing the non-interactive-mode hard failure
+- FuSaOps conformance score: **38 PASS, 0 FAIL, 0 SKIP** (previously 36/38 with `init` skipped)
+
 ## [0.5.5] — 2026-06-12
 
 ### Fixed
@@ -198,7 +204,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - GitHub Actions CI (multi-platform, coverage, SARIF upload, CodeQL)
 - Release pipeline with SBOM and binary artifacts
 
-[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.5...HEAD
+[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.6...HEAD
+[0.5.6]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.2...v0.5.3
