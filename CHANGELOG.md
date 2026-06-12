@@ -7,6 +7,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.4] — 2026-06-12
+
+### Fixed
+- **`trace --format json`** — added missing `"projectRoot"` field (§3.2 MUST); `g_dir_abs` (resolved absolute path) is now included in every JSON trace-matrix document
+- **`qualify --output <file>`** — without `--format json`, the file was written as text; now defaults to JSON when `--output` is given and `--format` is not explicitly set (§6 MUST); verbose progress lines are suppressed from JSON output to preserve machine-readability (§2.2)
+
 ## [0.5.3] — 2026-06-12
 
 ### Added
@@ -186,7 +192,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - GitHub Actions CI (multi-platform, coverage, SARIF upload, CodeQL)
 - Release pipeline with SBOM and binary artifacts
 
-[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.4...HEAD
+[0.5.4]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.0...v0.5.1

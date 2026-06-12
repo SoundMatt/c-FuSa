@@ -291,7 +291,7 @@ int cmd_trace(int argc, char **argv)
     if (fmt == FMT_JSON) {
         char ts[32]; cfusa_timestamp_now(ts);
 
-        /* spec §5: requirements[] + tags[] + coverage{} */
+        /* spec §5: requirements[] + tags[] + coverage{}, §3.2 projectRoot */
         fprintf(out,
             "{\n"
             "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
@@ -299,7 +299,8 @@ int cmd_trace(int argc, char **argv)
             "  \"tool\": \"c-FuSa\",\n"
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
-            "  \"generatedAt\": \"%s\",\n", ts);
+            "  \"generatedAt\": \"%s\",\n"
+            "  \"projectRoot\": \"%s\",\n", ts, g_dir_abs);
 
         /* requirements[] */
         fprintf(out, "  \"requirements\": [\n");

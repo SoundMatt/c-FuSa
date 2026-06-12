@@ -404,9 +404,10 @@ static fusa_case_t g_cases[] = {
 
 int cmd_qualify(int argc, char **argv)
 {
-    const char *binary  = NULL;
-    const char *output  = NULL;
-    const char *fmt_s   = "text";
+    const char *binary     = NULL;
+    const char *output     = NULL;
+    const char *fmt_s      = "text";
+    int         fmt_explicit = 0;
     int verbose = 0;
 
     static const struct option long_opts[] = {
@@ -424,7 +425,7 @@ int cmd_qualify(int argc, char **argv)
         switch (c) {
         case 'b': binary  = optarg; break;
         case 'o': output  = optarg; break;
-        case 'f': fmt_s   = optarg; break;
+        case 'f': fmt_s = optarg; fmt_explicit = 1; break;
         case 'v': verbose = 1;      break;
         case 'h':
             printf("Usage: cfusa qualify [--binary <path>] [--format text|json]\n"
@@ -436,18 +437,25 @@ int cmd_qualify(int argc, char **argv)
         }
     }
 
+    /* §6: --output without --format implies JSON (FuSaOps conform expects JSON) */
+    if (output && !fmt_explicit)
+        fmt_s = "json";
+
     /* Hash the binary if provided */
     char bin_hash[65] = "(not provided)";
     if (binary && cfusa_file_exists(binary))
         cfusa_sha256_file(binary, bin_hash);
+
+    FILE *out = stdout;
+    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 1; } }
 
     /* Run KAT tests */
     int kat_pass = 0, kat_fail = 0;
     for (int i = 0; g_kat[i].name; i++) {
         g_kat[i].passed = g_kat[i].run();
         if (g_kat[i].passed) kat_pass++; else kat_fail++;
-        if (verbose)
-            printf("  [%s] %s\n", g_kat[i].passed?"PASS":"FAIL", g_kat[i].name);
+        if (verbose && strcmp(fmt_s, "json") != 0)
+            fprintf(out, "  [%s] %s\n", g_kat[i].passed?"PASS":"FAIL", g_kat[i].name);
     }
 
     /* Run FUSA rule exercise cases */
@@ -455,8 +463,8 @@ int cmd_qualify(int argc, char **argv)
     for (int i = 0; g_cases[i].name; i++) {
         g_cases[i].passed = g_cases[i].run();
         if (g_cases[i].passed) case_pass++; else case_fail++;
-        if (verbose)
-            printf("  [%s] %s\n", g_cases[i].passed?"PASS":"FAIL", g_cases[i].name);
+        if (verbose && strcmp(fmt_s, "json") != 0)
+            fprintf(out, "  [%s] %s\n", g_cases[i].passed?"PASS":"FAIL", g_cases[i].name);
     }
 
     int total_pass = kat_pass + case_pass;
@@ -464,9 +472,6 @@ int cmd_qualify(int argc, char **argv)
     int total      = total_pass + total_fail;
 
     char ts[32]; cfusa_timestamp_now(ts);
-
-    FILE *out = stdout;
-    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 1; } }
 
     if (!strcmp(fmt_s, "json")) {
         fprintf(out,
