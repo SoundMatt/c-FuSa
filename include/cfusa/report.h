@@ -19,6 +19,8 @@ typedef struct {
     char             category[32];
     char             file[CFUSA_FINDING_FILE_MAX];
     int              line;
+    int              end_line;    /* §4 MAY — 0 means not set */
+    int              end_column;  /* §4 MAY — 0 means not set */
     cfusa_severity_t severity;
     char             message[CFUSA_FINDING_MSG_MAX];
     char             fingerprint[72]; /* "sha256:" + 64 hex chars + NUL (§4.2) */
