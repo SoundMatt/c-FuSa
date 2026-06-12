@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(cfusa
-    VERSION 0.5.2
+    VERSION 0.5.3
     DESCRIPTION "C functional safety toolkit"
     LANGUAGES C
 )
@@ -86,6 +86,7 @@ add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_iso21434.c
     cmd/cfusa/cmd_unece.c
     cmd/cfusa/cmd_slsa.c
+    cmd/cfusa/cmd_comp.c
     cmd/cfusa/cmd_capabilities.c
     cmd/cfusa/cmd_version.c
     cmd/cfusa/cmd_safety_rules.c
@@ -144,6 +145,7 @@ cfusa_test(test_report_advanced)
 cfusa_test(test_hara_advanced)
 cfusa_test(test_engine_advanced)
 cfusa_test(test_cyber_cy011_020)
+cfusa_test(test_comp)
 cfusa_test(test_fusa_rules)
 cfusa_test(test_qualify)
 cfusa_test(test_req_trace_cov)

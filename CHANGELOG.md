@@ -7,6 +7,18 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-06-12
+
+### Added
+- **`cfusa comp`** — standalone cyclomatic complexity (McCabe V(G)) report command, achieving full feature parity with cpp-FuSa, py-FuSa, rust-FuSa, and java-FuSa:
+  - Walks `.c` source files and computes V(G) per function using brace-tracking and decision-node counting
+  - Per-assurance-level thresholds: `--dal-a` (4), `--dal-b` (10, default), `--dal-c` (15), `--dal-d` (20); `--asil-d/c/b/a` aliases
+  - Custom threshold via `--threshold <n>`
+  - Output formats: `text` (table), `json` (`comp-report.json` schema), `md` (Markdown table)
+  - `--output <file>` writes report to disk; `--verbose` includes all functions (default: violations only)
+  - Exits 1 if any function exceeds threshold; exits 0 when clean (DO-178C §6.3.4 gate-able)
+  - Requirements `REQ-COMP001`–`REQ-COMP005` tagged in source
+
 ## [0.5.2] — 2026-06-12
 
 ### Added
@@ -174,7 +186,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - GitHub Actions CI (multi-platform, coverage, SARIF upload, CodeQL)
 - Release pipeline with SBOM and binary artifacts
 
-[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.4.0...v0.5.0

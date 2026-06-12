@@ -129,6 +129,7 @@ cfusa fix --dir src/
 | `iso21434` | ISO 21434 cybersecurity compliance gap report (`--cal CAL-1|2|3|4`) |
 | `unece` | UN R.155 Annex 5 cybersecurity compliance gap report |
 | `slsa` | SLSA v1.0 provenance gap report (`--level 1\|2\|3\|4`) |
+| `comp` | Cyclomatic complexity (McCabe V(G)) report → `comp-report.json` (`--dal-a\|b\|c\|d`, `--threshold`) |
 | `version` | Print version |
 
 Run `cfusa <command> --help` for per-command options.
@@ -340,6 +341,8 @@ cfusa sci --output SCI.md               # Software Configuration Index
 cfusa pr --new --title "divide by zero" --severity major
 cfusa coverage --lcov coverage.info --mcdc  # MC/DC coverage analysis
 cfusa coverage --mutate-score 95            # Mutation score evidence (DO-178C DAL A/B)
+cfusa comp --dal-b                          # V(G) complexity report (threshold 10)
+cfusa comp --dal-a --format json --output comp-report.json  # DAL A strict report
 ```
 
 ---
