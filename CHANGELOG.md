@@ -7,6 +7,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.5] — 2026-06-12
+
+### Fixed
+- **`audit-pack --output <file>`** — `zip` was treating a pre-existing empty temp file as a corrupt archive and exiting 3; `remove()` now clears the output path before zipping so `zip` always creates a fresh archive. FuSaOps §8 conformance check now fully passes (36 PASS, 0 FAIL, 2 SKIP)
+- **`audit-pack` staging dir leak** — staging directory is now removed after the ZIP is assembled
+
 ## [0.5.4] — 2026-06-12
 
 ### Fixed
@@ -192,7 +198,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - GitHub Actions CI (multi-platform, coverage, SARIF upload, CodeQL)
 - Release pipeline with SBOM and binary artifacts
 
-[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.5...HEAD
+[0.5.5]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.1...v0.5.2

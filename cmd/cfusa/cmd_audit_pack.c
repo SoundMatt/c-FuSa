@@ -151,16 +151,25 @@ int cmd_audit_pack(int argc, char **argv)
         snprintf(abs_output, sizeof(abs_output), "%s", output);
     }
 
+    /* Remove any pre-existing output so zip creates a fresh archive */
+    remove(abs_output);
+
     snprintf(zip_cmd, sizeof(zip_cmd),
              "cd \"%s\" && zip -j \"%s\" * 2>/dev/null",
              staging, abs_output);
 
     int rc = system(zip_cmd);
+
+    /* Clean up staging directory */
+    char rm_cmd[600];
+    snprintf(rm_cmd, sizeof(rm_cmd), "rm -rf \"%s\"", staging);
+    (void)system(rm_cmd);
+
     if (rc != 0) {
         fprintf(stderr,
             "cfusa audit-pack: zip failed (exit %d).\n"
-            "  Ensure 'zip' is installed, or manually: zip -j %s %s/*\n",
-            rc, output, staging);
+            "  Ensure 'zip' is installed, or manually: zip -j %s <artifacts>/*\n",
+            rc, output);
     } else {
         printf("Audit pack: %s  (%d artifacts + manifest.json)\n", output, found);
     }
