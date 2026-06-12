@@ -200,6 +200,57 @@ void test_severity_str_info(void)
     TEST_ASSERT_EQUAL_STRING("INFO", cfusa_severity_str(SEV_INFO));
 }
 
+/* ---- §4 MAY: endLine / endColumn in location ---- */
+
+//cfusa:req REQ-RPT-SPAN001
+//cfusa:test REQ-RPT-SPAN001
+void test_json_location_emits_end_line_end_column(void)
+{
+    cfusa_report_t rpt2;
+    cfusa_report_init(&rpt2);
+    cfusa_report_add(&rpt2, "CFUSA-L001", "lint", SEV_ERROR, "src/main.c", 10, "too long");
+    /* Set span fields directly */
+    rpt2.findings[0].end_line   = 12;
+    rpt2.findings[0].end_column = 5;
+    cfusa_report_write(&rpt2, RPT_TMP, FMT_JSON);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    TEST_ASSERT_NOT_NULL(strstr(out, "\"endLine\""));
+    TEST_ASSERT_NOT_NULL(strstr(out, "\"endColumn\""));
+    free(out);
+    cfusa_report_free(&rpt2);
+}
+
+//cfusa:req REQ-RPT-SPAN002
+//cfusa:test REQ-RPT-SPAN002
+void test_json_location_omits_span_when_zero(void)
+{
+    cfusa_report_write(&rpt, RPT_TMP, FMT_JSON);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    /* Default findings have end_line=0 — span fields must NOT appear */
+    TEST_ASSERT_NULL(strstr(out, "\"endLine\""));
+    TEST_ASSERT_NULL(strstr(out, "\"endColumn\""));
+    free(out);
+}
+
+//cfusa:req REQ-RPT-SPAN003
+//cfusa:test REQ-RPT-SPAN003
+void test_sarif_region_includes_end_line(void)
+{
+    cfusa_report_t rpt2;
+    cfusa_report_init(&rpt2);
+    cfusa_report_add(&rpt2, "CFUSA-A002", "analyze", SEV_WARNING, "x.c", 3, "unchecked");
+    rpt2.findings[0].end_line   = 5;
+    rpt2.findings[0].end_column = 8;
+    cfusa_report_write(&rpt2, RPT_TMP, FMT_SARIF);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    TEST_ASSERT_NOT_NULL(strstr(out, "\"endLine\""));
+    free(out);
+    cfusa_report_free(&rpt2);
+}
+
 /* ---- Format parse ---- */
 
 //cfusa:req REQ-RPT002
@@ -235,5 +286,8 @@ int main(void)
     RUN_TEST(test_format_parse_text);
     RUN_TEST(test_format_parse_md);
     RUN_TEST(test_format_parse_unknown);
+    RUN_TEST(test_json_location_emits_end_line_end_column);
+    RUN_TEST(test_json_location_omits_span_when_zero);
+    RUN_TEST(test_sarif_region_includes_end_line);
     return UNITY_END();
 }

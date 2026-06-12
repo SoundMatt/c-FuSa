@@ -224,20 +224,55 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
         cfusa_str_escape_json(remediation, esc_rem,     sizeof(esc_rem));
         cfusa_str_escape_json(standard,    esc_rulestd, sizeof(esc_rulestd));
 
-        fprintf(out,
-            "    {\"ruleId\": \"%s\", \"category\": \"%s\","
-            " \"severity\": \"%s\","
-            " \"location\": {\"file\": \"%s\", \"line\": %d},"
-            " \"message\": \"%s\","
-            " \"fingerprint\": \"%s\","
-            " \"remediation\": \"%s\","
-            " \"standard\": \"%s\"}%s\n",
-            f->rule_id, f->category,
-            cfusa_severity_str(f->severity),
-            esc_file, f->line, esc_msg,
-            f->fingerprint,
-            esc_rem, esc_rulestd,
-            (i < rpt->count - 1) ? "," : "");
+        /* §4 location: file and line are MUST; endLine/endColumn are MAY */
+        if (f->end_line > 0 && f->end_column > 0) {
+            fprintf(out,
+                "    {\"ruleId\": \"%s\", \"category\": \"%s\","
+                " \"severity\": \"%s\","
+                " \"location\": {\"file\": \"%s\", \"line\": %d,"
+                " \"endLine\": %d, \"endColumn\": %d},"
+                " \"message\": \"%s\","
+                " \"fingerprint\": \"%s\","
+                " \"remediation\": \"%s\","
+                " \"standard\": \"%s\"}%s\n",
+                f->rule_id, f->category,
+                cfusa_severity_str(f->severity),
+                esc_file, f->line, f->end_line, f->end_column, esc_msg,
+                f->fingerprint,
+                esc_rem, esc_rulestd,
+                (i < rpt->count - 1) ? "," : "");
+        } else if (f->end_line > 0) {
+            fprintf(out,
+                "    {\"ruleId\": \"%s\", \"category\": \"%s\","
+                " \"severity\": \"%s\","
+                " \"location\": {\"file\": \"%s\", \"line\": %d,"
+                " \"endLine\": %d},"
+                " \"message\": \"%s\","
+                " \"fingerprint\": \"%s\","
+                " \"remediation\": \"%s\","
+                " \"standard\": \"%s\"}%s\n",
+                f->rule_id, f->category,
+                cfusa_severity_str(f->severity),
+                esc_file, f->line, f->end_line, esc_msg,
+                f->fingerprint,
+                esc_rem, esc_rulestd,
+                (i < rpt->count - 1) ? "," : "");
+        } else {
+            fprintf(out,
+                "    {\"ruleId\": \"%s\", \"category\": \"%s\","
+                " \"severity\": \"%s\","
+                " \"location\": {\"file\": \"%s\", \"line\": %d},"
+                " \"message\": \"%s\","
+                " \"fingerprint\": \"%s\","
+                " \"remediation\": \"%s\","
+                " \"standard\": \"%s\"}%s\n",
+                f->rule_id, f->category,
+                cfusa_severity_str(f->severity),
+                esc_file, f->line, esc_msg,
+                f->fingerprint,
+                esc_rem, esc_rulestd,
+                (i < rpt->count - 1) ? "," : "");
+        }
     }
     /* §3.2: structured error channel; empty when no tool-level runtime errors occurred */
     fprintf(out, "  ],\n  \"errors\": []\n}\n");
@@ -303,16 +338,44 @@ static void print_sarif(const cfusa_report_t *rpt, FILE *out)
         snprintf(fp_input, sizeof(fp_input), "%s:%s:%d", f->rule_id, f->file, f->line);
         unsigned long fp = sarif_hash(fp_input);
 
-        fprintf(out,
-            "      {\"ruleId\": \"%s\","
-            " \"level\": \"%s\","
-            " \"message\": {\"text\": \"%s\"},"
-            " \"partialFingerprints\": {\"primaryLocationLineHash\": \"%08lx\"},"
-            " \"locations\": [{\"physicalLocation\":"
-            " {\"artifactLocation\": {\"uri\": \"%s\"},"
-            " \"region\": {\"startLine\": %d}}}]}%s\n",
-            f->rule_id, level, esc_msg, fp, esc_file, f->line > 0 ? f->line : 1,
-            (i < rpt->count - 1) ? "," : "");
+        /* §4 MAY: include endLine/endColumn in SARIF region when available */
+        if (f->end_line > 0 && f->end_column > 0) {
+            fprintf(out,
+                "      {\"ruleId\": \"%s\","
+                " \"level\": \"%s\","
+                " \"message\": {\"text\": \"%s\"},"
+                " \"partialFingerprints\": {\"primaryLocationLineHash\": \"%08lx\"},"
+                " \"locations\": [{\"physicalLocation\":"
+                " {\"artifactLocation\": {\"uri\": \"%s\"},"
+                " \"region\": {\"startLine\": %d, \"endLine\": %d,"
+                " \"endColumn\": %d}}}]}%s\n",
+                f->rule_id, level, esc_msg, fp, esc_file,
+                f->line > 0 ? f->line : 1, f->end_line, f->end_column,
+                (i < rpt->count - 1) ? "," : "");
+        } else if (f->end_line > 0) {
+            fprintf(out,
+                "      {\"ruleId\": \"%s\","
+                " \"level\": \"%s\","
+                " \"message\": {\"text\": \"%s\"},"
+                " \"partialFingerprints\": {\"primaryLocationLineHash\": \"%08lx\"},"
+                " \"locations\": [{\"physicalLocation\":"
+                " {\"artifactLocation\": {\"uri\": \"%s\"},"
+                " \"region\": {\"startLine\": %d, \"endLine\": %d}}}]}%s\n",
+                f->rule_id, level, esc_msg, fp, esc_file,
+                f->line > 0 ? f->line : 1, f->end_line,
+                (i < rpt->count - 1) ? "," : "");
+        } else {
+            fprintf(out,
+                "      {\"ruleId\": \"%s\","
+                " \"level\": \"%s\","
+                " \"message\": {\"text\": \"%s\"},"
+                " \"partialFingerprints\": {\"primaryLocationLineHash\": \"%08lx\"},"
+                " \"locations\": [{\"physicalLocation\":"
+                " {\"artifactLocation\": {\"uri\": \"%s\"},"
+                " \"region\": {\"startLine\": %d}}}]}%s\n",
+                f->rule_id, level, esc_msg, fp, esc_file, f->line > 0 ? f->line : 1,
+                (i < rpt->count - 1) ? "," : "");
+        }
     }
     fprintf(out, "    ]\n  }]\n}\n");
 }

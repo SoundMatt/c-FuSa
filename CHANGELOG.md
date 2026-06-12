@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.9] — 2026-06-12
+
+### Added
+- **`endLine`/`endColumn` in finding location** (spec §4 MAY) — `cfusa_finding_t` now carries `end_line` and `end_column` fields; JSON and SARIF output emit them conditionally when non-zero, aligning c-FuSa with go-FuSa, cpp-FuSa, rust-FuSa, and py-FuSa. Default is 0 (not emitted), so all existing callers are backward-compatible.
+
 ## [0.5.8] — 2026-06-12
 
 ### Added

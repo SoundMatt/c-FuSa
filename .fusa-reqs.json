@@ -61,6 +61,9 @@
     {"id":"REQ-COV003","title":"cfusa coverage --dal validates DAL level","standard":"DO-178C","level":"DAL-A"},
     {"id":"REQ-COV004","title":"cfusa coverage DAL-D applies no threshold","standard":"DO-178C","level":"DAL-D"},
     {"id":"REQ-MET004","title":"cfusa metrics record auto-collects from project artifacts","standard":"IEC 61508","level":"SIL-4"},
-    {"id":"REQ-MET005","title":"cfusa metrics show supports --format json --output","standard":"IEC 61508","level":"SIL-4"}
+    {"id":"REQ-MET005","title":"cfusa metrics show supports --format json --output","standard":"IEC 61508","level":"SIL-4"},
+    {"id":"REQ-RPT-SPAN001","title":"JSON location emits endLine+endColumn when set","standard":"FuSaOps §4","level":"ASIL-B"},
+    {"id":"REQ-RPT-SPAN002","title":"JSON location omits span fields when end_line is zero","standard":"FuSaOps §4","level":"ASIL-B"},
+    {"id":"REQ-RPT-SPAN003","title":"SARIF region includes endLine/endColumn when set","standard":"FuSaOps §4","level":"ASIL-B"}
   ]
 }
