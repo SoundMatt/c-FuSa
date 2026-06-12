@@ -661,7 +661,94 @@ static int rule_comp001(const char *dir, const cfusa_config_t *cfg,
 
 /* ── Registration ────────────────────────────────────────────────────── */
 
+/* ── FUSA001 — .fusa.json present ───────────────────────────────────── */
+
+static int rule_fusa001(const char *dir, const cfusa_config_t *cfg,
+                         cfusa_report_t *rpt)
+{
+    (void)cfg;
+    if (!path_exists(dir, ".fusa.json") && !path_exists(dir, ".cfusa.json"))
+        cfusa_report_add(rpt, "FUSA001", "safety", SEV_INFO, dir, 0,
+            ".fusa.json not found — run 'cfusa init' to create project configuration");
+    return 0;
+}
+
+/* ── FUSA002 — CMakeLists.txt (or Makefile) present ────────────────── */
+
+static int rule_fusa002(const char *dir, const cfusa_config_t *cfg,
+                         cfusa_report_t *rpt)
+{
+    (void)cfg;
+    if (!path_exists(dir, "CMakeLists.txt") && !path_exists(dir, "Makefile")
+        && !path_exists(dir, "meson.build"))
+        cfusa_report_add(rpt, "FUSA002", "safety", SEV_INFO, dir, 0,
+            "No build system file found (CMakeLists.txt/Makefile/meson.build) — "
+            "add a build system for reproducible compilation");
+    return 0;
+}
+
+/* ── FUSA003 — LICENSE present ───────────────────────────────────────── */
+
+static int rule_fusa003(const char *dir, const cfusa_config_t *cfg,
+                         cfusa_report_t *rpt)
+{
+    (void)cfg;
+    if (!path_exists(dir, "LICENSE") && !path_exists(dir, "LICENSE.txt")
+        && !path_exists(dir, "LICENSE.md"))
+        cfusa_report_add(rpt, "FUSA003", "safety", SEV_INFO, dir, 0,
+            "LICENSE file not found — add a license to clarify usage rights");
+    return 0;
+}
+
+/* ── FUSA004 — README present ────────────────────────────────────────── */
+
+static int rule_fusa004(const char *dir, const cfusa_config_t *cfg,
+                         cfusa_report_t *rpt)
+{
+    (void)cfg;
+    if (!path_exists(dir, "README.md") && !path_exists(dir, "README.txt")
+        && !path_exists(dir, "README"))
+        cfusa_report_add(rpt, "FUSA004", "safety", SEV_INFO, dir, 0,
+            "README not found — add documentation describing project purpose and usage");
+    return 0;
+}
+
+/* ── FUSA005 — CI workflow present ───────────────────────────────────── */
+
+static int rule_fusa005(const char *dir, const cfusa_config_t *cfg,
+                         cfusa_report_t *rpt)
+{
+    (void)cfg;
+    /* Check for GitHub Actions, GitLab CI, or generic CI config */
+    char ci_path[512];
+    snprintf(ci_path, sizeof(ci_path), "%s/.github/workflows", dir);
+    int has_gh = cfusa_dir_exists(ci_path);
+    int has_gitlab = path_exists(dir, ".gitlab-ci.yml");
+    int has_jenkins = path_exists(dir, "Jenkinsfile");
+    if (!has_gh && !has_gitlab && !has_jenkins)
+        cfusa_report_add(rpt, "FUSA005", "safety", SEV_INFO, dir, 0,
+            "No CI configuration found (.github/workflows, .gitlab-ci.yml, Jenkinsfile) — "
+            "add continuous integration for automated safety checks");
+    return 0;
+}
+
 static const cfusa_rule_t SAFETY_RULES[] = {
+    /* FUSA project structure */
+    {"FUSA001", "safety", ".fusa.json present",
+     ".fusa.json project configuration required for cfusa tooling",
+     "x-FuSa", rule_fusa001},
+    {"FUSA002", "safety", "Build system file present",
+     "CMakeLists.txt or equivalent required for reproducible builds",
+     "x-FuSa", rule_fusa002},
+    {"FUSA003", "safety", "LICENSE present",
+     "LICENSE file required for open-source compliance",
+     "x-FuSa", rule_fusa003},
+    {"FUSA004", "safety", "README present",
+     "README required for project documentation",
+     "x-FuSa", rule_fusa004},
+    {"FUSA005", "safety", "CI configuration present",
+     "CI configuration required for automated safety verification",
+     "x-FuSa", rule_fusa005},
     /* HARA */
     {"HARA001", "safety", "HARA file present",
      ".fusa-hara.json must exist for ISO 26262-3 Clause 6 compliance",
