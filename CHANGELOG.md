@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-06-12
+
+### Added
+- **Cyber rules CY011–CY020** — 10 new rules for go-FuSa parity: SSRF via curl URL variable (CY011), debug socket option exposed (CY012), archive path traversal / zip-slip (CY013), weak/deprecated TLS method (CY014), SQL injection via sprintf (CY015), permissive directory mode (CY016), permissive file mode (CY017), path traversal from argv/env (CY018), TOCTOU race (CY019), predictable /tmp path (CY020)
+- **FUSA001–FUSA005 project-structure engine rules**: safety config present (FUSA001), build system present (FUSA002), license file present (FUSA003), README present (FUSA004), CI configuration present (FUSA005)
+- **`cfusa hooks show`** subcommand — prints the installed hook script to stdout
+- **`cfusa qualify` FUSA rule exercise cases** — 18 known-answer tests including FUSA001–005 positive/negative scenarios; JSON output gains `"kind"` and `"ruleId"` fields per case
+
 ## [0.5.1] — 2026-06-11
 
 ### Fixed
@@ -166,7 +174,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - GitHub Actions CI (multi-platform, coverage, SARIF upload, CodeQL)
 - Release pipeline with SBOM and binary artifacts
 
-[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.3.0...v0.4.0
