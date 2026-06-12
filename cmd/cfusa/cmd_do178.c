@@ -193,13 +193,13 @@ int cmd_do178(int argc, char **argv)
         fprintf(out,
                 "{\n"
                 "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
-                "  \"kind\": \"do178c-gap\",\n"
+                "  \"kind\": \"gap-report\",\n"
                 "  \"tool\": \"c-FuSa\",\n"
                 "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
                 "  \"language\": \"c\",\n"
                 "  \"generatedAt\": \"%s\",\n"
                 "  \"projectRoot\": \"%s\",\n"
-                "  \"standard\": \"DO-178C\",\n"
+                "  \"standard\": \"do178c\",\n"
                 "  \"project\": \"%s\",\n"
                 "  \"dal\": \"%c\","
                 " \"applicable\": %d, \"total\": %d,\n  \"objectives\": [\n",
@@ -211,9 +211,9 @@ int cmd_do178(int argc, char **argv)
             if(!applies[dal_col]) continue;
             int ok = OBJECTIVES[i].evidence_file &&
                      do178_file_exists(dir, OBJECTIVES[i].evidence_file);
-            const char *status = ok ? "covered" : "pending";
+            const char *status = ok ? "satisfied" : "gap";
             fprintf(out,"%s    {\"id\":\"%s\",\"process\":\"%s\","
-                    "\"title\":\"%s\",\"rule\":null,\"status\":\"%s\"}",
+                    "\"title\":\"%s\",\"findings\":[],\"status\":\"%s\"}",
                     first?"":",\n",
                     OBJECTIVES[i].id,OBJECTIVES[i].process,
                     OBJECTIVES[i].objective, status);

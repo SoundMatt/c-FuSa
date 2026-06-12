@@ -171,7 +171,7 @@ int cmd_audit_pack(int argc, char **argv)
             "  Ensure 'zip' is installed, or manually: zip -j %s <artifacts>/*\n",
             rc, output);
     } else {
-        printf("Audit pack: %s  (%d artifacts + manifest.json)\n", output, found);
+        fprintf(stderr, "Audit pack: %s  (%d artifacts + manifest.json)\n", output, found);
     }
 
     return rc != 0 ? 3 : 0;

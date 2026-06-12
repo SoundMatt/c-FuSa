@@ -129,7 +129,7 @@ int cmd_slsa(int argc, char **argv)
         fprintf(out,
             "{\n"
             "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
-            "  \"kind\": \"slsa-gap\",\n"
+            "  \"kind\": \"gap-report\",\n"
             "  \"tool\": \"c-FuSa\",\n"
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
@@ -148,7 +148,7 @@ int cmd_slsa(int argc, char **argv)
             if (!first) fprintf(out, ",\n");
             fprintf(out,
                 "    {\"id\": \"%s\", \"title\": \"%s\","
-                " \"rule\": null, \"status\": \"%s\"}",
+                " \"findings\": [], \"status\": \"%s\"}",
                 OBJECTIVES[i].id, OBJECTIVES[i].title, status);
             first = 0;
         }
