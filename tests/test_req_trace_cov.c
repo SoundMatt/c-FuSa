@@ -475,7 +475,7 @@ void test_coverage_mutate_score_flag(void)
     TEST_ASSERT_NOT_NULL(f);
     if (f) {
         char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f); buf[n] = '\0'; fclose(f);
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"mutation_score\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"mutationScore\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "75.00"));
     }
     remove(outpath);

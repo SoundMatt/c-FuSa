@@ -3,7 +3,6 @@
 #include <string.h>
 #include <getopt.h>
 #include "cfusa/report.h"
-#include "cfusa/config.h"
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
@@ -59,13 +58,40 @@ static double pct(long hit, long found)
     return (double)hit / (double)found * 100.0;
 }
 
+/* dal_thresholds: line_pct, branch_pct, mcdc_required */
+static void apply_dal(const char *dal, double *threshold_line,
+                      double *threshold_branch, int *need_mcdc)
+{
+    if (!dal) return;
+    if (!strcmp(dal, "DAL-A")) {
+        *threshold_line   = 100.0;
+        *threshold_branch = 100.0;
+        *need_mcdc        = 1;
+    } else if (!strcmp(dal, "DAL-B")) {
+        *threshold_line   = 100.0;
+        *threshold_branch = 100.0;
+        *need_mcdc        = 0;
+    } else if (!strcmp(dal, "DAL-C")) {
+        *threshold_line   = 100.0;
+        *threshold_branch = 0.0;
+        *need_mcdc        = 0;
+    } else if (!strcmp(dal, "DAL-D")) {
+        *threshold_line   = 0.0;
+        *threshold_branch = 0.0;
+        *need_mcdc        = 0;
+    }
+}
+
 int cmd_coverage(int argc, char **argv)
 {
     const char *dir          = ".";
     const char *lcov_in      = NULL;
     const char *fmt_s        = "text";
     const char *output       = NULL;
+    const char *dal          = NULL;
     double threshold         = 80.0;
+    double threshold_branch  = 0.0;   /* 0 = not enforced unless set by DAL */
+    int    dal_explicit      = 0;
     int    mcdc              = 0;
     int    mutate            = 0;
     double mutate_score      = -1.0;  /* <0 = not provided */
@@ -75,6 +101,7 @@ int cmd_coverage(int argc, char **argv)
         {"lcov",         required_argument, NULL, 'L'},
         {"format",       required_argument, NULL, 'f'},
         {"output",       required_argument, NULL, 'o'},
+        {"dal",          required_argument, NULL, 'D'},
         {"threshold",    required_argument, NULL, 't'},
         {"mcdc",         no_argument,       NULL, 'm'},
         {"mutate",       no_argument,       NULL, 'M'},
@@ -85,12 +112,14 @@ int cmd_coverage(int argc, char **argv)
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:L:f:o:t:mMS:h", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:L:f:o:D:t:mMS:h", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir          = optarg;          break;
         case 'L': lcov_in      = optarg;          break;
         case 'f': fmt_s        = optarg;          break;
         case 'o': output       = optarg;          break;
+        case 'D': dal          = optarg;
+                  dal_explicit = 1;               break;
         case 't': threshold    = atof(optarg);    break;
         case 'm': mcdc         = 1;               break;
         case 'M': mutate       = 1;               break;
@@ -99,16 +128,32 @@ int cmd_coverage(int argc, char **argv)
         case 'h':
             printf("Usage: cfusa coverage [--dir <path>] [--lcov <file.info>]\n"
                    "                      [--format text|json] [--output <file>]\n"
+                   "                      [--dal DAL-A|DAL-B|DAL-C|DAL-D]\n"
                    "                      [--threshold <pct>] [--mcdc]\n"
                    "                      [--mutate] [--mutate-score <pct>]\n\n"
                    "Parses gcov/lcov output and reports statement, function, and\n"
-                   "branch coverage. --mcdc flags decision coverage <100%%.\n"
+                   "branch coverage. --dal sets DO-178C level requirements:\n"
+                   "  DAL-A: 100%% line + branch + MC/DC (mutation testing)\n"
+                   "  DAL-B: 100%% line + branch\n"
+                   "  DAL-C: 100%% line (statement)\n"
+                   "  DAL-D: no coverage threshold\n"
+                   "--mcdc flags decision coverage <100%%.\n"
                    "--mutate reads mutation-report.json (or --mutate-score N) as\n"
                    "MC/DC mutation-testing evidence for DO-178C DAL A/B.\n"
                    "Generate lcov data with: lcov --capture --directory . -o coverage.info\n");
             return 0;
         default: return 2;
         }
+    }
+
+    /* Validate and apply DAL if specified */
+    if (dal_explicit) {
+        if (strcmp(dal, "DAL-A") && strcmp(dal, "DAL-B") &&
+            strcmp(dal, "DAL-C") && strcmp(dal, "DAL-D")) {
+            fprintf(stderr, "cfusa coverage: invalid --dal %s (use DAL-A|DAL-B|DAL-C|DAL-D)\n", dal);
+            return 2;
+        }
+        apply_dal(dal, &threshold, &threshold_branch, &mcdc);
     }
 
     /* Locate lcov file if not specified */
@@ -172,6 +217,12 @@ int cmd_coverage(int argc, char **argv)
 
     char ts[32]; cfusa_timestamp_now(ts);
 
+    int line_pass   = !lcov_in || line_pct   >= threshold;
+    int branch_pass = !lcov_in || threshold_branch <= 0.0 || branch_pct >= threshold_branch;
+    int mcdc_pass   = !mcdc    || !lcov_in   || branch_pct >= 100.0;
+    int mut_pass    = !mutate  || mutate_score < 0.0 || mutate_score >= 100.0;
+    int overall_pass = line_pass && branch_pass && mcdc_pass && mut_pass;
+
     if (fmt == FMT_JSON) {
         fprintf(out_f,
             "{\n"
@@ -181,24 +232,27 @@ int cmd_coverage(int argc, char **argv)
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
-            "  \"lcovFile\": \"%s\",\n"
+            "  \"lcovFile\": \"%s\",\n",
+            ts,
+            lcov_in ? lcov_in : "");
+        if (dal)
+            fprintf(out_f, "  \"dal\": \"%s\",\n", dal);
+        fprintf(out_f,
             "  \"lineCoverage\":     {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
             "  \"functionCoverage\": {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
             "  \"branchCoverage\":   {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
             "  \"threshold\": %.1f,\n"
             "  \"passed\": %s",
-            ts,
-            lcov_in ? lcov_in : "",
             state.lines_hit,    state.lines_found,    line_pct,
             state.funcs_hit,    state.funcs_found,    func_pct,
             state.branches_hit, state.branches_found, branch_pct,
             threshold,
-            (line_pct >= threshold && func_pct >= threshold) ? "true" : "false");
+            overall_pass ? "true" : "false");
         if (mutate && mutate_score >= 0.0) {
             fprintf(out_f,
                 ",\n"
-                "  \"mutation_score\": %.2f,\n"
-                "  \"mutation_mcdc_pass\": %s",
+                "  \"mutationScore\": %.2f,\n"
+                "  \"mutationMcdcPass\": %s",
                 mutate_score,
                 mutate_score >= 100.0 ? "true" : "false");
         }
@@ -208,38 +262,37 @@ int cmd_coverage(int argc, char **argv)
             fprintf(out_f, "Coverage report  source: %s\n\n", lcov_in);
         else
             fprintf(out_f, "Coverage report  (mutation-only mode)\n\n");
+        if (dal)
+            fprintf(out_f, "  Design Assurance Level: %s\n\n", dal);
         if (lcov_in) {
-            fprintf(out_f, "  Line      coverage: %6.2f%%  (%ld / %ld)\n",
-                    line_pct,   state.lines_hit,    state.lines_found);
+            fprintf(out_f, "  Line      coverage: %6.2f%%  (%ld / %ld)  %s\n",
+                    line_pct,   state.lines_hit,    state.lines_found,
+                    line_pass ? "PASS" : "FAIL");
             fprintf(out_f, "  Function  coverage: %6.2f%%  (%ld / %ld)\n",
                     func_pct,   state.funcs_hit,    state.funcs_found);
-            fprintf(out_f, "  Branch    coverage: %6.2f%%  (%ld / %ld)\n",
-                    branch_pct, state.branches_hit, state.branches_found);
+            fprintf(out_f, "  Branch    coverage: %6.2f%%  (%ld / %ld)  %s\n",
+                    branch_pct, state.branches_hit, state.branches_found,
+                    branch_pass ? "PASS" : "FAIL");
         }
         if (mcdc && lcov_in) {
             fprintf(out_f, "\n  MC/DC analysis: branch coverage %.2f%%", branch_pct);
-            if (branch_pct < 100.0)
-                fprintf(out_f, "  [FAIL — DO-178C requires 100%% for DAL A/B]");
+            if (!mcdc_pass)
+                fprintf(out_f, "  [FAIL — DO-178C requires 100%%]");
             fprintf(out_f, "\n");
         }
         if (mutate && mutate_score >= 0.0) {
             fprintf(out_f, "\n  Mutation score: %.2f%%", mutate_score);
-            if (mutate_score < 100.0)
+            if (!mut_pass)
                 fprintf(out_f, "  [FAIL — DO-178C MC/DC mutation evidence requires 100%%]");
             else
                 fprintf(out_f, "  [PASS]");
             fprintf(out_f, "\n");
         }
         if (lcov_in)
-            fprintf(out_f, "\n  Threshold: %.1f%%  Status: %s\n",
-                    threshold,
-                    (line_pct >= threshold && func_pct >= threshold) ? "PASS" : "FAIL");
+            fprintf(out_f, "\n  Overall: %s\n", overall_pass ? "PASS" : "FAIL");
     }
 
     if (output && out_f != stdout) fclose(out_f);
 
-    if (mutate && mutate_score >= 0.0 && mutate_score < 100.0) return 1;
-    if (lcov_in)
-        return (line_pct < threshold || func_pct < threshold) ? 1 : 0;
-    return 0;
+    return overall_pass ? 0 : 1;
 }
