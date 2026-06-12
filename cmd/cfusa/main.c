@@ -44,6 +44,7 @@ const cfusa_command_t CFUSA_COMMANDS[] = {
     {"iso21434",    "ISO 21434 cybersecurity compliance gap report",    cmd_iso21434},
     {"unece",       "UN R.155 cybersecurity compliance gap report",     cmd_unece},
     {"slsa",        "SLSA v1.0 provenance gap report (--level 1|2|3|4)", cmd_slsa},
+    {"comp",        "Cyclomatic complexity (McCabe V(G)) per DO-178C §6.3.4", cmd_comp},
     {"capabilities","Emit supported commands/formats (FuSaOps discovery)", cmd_capabilities},
     {"version",     "Print version",                                    cmd_version},
     {"help",        "Show this help",                                   cmd_help},
