@@ -57,6 +57,10 @@
     {"id":"REQ-REQXML001","title":"cfusa req import parses DOORS ReqIF XML","standard":"DO-178C","level":"DAL-A"},
     {"id":"REQ-REQXML002","title":"cfusa req import parses Codebeamer XML","standard":"DO-178C","level":"DAL-A"},
     {"id":"REQ-REQXML003","title":"cfusa req import parses Jama XML","standard":"DO-178C","level":"DAL-A"},
-    {"id":"REQ-REQXML004","title":"cfusa req import parses Polarion XML","standard":"DO-178C","level":"DAL-A"}
+    {"id":"REQ-REQXML004","title":"cfusa req import parses Polarion XML","standard":"DO-178C","level":"DAL-A"},
+    {"id":"REQ-COV003","title":"cfusa coverage --dal validates DAL level","standard":"DO-178C","level":"DAL-A"},
+    {"id":"REQ-COV004","title":"cfusa coverage DAL-D applies no threshold","standard":"DO-178C","level":"DAL-D"},
+    {"id":"REQ-MET004","title":"cfusa metrics record auto-collects from project artifacts","standard":"IEC 61508","level":"SIL-4"},
+    {"id":"REQ-MET005","title":"cfusa metrics show supports --format json --output","standard":"IEC 61508","level":"SIL-4"}
   ]
 }

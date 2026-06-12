@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.8] — 2026-06-12
+
+### Added
+- **`coverage --dal`** — DO-178C Design Assurance Level flag (`DAL-A`/`DAL-B`/`DAL-C`/`DAL-D`); sets level-specific thresholds (DAL-A: 100% line+branch+MC/DC, DAL-B: 100% line+branch, DAL-C: 100% line, DAL-D: no threshold). Invalid DAL value returns exit code 2.
+- **`metrics record` auto-collection** — without manual `--errors`/`--warnings`/`--info` flags, `record` now reads `check-report.json`, `trace-matrix.json`, and `coverage-report.json` from the project directory to collect `errorCount`, `warningCount`, `infoCount`, `totalRequirements`, `tracedRequirements`, `testedRequirements`, `coveragePct` automatically (parity with go-FuSa).
+- **`metrics show --format`/`--output`** — `show` now accepts `--format text|json` and `--output <file>`, enabling machine-readable metrics export (parity with go-FuSa).
+- **Snapshot schema extended** — metrics snapshots now include `totalRequirements`, `tracedRequirements`, `testedRequirements`, `coveragePct`; old snapshots missing these fields remain backward-compatible.
+
 ## [0.5.7] — 2026-06-12
 
 ### Fixed
