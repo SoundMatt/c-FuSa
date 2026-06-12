@@ -183,7 +183,8 @@ void test_iso26262_json_format(void)
         char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iso26262-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"gap-report\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iso26262\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
@@ -203,7 +204,8 @@ void test_iec61508_json_format(void)
         char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iec61508-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"gap-report\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iec61508\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
@@ -243,7 +245,8 @@ void test_do178_json_format(void)
         char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"do178c-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"gap-report\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"do178c\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
@@ -263,7 +266,8 @@ void test_iso21434_json_format(void)
         char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iso21434-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"gap-report\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iso21434\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
@@ -283,7 +287,8 @@ void test_iec62443_json_format(void)
         char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iec62443-gap\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"gap-report\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iec62443\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));

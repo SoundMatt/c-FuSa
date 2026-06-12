@@ -138,13 +138,13 @@ int cmd_iec61508(int argc, char **argv)
         fprintf(out,
             "{\n"
             "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
-            "  \"kind\": \"iec61508-gap\",\n"
+            "  \"kind\": \"gap-report\",\n"
             "  \"tool\": \"c-FuSa\",\n"
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
             "  \"projectRoot\": \"%s\",\n"
-            "  \"standard\": \"IEC 61508\",\n"
+            "  \"standard\": \"iec61508\",\n"
             "  \"project\": \"%s\",\n"
             "  \"sil\": \"%s\",\n"
             "  \"covered\": %d,\n"
@@ -163,13 +163,13 @@ int cmd_iec61508(int argc, char **argv)
             int ok = r->cfusa_rule != NULL;
             if (!ok && r->evidence_file) ok = iec61508_file_exists(dir, r->evidence_file);
             const char *level_str = (req == 1) ? "mandatory" : "recommended";
-            const char *status    = ok ? "covered" : (req == 2) ? "gap-recommended" : "gap";
+            const char *status    = ok ? "satisfied" : (req == 2) ? "partial" : "gap";
             if (!first) fprintf(out, ",\n");
             fprintf(out,
                 "    {\"id\": \"%s\", \"title\": \"%s\","
-                " \"rule\": %s%s%s, \"level\": \"%s\", \"status\": \"%s\"}",
+                " \"findings\": [%s%s%s], \"level\": \"%s\", \"status\": \"%s\"}",
                 r->clause, r->title,
-                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "null",
+                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "",
                 r->cfusa_rule ? "\"" : "",
                 level_str, status);
             first = 0;

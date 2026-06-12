@@ -7,6 +7,16 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.7] — 2026-06-12
+
+### Fixed
+- **gap-report `kind`** (§3.1 MUST) — all 7 commands (`iso26262`, `iec61508`, `iec62443`, `iso21434`, `unece`, `do178`, `slsa`) now emit `"kind": "gap-report"` instead of `"iso26262-gap"` etc.
+- **gap-report `standard`** (§2.4.1 MUST) — canonical lowercase ids (`iso26262`, `iec61508`, `iec62443`, `iso21434`, `unece-r155`, `do178c`) replace display strings (`"ISO 26262"`, `"IEC 61508"`, etc.)
+- **gap-report objective `status`** (§9.3 MUST) — `"covered"` → `"satisfied"`, `"gap-recommended"` → `"partial"`, `"pending"` → `"gap"` across all commands
+- **gap-report objective `rule`** (§9.3 MUST) — `"rule": "RULE001"` (single string) replaced by `"findings": ["RULE001"]` (array) across all commands; empty `"findings": []` for commands without rule mappings
+- **`audit-pack` stdout** (§2.2 MUST) — success confirmation line now goes to stderr so stdout is clean when `--output` is given
+- Tests updated to assert canonical `"gap-report"` kind and lowercase standard ids
+
 ## [0.5.6] — 2026-06-12
 
 ### Fixed
@@ -204,7 +214,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - GitHub Actions CI (multi-platform, coverage, SARIF upload, CodeQL)
 - Release pipeline with SBOM and binary artifacts
 
-[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.6...HEAD
+[Unreleased]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.7...HEAD
+[0.5.7]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.6...v0.5.7
 [0.5.6]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.3...v0.5.4

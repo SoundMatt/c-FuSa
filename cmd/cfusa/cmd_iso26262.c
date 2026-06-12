@@ -142,13 +142,13 @@ int cmd_iso26262(int argc, char **argv)
         fprintf(out,
             "{\n"
             "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
-            "  \"kind\": \"iso26262-gap\",\n"
+            "  \"kind\": \"gap-report\",\n"
             "  \"tool\": \"c-FuSa\",\n"
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
             "  \"projectRoot\": \"%s\",\n"
-            "  \"standard\": \"ISO 26262\",\n"
+            "  \"standard\": \"iso26262\",\n"
             "  \"project\": \"%s\",\n"
             "  \"asil\": \"%s\",\n"
             "  \"covered\": %d,\n"
@@ -165,14 +165,13 @@ int cmd_iso26262(int argc, char **argv)
             if (req == 0) continue;
             int ok = r->cfusa_rule != NULL;
             if (!ok && r->evidence_file) ok = file_exists_in_dir(dir, r->evidence_file);
-            const char *status = ok ? "covered" : (req == 2) ? "gap-recommended" : "gap";
-            const char *rule_s = r->cfusa_rule ? r->cfusa_rule : "null";
+            const char *status = ok ? "satisfied" : (req == 2) ? "partial" : "gap";
             if (!first) fprintf(out, ",\n");
             fprintf(out,
                 "    {\"id\": \"%s\", \"title\": \"%s\","
-                " \"rule\": %s%s%s, \"status\": \"%s\"}",
+                " \"findings\": [%s%s%s], \"status\": \"%s\"}",
                 r->clause, r->title,
-                r->cfusa_rule ? "\"" : "", rule_s,
+                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "",
                 r->cfusa_rule ? "\"" : "",
                 status);
             first = 0;

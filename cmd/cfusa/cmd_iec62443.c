@@ -154,13 +154,13 @@ int cmd_iec62443(int argc, char **argv)
         fprintf(out,
             "{\n"
             "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
-            "  \"kind\": \"iec62443-gap\",\n"
+            "  \"kind\": \"gap-report\",\n"
             "  \"tool\": \"c-FuSa\",\n"
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
             "  \"projectRoot\": \"%s\",\n"
-            "  \"standard\": \"IEC 62443\",\n"
+            "  \"standard\": \"iec62443\",\n"
             "  \"project\": \"%s\",\n"
             "  \"sl\": \"%s\",\n"
             "  \"hasProjectConfig\": %s,\n"
@@ -180,14 +180,14 @@ int cmd_iec62443(int argc, char **argv)
                       (level==3) ? r->sl3 : r->sl4;
             if (req == 0) continue;
             const char *level_str = (req == 1) ? "mandatory" : "recommended";
-            const char *status    = r->cfusa_rule ? "covered" :
-                                    (req == 2)    ? "gap-recommended" : "gap";
+            const char *status    = r->cfusa_rule ? "satisfied" :
+                                    (req == 2)    ? "partial" : "gap";
             if (!first) fprintf(out, ",\n");
             fprintf(out,
                 "    {\"id\": \"%s\", \"fr\": \"%s\", \"title\": \"%s\","
-                " \"rule\": %s%s%s, \"level\": \"%s\", \"status\": \"%s\"}",
+                " \"findings\": [%s%s%s], \"level\": \"%s\", \"status\": \"%s\"}",
                 r->cr, r->fr, r->title,
-                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "null",
+                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "",
                 r->cfusa_rule ? "\"" : "",
                 level_str, status);
             first = 0;

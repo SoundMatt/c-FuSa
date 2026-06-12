@@ -147,13 +147,13 @@ int cmd_iso21434(int argc, char **argv)
         fprintf(out,
             "{\n"
             "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
-            "  \"kind\": \"iso21434-gap\",\n"
+            "  \"kind\": \"gap-report\",\n"
             "  \"tool\": \"c-FuSa\",\n"
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
             "  \"projectRoot\": \"%s\",\n"
-            "  \"standard\": \"ISO 21434\",\n"
+            "  \"standard\": \"iso21434\",\n"
             "  \"project\": \"%s\",\n"
             "  \"cal\": \"%s\",\n"
             "  \"covered\": %d,\n"
@@ -172,14 +172,14 @@ int cmd_iso21434(int argc, char **argv)
             } else if (o->min_cal > level) {
                 status = "na";
             } else if (o->evidence_file) {
-                status = file_exists(dir, o->evidence_file) ? "covered" : "gap";
+                status = file_exists(dir, o->evidence_file) ? "satisfied" : "gap";
             } else {
                 status = "manual";
             }
             if (!first) fprintf(out, ",\n");
             fprintf(out,
                 "    {\"id\": \"%s\", \"title\": \"%s\","
-                " \"rule\": null, \"status\": \"%s\"}",
+                " \"findings\": [], \"status\": \"%s\"}",
                 o->id, o->description, status);
             first = 0;
         }

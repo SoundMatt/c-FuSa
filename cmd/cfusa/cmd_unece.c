@@ -112,13 +112,13 @@ int cmd_unece(int argc, char **argv)
         fprintf(out,
             "{\n"
             "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
-            "  \"kind\": \"unece-r155-gap\",\n"
+            "  \"kind\": \"gap-report\",\n"
             "  \"tool\": \"c-FuSa\",\n"
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
             "  \"projectRoot\": \"%s\",\n"
-            "  \"standard\": \"UN R.155\",\n"
+            "  \"standard\": \"unece-r155\",\n"
             "  \"project\": \"%s\",\n"
             "  \"covered\": %d,\n"
             "  \"gaps\": %d,\n"
@@ -133,14 +133,14 @@ int cmd_unece(int argc, char **argv)
             if (!cat->evidence_file && cat->note && strncmp(cat->note, "MANUAL", 6) == 0) {
                 status = "manual";
             } else if (cat->evidence_file) {
-                status = file_exists(dir, cat->evidence_file) ? "covered" : "gap";
+                status = file_exists(dir, cat->evidence_file) ? "satisfied" : "gap";
             } else {
                 status = "gap";
             }
             if (!first) fprintf(out, ",\n");
             fprintf(out,
                 "    {\"id\": \"%s\", \"title\": \"%s\","
-                " \"rule\": null, \"iso21434\": \"%s\", \"status\": \"%s\"}",
+                " \"findings\": [], \"iso21434\": \"%s\", \"status\": \"%s\"}",
                 cat->id, cat->description,
                 cat->iso21434_clauses ? cat->iso21434_clauses : "",
                 status);
