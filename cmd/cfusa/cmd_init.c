@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <getopt.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
@@ -16,6 +17,7 @@ int cmd_init(int argc, char **argv)
     static const struct option long_opts[] = {
         {"dir",             required_argument, NULL, 'd'},
         {"project",         required_argument, NULL, 'p'},
+        {"name",            required_argument, NULL, 'p'}, /* §9.1 alias */
         {"project-version", required_argument, NULL, 'V'},
         {"standard",        required_argument, NULL, 'S'},
         {"force",           no_argument,       NULL, 'F'},
@@ -33,7 +35,7 @@ int cmd_init(int argc, char **argv)
         case 'S': standard        = optarg; break;
         case 'F': force           = 1;      break;
         case 'h':
-            printf("Usage: cfusa init [--dir <path>] [--project <name>]\n"
+            printf("Usage: cfusa init [--dir <path>] [--project|--name <name>]\n"
                    "                  [--project-version <ver>]\n"
                    "                  [--standard iso26262|do178c|iec61508|misra-c]\n"
                    "                  [--force]\n\n"
@@ -44,17 +46,21 @@ int cmd_init(int argc, char **argv)
         }
     }
 
-    /* §9.1: no --project + no TTY (CI) → usage error */
-    if (!project && !isatty(STDIN_FILENO)) {
-        fprintf(stderr, "cfusa init: --project is required in non-interactive mode\n");
-        return 2;
+    /* Default project name to directory basename when not given */
+    char dir_basename[256] = "project";
+    if (!project) {
+        const char *abs = dir;
+        char resolved[512];
+        if (realpath(dir, resolved)) abs = resolved;
+        const char *slash = strrchr(abs, '/');
+        strncpy(dir_basename, slash ? slash + 1 : abs, sizeof(dir_basename) - 1);
+        project = dir_basename;
     }
 
     cfusa_config_t cfg;
     cfusa_config_defaults(&cfg);
 
-    if (project)
-        strncpy(cfg.project, project, sizeof(cfg.project) - 1);
+    strncpy(cfg.project, project, sizeof(cfg.project) - 1);
     if (project_version)
         strncpy(cfg.version, project_version, sizeof(cfg.version) - 1);
 
