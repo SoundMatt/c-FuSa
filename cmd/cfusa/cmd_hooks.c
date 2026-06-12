@@ -21,29 +21,53 @@ int cmd_hooks(int argc, char **argv)
     const char *dir    = ".";
     int install   = 0;
     int uninstall = 0;
+    int show_hook = 0;
 
     static const struct option long_opts[] = {
         {"dir",       required_argument, NULL, 'd'},
         {"install",   no_argument,       NULL, 'i'},
         {"uninstall", no_argument,       NULL, 'u'},
+        {"show",      no_argument,       NULL, 's'},
         {"help",      no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:iuh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:iush", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir       = optarg; break;
         case 'i': install   = 1;      break;
         case 'u': uninstall = 1;      break;
+        case 's': show_hook = 1;      break;
         case 'h':
-            printf("Usage: cfusa hooks --install   [--dir <path>]\n"
-                   "       cfusa hooks --uninstall  [--dir <path>]\n\n"
-                   "Installs or removes a git pre-commit hook that runs 'cfusa check'.\n");
+            printf("Usage: cfusa hooks <subcommand> [--dir <path>]\n\n"
+                   "Subcommands:\n"
+                   "  install    Install pre-commit hook into .git/hooks/\n"
+                   "  remove     Remove the cfusa pre-commit hook\n"
+                   "  show       Print the hook script to stdout\n\n"
+                   "Flags: --install / --uninstall / --show also accepted.\n");
             return 0;
         default: return 2;
         }
+    }
+
+    /* Accept subcommand style: hooks install | hooks remove | hooks show */
+    if (optind < argc) {
+        const char *sub = argv[optind];
+        if (strcmp(sub, "install") == 0)       install   = 1;
+        else if (strcmp(sub, "remove") == 0
+              || strcmp(sub, "uninstall") == 0) uninstall = 1;
+        else if (strcmp(sub, "show") == 0)      show_hook = 1;
+        else {
+            fprintf(stderr, "cfusa hooks: unknown subcommand '%s'\n", sub);
+            return 2;
+        }
+    }
+
+    if (show_hook) {
+        fputs(HOOK_CONTENT, stdout);
+        return 0;
     }
 
     char hook_path[512];
