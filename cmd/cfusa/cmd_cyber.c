@@ -623,6 +623,9 @@ int cmd_cyber(int argc, char **argv)
     if (output) cfusa_report_write(&rpt, output, fmt);
     else        cfusa_report_print(&rpt, stdout, fmt);
 
+    printf("\nCyber findings: %d error  %d warning  %d info\n",
+           rpt.error_count, rpt.warning_count, rpt.info_count);
+
     int rc = (rpt.error_count > 0) || (cfg.strict && rpt.warning_count > 0);
     cfusa_report_free(&rpt);
     return rc;

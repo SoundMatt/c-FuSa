@@ -105,6 +105,7 @@
     {"id":"REQ-HARA-ASIL-C0001","title":"cfusa hara ASIL table uses 4-column (C0-C3) scale matching go-FuSa DetermineASIL; accepts Sx/Ex/Cx prefix flag values; S2/E4/C2=ASIL-C, S2/E4/C0=ASIL-A etc; parity with go-FuSa TestDetermineASIL_Table4 and TestRunHara_ASIL","standard":"go-FuSa parity","level":"ASIL-D"},
     {"id":"REQ-HARA-INIT-EXISTS001","title":"cfusa hara init returns exit 2 with 'already exists' in stderr when .fusa-hara.json already exists; parity with go-FuSa TestRunHara_InitAlreadyExists","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-HARA-SUBCMD001","title":"cfusa hara unknown subcommand returns exit 2; parity with go-FuSa TestRunHara_UnknownSubcommand","standard":"go-FuSa parity","level":"ASIL-A"},
-    {"id":"REQ-UNECE-OUT001","title":"cfusa unece --output <file> writes report to file and prints 'UN R.155 gap report written to' to stderr; stdout remains empty (§2.2); parity with go-FuSa TestRunUNECE_OutputFile","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-UNECE-OUT001","title":"cfusa unece --output <file> writes report to file and prints 'UN R.155 gap report written to' to stderr; stdout remains empty (§2.2); parity with go-FuSa TestRunUNECE_OutputFile","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-CYBER-SUMMARY001","title":"cfusa cyber always prints 'Cyber findings: N error N warning N info' to stdout after analysis; parity with go-FuSa TestRunCyber_StrictWithWarnings","standard":"go-FuSa parity","level":"ASIL-A"}
   ]
 }
