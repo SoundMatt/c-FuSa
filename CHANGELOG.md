@@ -7,6 +7,21 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.24] — 2026-06-13
+
+### Added
+- `cfusa trace --req-coverage` now implements two metrics matching go-FuSa parity:
+  - Metric 1 — Requirement traceability: % of requirements with implementation traces
+  - Metric 2 — Function annotation density: % of non-static functions in annotated `.c` files
+- Output header "Requirement Coverage Report" with UNTRACED/UNANNOTATED listings
+- UNANNOTATED listing truncated at 20 entries with "... and N more"
+- N/A shown for each metric when no requirements or no functions exist
+- `--req-coverage 0` disables the gate and shows the regular trace matrix
+- Stderr gate-failure messages distinguish "metric 1" vs "metric 2"
+
+### Requirements
+- REQ-REQCOV-M2-001, REQ-REQCOV-NA-001, REQ-REQCOV-ZERO-001, REQ-REQCOV-TRUNC-001
+
 ## [0.5.23] — 2026-06-13
 
 ### Fixed

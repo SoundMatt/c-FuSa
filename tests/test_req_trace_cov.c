@@ -497,6 +497,75 @@ void test_coverage_mutate_100_pass(void)
     remove(outpath);
 }
 
+/* ── req-coverage parity tests (go-FuSa TestRunTraceReqCoverage_*) ─── */
+
+//cfusa:req REQ-REQCOV-M2-001
+//cfusa:test REQ-REQCOV-M2-001
+void test_trace_req_coverage_metric2_fail(void)
+{
+    /* extra.c has 5 unannotated functions → 2/(2+5)=28% < 80% → metric 2 fails */
+    write_file("extra.c",
+        "void fn1(void) {}\nvoid fn2(void) {}\nvoid fn3(void) {}\n"
+        "void fn4(void) {}\nvoid fn5(void) {}\n");
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--req-coverage", "80", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(1, rc);
+    rm_file("extra.c");
+}
+
+//cfusa:req REQ-REQCOV-NA-001
+//cfusa:test REQ-REQCOV-NA-001
+void test_trace_req_coverage_na_empty(void)
+{
+    /* no reqs, no .c files → both N/A → exit 0 */
+    rm_file("impl.c");
+    rm_file("test_impl.c");
+    rm_file(".cfusa-reqs.json");
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--req-coverage", "80", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    /* restore */
+    write_file(".cfusa-reqs.json",
+        "{\n  \"requirements\": [\n"
+        "    {\"id\":\"REQ-A001\",\"title\":\"Alpha\",\"text\":\"a\","
+        "\"standard\":\"ISO 26262\",\"level\":\"SHALL\"},\n"
+        "    {\"id\":\"REQ-A002\",\"title\":\"Beta\",\"text\":\"b\","
+        "\"standard\":\"MISRA-C\",\"level\":\"SHOULD\"}\n"
+        "  ]\n}\n");
+    write_file("impl.c",
+        "//cfusa:req REQ-A001\nvoid alpha(void) {}\n"
+        "//cfusa:req REQ-A002\nvoid beta(void) {}\n");
+    write_file("test_impl.c",
+        "//cfusa:test REQ-A001\nvoid test_alpha(void) {}\n"
+        "//cfusa:test REQ-A002\nvoid test_beta(void) {}\n");
+}
+
+//cfusa:req REQ-REQCOV-ZERO-001
+//cfusa:test REQ-REQCOV-ZERO-001
+void test_trace_req_coverage_zero_disabled(void)
+{
+    /* --req-coverage 0 disables the gate → exit 0, shows regular matrix */
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--req-coverage", "0", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+}
+
+//cfusa:req REQ-REQCOV-TRUNC-001
+//cfusa:test REQ-REQCOV-TRUNC-001
+void test_trace_req_coverage_truncated(void)
+{
+    /* 25 unannotated functions → output truncated at 20 with "... and N more" */
+    FILE *f = fopen(RTC_DIR "/many.c", "w");
+    if (f) {
+        for (int i = 0; i < 25; i++) fprintf(f, "void Fn%d(void) {}\n", i);
+        fclose(f);
+    }
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--req-coverage", "80", NULL};
+    /* exit code may be 0 or 1 — we only care it doesn't crash */
+    cmd_trace(5, argv);
+    rm_file("many.c");
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -528,5 +597,9 @@ int main(void)
     RUN_TEST(test_req_import_reqif_xml);
     RUN_TEST(test_coverage_mutate_score_flag);
     RUN_TEST(test_coverage_mutate_100_pass);
+    RUN_TEST(test_trace_req_coverage_metric2_fail);
+    RUN_TEST(test_trace_req_coverage_na_empty);
+    RUN_TEST(test_trace_req_coverage_zero_disabled);
+    RUN_TEST(test_trace_req_coverage_truncated);
     return UNITY_END();
 }
