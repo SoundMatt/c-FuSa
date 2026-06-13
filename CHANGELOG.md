@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.19] — 2026-06-13
+
+### Added
+- **`hara show --output <file>`** (go-FuSa parity) — `cfusa hara show` now accepts `--output <file>` to write output to a file instead of stdout, for all three formats (`text`, `json`, `markdown`). Matches go-FuSa's `TestRunHaraShow_WithOutputAndGaps`. Internally refactored show functions to accept `FILE*` parameter.
+
 ## [0.5.18] — 2026-06-13
 
 ### Added

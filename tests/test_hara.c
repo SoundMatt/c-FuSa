@@ -139,6 +139,30 @@ void test_hara_show_markdown_format(void)
     (void)remove(path);
 }
 
+//cfusa:req REQ-HARA-OUT001
+//cfusa:test REQ-HARA-OUT001
+void test_hara_show_output_file(void)
+{
+    char *init_argv[] = {"cfusa", "init", "--dir", HARA_TEST_DIR, NULL};
+    cmd_hara(4, init_argv);
+
+    char outfile[256];
+    snprintf(outfile, sizeof(outfile), "%s/hara-out.txt", HARA_TEST_DIR);
+
+    char *argv[] = {"cfusa", "show", "--dir", HARA_TEST_DIR, "--output", outfile, NULL};
+    int rc = cmd_hara(6, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen(outfile, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.fusa-hara.json", HARA_TEST_DIR);
+    (void)remove(path);
+    (void)remove(outfile);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -151,5 +175,6 @@ int main(void)
     RUN_TEST(test_hara_show_missing_file_no_crash);
     RUN_TEST(test_hara_show_json_format);
     RUN_TEST(test_hara_show_markdown_format);
+    RUN_TEST(test_hara_show_output_file);
     return UNITY_END();
 }

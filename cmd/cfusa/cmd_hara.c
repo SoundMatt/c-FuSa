@@ -110,7 +110,7 @@ static void do_init(const char *dir, const char *project, const char *version)
     printf("Edit hazards and run 'cfusa hara show' to review.\n");
 }
 
-static void do_show_json(const char *dir)
+static void do_show_json(const char *dir, FILE *out)
 {
     char path[512];
     cfusa_path_join(path, sizeof(path), dir, HARA_FILE);
@@ -125,12 +125,12 @@ static void do_show_json(const char *dir)
         fprintf(stderr, "cfusa hara: no %s found — run 'cfusa hara init' first\n", HARA_FILE);
         return;
     }
-    fwrite(content, 1, len, stdout);
-    if (len > 0 && content[len - 1] != '\n') putchar('\n');
+    fwrite(content, 1, len, out);
+    if (len > 0 && content[len - 1] != '\n') fputc('\n', out);
     free(content);
 }
 
-static void do_show_md(const char *dir)
+static void do_show_md(const char *dir, FILE *out)
 {
     char path[512];
     cfusa_path_join(path, sizeof(path), dir, HARA_FILE);
@@ -146,9 +146,9 @@ static void do_show_md(const char *dir)
         return;
     }
 
-    printf("# Hazard Analysis and Risk Assessment (HARA)\n\n");
-    printf("| ID | Hazardous Event | S | E | C | ASIL | Safety Goal |\n");
-    printf("|---|---|---|---|---|---|---|\n");
+    fprintf(out, "# Hazard Analysis and Risk Assessment (HARA)\n\n");
+    fprintf(out, "| ID | Hazardous Event | S | E | C | ASIL | Safety Goal |\n");
+    fprintf(out, "|---|---|---|---|---|---|---|\n");
 
     char *p = content;
     while ((p = strstr(p, "\"id\"")) != NULL) {
@@ -164,13 +164,13 @@ static void do_show_md(const char *dir)
         { char *fp = strstr(blk,"\"severity\":");  if (fp) sscanf(fp,"\"severity\": %d",&sev); }
         { char *fp = strstr(blk,"\"exposure\":");  if (fp) sscanf(fp,"\"exposure\": %d",&exp); }
         { char *fp = strstr(blk,"\"controllability\":"); if (fp) sscanf(fp,"\"controllability\": %d",&ctl); }
-        printf("| %s | %s | %d | %d | %d | %s | %s |\n", id, event, sev, exp, ctl, asil, goal);
+        fprintf(out, "| %s | %s | %d | %d | %d | %s | %s |\n", id, event, sev, exp, ctl, asil, goal);
         p = end;
     }
     free(content);
 }
 
-static void do_show(const char *dir)
+static void do_show(const char *dir, FILE *out)
 {
     char path[512];
     cfusa_path_join(path, sizeof(path), dir, HARA_FILE);
@@ -191,8 +191,8 @@ static void do_show(const char *dir)
         }
     }
 
-    printf("Hazard Analysis and Risk Assessment\n");
-    printf("=====================================\n");
+    fprintf(out, "Hazard Analysis and Risk Assessment\n");
+    fprintf(out, "=====================================\n");
 
     /* Simple extraction: find each hazard block */
     int count = 0;
@@ -243,17 +243,17 @@ static void do_show(const char *dir)
             if (fp) sscanf(fp, "\"ftti_ms\": %d", &ftti);
         }
 
-        printf("\n%s  [%s]\n", id, asil);
-        printf("  Event:       %s\n", event);
-        printf("  S%d/E%d/C%d   Safety Goal: %s\n", sev, exp, ctl, goal);
-        printf("  Safe State:  %s\n", safe);
+        fprintf(out, "\n%s  [%s]\n", id, asil);
+        fprintf(out, "  Event:       %s\n", event);
+        fprintf(out, "  S%d/E%d/C%d   Safety Goal: %s\n", sev, exp, ctl, goal);
+        fprintf(out, "  Safe State:  %s\n", safe);
         if (ftti > 0)
-            printf("  FTTI:        %d ms\n", ftti);
+            fprintf(out, "  FTTI:        %d ms\n", ftti);
 
         /* Recompute ASIL from parameters to verify */
         const char *computed = compute_asil(sev, exp, ctl);
         if (strcmp(computed, asil) != 0)
-            printf("  WARNING: stored ASIL %s differs from computed %s\n",
+            fprintf(out, "  WARNING: stored ASIL %s differs from computed %s\n",
                    asil, computed);
         count++;
         p = end;
@@ -262,9 +262,9 @@ static void do_show(const char *dir)
     free(content);
 
     if (count == 0) {
-        printf("No hazard entries found in %s\n", path);
+        fprintf(out, "No hazard entries found in %s\n", path);
     } else {
-        printf("\n%d hazard(s) listed.\n", count);
+        fprintf(out, "\n%d hazard(s) listed.\n", count);
     }
 }
 
@@ -273,11 +273,13 @@ int cmd_hara(int argc, char **argv)
     const char *subcmd  = "show";
     const char *dir     = ".";
     const char *format  = "text";
+    const char *output  = NULL;
     int s = 0, e = 0, c = 0;
 
     static const struct option long_opts[] = {
         {"dir",            required_argument, NULL, 'd'},
         {"format",         required_argument, NULL, 'F'},
+        {"output",         required_argument, NULL, 'o'},
         {"severity",       required_argument, NULL, 's'},
         {"exposure",       required_argument, NULL, 'e'},
         {"controllability",required_argument, NULL, 'c'},
@@ -294,10 +296,11 @@ int cmd_hara(int argc, char **argv)
 
     int opt;
     optind = 1;
-    while ((opt = getopt_long(argc, argv, "d:F:s:e:c:h", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "d:F:o:s:e:c:h", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'd': dir    = optarg; break;
         case 'F': format = optarg; break;
+        case 'o': output = optarg; break;
         case 's': s = atoi(optarg); break;
         case 'e': e = atoi(optarg); break;
         case 'c': c = atoi(optarg); break;
@@ -308,7 +311,8 @@ int cmd_hara(int argc, char **argv)
                    "  show   Display all hazard entries with ASIL rating\n"
                    "  asil   Compute ASIL from S/E/C parameters\n\n"
                    "Options for 'show':\n"
-                   "  --format text|json|markdown  Output format (default: text)\n\n"
+                   "  --format text|json|markdown  Output format (default: text)\n"
+                   "  --output <file>              Write output to file (default: stdout)\n\n"
                    "Options for 'asil':\n"
                    "  --severity N        Severity class S1-S3 (1-3, per ISO 26262-3 Table 4)\n"
                    "  --exposure N        Exposure class E1-E4 (1-4)\n"
@@ -330,12 +334,19 @@ int cmd_hara(int argc, char **argv)
             return 1;
         }
         do_asil(s, e, c);
-    } else if (!strcmp(format, "json")) {
-        do_show_json(dir);
-    } else if (!strcmp(format, "markdown") || !strcmp(format, "md")) {
-        do_show_md(dir);
     } else {
-        do_show(dir);
+        FILE *out = stdout;
+        if (output) {
+            out = fopen(output, "w");
+            if (!out) { perror(output); return 3; }
+        }
+        if (!strcmp(format, "json"))
+            do_show_json(dir, out);
+        else if (!strcmp(format, "markdown") || !strcmp(format, "md"))
+            do_show_md(dir, out);
+        else
+            do_show(dir, out);
+        if (output && out != stdout) fclose(out);
     }
 
     return 0;
