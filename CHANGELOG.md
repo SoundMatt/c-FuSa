@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.30] — 2026-06-13
+
+### Fixed
+- **`cfusa unece --output <file>`**: Now prints "UN R.155 gap report written to \<file\>" to stderr after writing. Parity with go-FuSa `TestRunUNECE_OutputFile` (§2.2: stdout stays empty, confirmation goes to stderr).
+
+### Requirements
+- REQ-UNECE-OUT001
+
 ## [0.5.29] — 2026-06-13
 
 ### Fixed
