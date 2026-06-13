@@ -100,6 +100,45 @@ void test_hara_show_missing_file_no_crash(void)
     (void)rc; /* returns 0 after printing error message — not a crash */
 }
 
+/* ---- HARA show --format json ---- */
+
+//cfusa:req REQ-HARA-FMT001
+//cfusa:test REQ-HARA-FMT001
+void test_hara_show_json_format(void)
+{
+    /* Init a HARA file first */
+    char *init_argv[] = {"cfusa", "init", "--dir", HARA_TEST_DIR, NULL};
+    cmd_hara(4, init_argv);
+
+    /* show --format json should exit 0 */
+    char *argv[] = {"cfusa", "show", "--dir", HARA_TEST_DIR, "--format", "json", NULL};
+    int rc = cmd_hara(6, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    /* Cleanup */
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.fusa-hara.json", HARA_TEST_DIR);
+    (void)remove(path);
+}
+
+/* ---- HARA show --format markdown ---- */
+
+//cfusa:req REQ-HARA-FMT002
+//cfusa:test REQ-HARA-FMT002
+void test_hara_show_markdown_format(void)
+{
+    char *init_argv[] = {"cfusa", "init", "--dir", HARA_TEST_DIR, NULL};
+    cmd_hara(4, init_argv);
+
+    char *argv[] = {"cfusa", "show", "--dir", HARA_TEST_DIR, "--format", "markdown", NULL};
+    int rc = cmd_hara(6, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.fusa-hara.json", HARA_TEST_DIR);
+    (void)remove(path);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -110,5 +149,7 @@ int main(void)
     RUN_TEST(test_asil_missing_params_returns_error);
     RUN_TEST(test_hara_init_creates_file);
     RUN_TEST(test_hara_show_missing_file_no_crash);
+    RUN_TEST(test_hara_show_json_format);
+    RUN_TEST(test_hara_show_markdown_format);
     return UNITY_END();
 }
