@@ -75,6 +75,10 @@
     {"id":"REQ-HARA-FMT002","title":"hara show --format markdown emits Markdown table; parity with go-FuSa hara show -format markdown","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-FMTERR001","title":"gap-report commands (unece/iso26262/iec61508/iso21434) return exit 3 for unknown --format; parity with go-FuSa bad-format tests","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-INIT-DOCS001","title":"cfusa init --docs generates starter safety documentation templates in docs/safety/; parity with go-FuSa init --docs","standard":"go-FuSa parity","level":"ASIL-A"},
-    {"id":"REQ-HARA-OUT001","title":"hara show --output <file> writes output to file instead of stdout; parity with go-FuSa TestRunHaraShow_WithOutputAndGaps","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-HARA-OUT001","title":"hara show --output <file> writes output to file instead of stdout; parity with go-FuSa TestRunHaraShow_WithOutputAndGaps","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-INIT-EXISTS001","title":"cfusa init returns exit 2 when all target files already exist and --force not set; parity with go-FuSa TestRunInit_AlreadyExists","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-INIT-MODULE001","title":"cfusa init --module <path> flag accepted without error; parity with go-FuSa TestRunInit_WithNameAndModule","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-SAS-PREP001","title":"cfusa sas --prepared-by <name> includes preparer name in generated SAS document; parity with go-FuSa TestRunSas_PreparedBy","standard":"DO-178C","level":"DAL-A"},
+    {"id":"REQ-SAS-STDOUT001","title":"cfusa sas --output - writes to stdout instead of a file; parity with go-FuSa --output - convention","standard":"DO-178C","level":"DAL-A"}
   ]
 }

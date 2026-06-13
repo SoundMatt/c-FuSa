@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.20] — 2026-06-13
+
+### Added
+- **`init` returns exit 2 when all files already exist** (go-FuSa parity) — `cfusa init` now returns exit 2 (usage error) instead of exit 0 when `.fusa.json` and `.fusa-reqs.json` both already exist and `--force` is not set. Matches `TestRunInit_AlreadyExists`.
+- **`init --module <path>`** (go-FuSa parity) — `cfusa init` now accepts a `--module` flag (analogous to go-FuSa's Go module path). The value is accepted without error; c-FuSa treats it as informational. Matches `TestRunInit_WithNameAndModule`.
+- **`sas --prepared-by <name>`** (go-FuSa parity) — `cfusa sas` now accepts `--prepared-by <name>`. The preparer name appears in the generated SAS document across all output formats (`text`, `json`, `md`). Matches `TestRunSas_PreparedBy`.
+- **`sas --output -`** (go-FuSa parity) — `cfusa sas` now treats `--output -` as stdout, matching go-FuSa's convention. Previously `-` was treated as a file path.
+
 ## [0.5.19] — 2026-06-13
 
 ### Added

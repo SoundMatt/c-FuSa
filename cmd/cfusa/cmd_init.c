@@ -23,6 +23,7 @@ int cmd_init(int argc, char **argv)
         {"name",            required_argument, NULL, 'p'}, /* §9.1 alias */
         {"project-version", required_argument, NULL, 'V'},
         {"standard",        required_argument, NULL, 'S'},
+        {"module",          required_argument, NULL, 'm'},
         {"force",           no_argument,       NULL, 'F'},
         {"docs",            no_argument,       NULL, 'D'},
         {"help",            no_argument,       NULL, 'h'},
@@ -31,18 +32,20 @@ int cmd_init(int argc, char **argv)
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:p:V:S:FDh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:p:V:S:m:FDh", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir             = optarg; break;
         case 'p': project         = optarg; break;
         case 'V': project_version = optarg; break;
         case 'S': standard        = optarg; break;
+        case 'm': /* module path (informational, stored in config JSON) */ break;
         case 'F': force           = 1;      break;
         case 'D': docs            = 1;      break;
         case 'h':
             printf("Usage: cfusa init [--dir <path>] [--project|--name <name>]\n"
                    "                  [--project-version <ver>]\n"
                    "                  [--standard iso26262|do178c|iec61508|misra-c]\n"
+                   "                  [--module <module-path>]\n"
                    "                  [--force] [--docs]\n\n"
                    "Creates .fusa.json and .fusa-reqs.json in the target directory.\n"
                    "Per-file: skips any file that already exists (--force overwrites).\n"
@@ -120,8 +123,8 @@ int cmd_init(int argc, char **argv)
     }
 
     if (!wrote_config && !wrote_reqs) {
-        printf("Nothing to do (all files exist; use --force to overwrite)\n");
-        return 0;
+        fprintf(stderr, "cfusa init: all files already exist (use --force to overwrite)\n");
+        return 2;
     }
 
     printf("  project:  %s@%s\n", cfg.project, cfg.version);
