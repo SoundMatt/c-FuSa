@@ -67,6 +67,7 @@
     {"id":"REQ-RPT-SPAN003","title":"SARIF region includes endLine/endColumn when set","standard":"FuSaOps §4","level":"ASIL-B"},
     {"id":"REQ-SLSA001","title":"capabilities commands array lists slsa","standard":"FuSaOps §9.1","level":"ASIL-A"},
     {"id":"REQ-SLSA002","title":"capabilities standards array lists slsa","standard":"FuSaOps §9.1","level":"ASIL-A"},
-    {"id":"REQ-CAP001","title":"capabilities --output writes JSON to file","standard":"FuSaOps §9.1","level":"ASIL-A"}
+    {"id":"REQ-CAP001","title":"capabilities --output writes JSON to file","standard":"FuSaOps §9.1","level":"ASIL-A"},
+    {"id":"REQ-CAP002","title":"capabilities lists all implemented commands including verify/metrics/comp/impact/hooks/badge/template","standard":"FuSaOps §9.1","level":"ASIL-A"}
   ]
 }

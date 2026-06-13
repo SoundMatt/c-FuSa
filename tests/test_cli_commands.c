@@ -352,6 +352,30 @@ void test_capabilities_json_has_slsa(void)
     (void)remove(out);
 }
 
+//cfusa:req REQ-CAP002
+//cfusa:test REQ-CAP002
+void test_capabilities_json_lists_all_commands(void)
+{
+    char out[256];
+    snprintf(out, sizeof(out), "%s/cap_all.json", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--format", "json", "--output", out, NULL};
+    TEST_ASSERT_EQUAL(0, cmd_capabilities(5, argv));
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"verify\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"metrics\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"comp\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"impact\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"hooks\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"badge\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"template\""));
+    }
+    (void)remove(out);
+}
+
 /* ---- audit_pack ---- */
 
 //cfusa:req REQ-AUDIT
@@ -413,5 +437,6 @@ int main(void)
     RUN_TEST(test_slsa_help_returns_zero);
     RUN_TEST(test_slsa_json_format);
     RUN_TEST(test_capabilities_json_has_slsa);
+    RUN_TEST(test_capabilities_json_lists_all_commands);
     return UNITY_END();
 }
