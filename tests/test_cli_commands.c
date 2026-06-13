@@ -563,6 +563,102 @@ void test_slsa_bad_format_returns_3(void)
     TEST_ASSERT_EQUAL(3, rc);
 }
 
+/* ---- slsa --level L1/L2/L3/L4 format ---- */
+
+//cfusa:req REQ-SLSA-LEVEL001
+//cfusa:test REQ-SLSA-LEVEL001
+void test_slsa_level_l1_accepted(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--level", "L1", NULL};
+    int rc = cmd_slsa(5, argv);
+    TEST_ASSERT_TRUE(rc <= 1);
+}
+
+//cfusa:req REQ-SLSA-LEVEL001
+//cfusa:test REQ-SLSA-LEVEL001
+void test_slsa_bad_level_returns_2(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--level", "L5", NULL};
+    int rc = cmd_slsa(5, argv);
+    TEST_ASSERT_EQUAL(2, rc);
+}
+
+/* ---- slsa --output writes file ---- */
+
+#define SLSA_OUT_TEST_FILE "/tmp/cfusa_slsa_out_test.json"
+
+//cfusa:req REQ-SLSA-OUT001
+//cfusa:test REQ-SLSA-OUT001
+void test_slsa_output_writes_file(void)
+{
+    remove(SLSA_OUT_TEST_FILE);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--format", "json",
+                    "--output", SLSA_OUT_TEST_FILE, NULL};
+    int rc = cmd_slsa(7, argv);
+    TEST_ASSERT_TRUE(rc <= 1);
+    FILE *f = fopen(SLSA_OUT_TEST_FILE, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+}
+
+//cfusa:req REQ-SLSA-OUT001
+//cfusa:test REQ-SLSA-OUT001
+void test_slsa_bad_output_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--output", "/nonexistent/dir/slsa.json", NULL};
+    int rc = cmd_slsa(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
+/* ---- iec62443 --sl SL-x format and bad SL ---- */
+
+//cfusa:req REQ-IEC62443-SL001
+//cfusa:test REQ-IEC62443-SL001
+void test_iec62443_sl_format_accepted(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--sl", "SL-1", NULL};
+    int rc = cmd_iec62443(5, argv);
+    TEST_ASSERT_TRUE(rc != 2);
+}
+
+//cfusa:req REQ-IEC62443-SL001
+//cfusa:test REQ-IEC62443-SL001
+void test_iec62443_bad_sl_returns_2(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--sl", "SL-5", NULL};
+    int rc = cmd_iec62443(5, argv);
+    TEST_ASSERT_EQUAL(2, rc);
+}
+
+/* ---- iec62443 --output writes file ---- */
+
+#define IEC62443_OUT_TEST_FILE "/tmp/cfusa_iec62443_out_test.json"
+
+//cfusa:req REQ-IEC62443-OUT001
+//cfusa:test REQ-IEC62443-OUT001
+void test_iec62443_output_writes_file(void)
+{
+    remove(IEC62443_OUT_TEST_FILE);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--format", "json",
+                    "--output", IEC62443_OUT_TEST_FILE, NULL};
+    int rc = cmd_iec62443(7, argv);
+    TEST_ASSERT_TRUE(rc <= 1);
+    FILE *f = fopen(IEC62443_OUT_TEST_FILE, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+}
+
+//cfusa:req REQ-IEC62443-OUT001
+//cfusa:test REQ-IEC62443-OUT001
+void test_iec62443_bad_output_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--output", "/nonexistent/dir/iec62443.json", NULL};
+    int rc = cmd_iec62443(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
 /* ---- init already-exists returns 2 ---- */
 
 //cfusa:req REQ-INIT-EXISTS001
@@ -678,6 +774,14 @@ int main(void)
     RUN_TEST(test_iso21434_bad_format_returns_3);
     RUN_TEST(test_iec62443_bad_format_returns_3);
     RUN_TEST(test_slsa_bad_format_returns_3);
+    RUN_TEST(test_slsa_level_l1_accepted);
+    RUN_TEST(test_slsa_bad_level_returns_2);
+    RUN_TEST(test_slsa_output_writes_file);
+    RUN_TEST(test_slsa_bad_output_returns_3);
+    RUN_TEST(test_iec62443_sl_format_accepted);
+    RUN_TEST(test_iec62443_bad_sl_returns_2);
+    RUN_TEST(test_iec62443_output_writes_file);
+    RUN_TEST(test_iec62443_bad_output_returns_3);
     RUN_TEST(test_init_already_exists_returns_2);
     RUN_TEST(test_init_module_flag_accepted);
     RUN_TEST(test_sas_prepared_by);

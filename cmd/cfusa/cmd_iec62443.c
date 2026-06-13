@@ -232,6 +232,9 @@ int cmd_iec62443(int argc, char **argv)
         return 3;
     }
 
-    if (output && out != stdout) fclose(out);
+    if (output && out != stdout) {
+        fclose(out);
+        fprintf(stderr, "IEC 62443 gap report written to %s\n", output);
+    }
     return (gaps_m > 0) ? 1 : 0;
 }

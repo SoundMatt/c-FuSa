@@ -89,7 +89,12 @@ int cmd_slsa(int argc, char **argv)
     while ((c = getopt_long(argc, argv, "d:l:f:o:h", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir    = optarg; break;
-        case 'l': level  = atoi(optarg); break;
+        case 'l': {
+            const char *lv = optarg;
+            if (lv[0] == 'L' || lv[0] == 'l') lv++;
+            level = atoi(lv);
+            break;
+        }
         case 'f': fmt_s  = optarg; break;
         case 'o': output = optarg; break;
         case 'h':
@@ -177,7 +182,7 @@ int cmd_slsa(int argc, char **argv)
                     ok ? "[x] Satisfied" : "[ ] Gap");
         }
     } else if (!strcmp(fmt_s, "text")) {
-        fprintf(out, "SLSA v1.0 Gap Report\n"
+        fprintf(out, "SLSA Supply-Chain Gap Report\n"
                 "Project: %s v%s   Level: %d   Generated: %s\n"
                 "Satisfied: %d / %d objectives  (%d gaps)\n\n",
                 cfg.project, cfg.version, level, ts,
@@ -202,6 +207,9 @@ int cmd_slsa(int argc, char **argv)
         return 3;
     }
 
-    if (output && out != stdout) fclose(out);
+    if (output && out != stdout) {
+        fclose(out);
+        fprintf(stderr, "SLSA gap report written to %s\n", output);
+    }
     return gaps > 0 ? 1 : 0;
 }

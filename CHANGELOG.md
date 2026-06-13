@@ -7,6 +7,20 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.28] — 2026-06-13
+
+### Fixed
+- **`cfusa slsa --level L1/L2/L3/L4`**: SLSA level flag now accepts the `Lx` prefix format in addition to bare integers. Previously `--level L1` was parsed by `atoi()` as 0, causing exit 2 (invalid level). Parity with go-FuSa `TestRunSLSA_AllLevels`.
+- **`cfusa slsa` text header**: Changed "SLSA v1.0 Gap Report" → "SLSA Supply-Chain Gap Report" for consistency with go-FuSa output and spec-level language.
+- **`cfusa slsa --output <file>`**: Now prints confirmation "SLSA gap report written to \<file\>" to stderr after writing. Parity with go-FuSa `TestRunSLSA_OutputFile`.
+- **`cfusa iec62443 --output <file>`**: Now prints confirmation "IEC 62443 gap report written to \<file\>" to stderr after writing. Parity with go-FuSa `TestRunIEC62443_OutputFile`.
+
+### Requirements
+- REQ-SLSA-LEVEL001
+- REQ-SLSA-OUT001
+- REQ-IEC62443-SL001
+- REQ-IEC62443-OUT001
+
 ## [0.5.27] — 2026-06-13
 
 ### Fixed
