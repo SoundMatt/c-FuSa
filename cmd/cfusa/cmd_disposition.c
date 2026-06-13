@@ -255,6 +255,11 @@ int cmd_disposition(int argc, char **argv)
             fprintf(stderr, "cfusa disposition add: --reviewer is required\n");
             return 2;
         }
+        if (strcmp(action, "accept") != 0 && strcmp(action, "fix") != 0 &&
+            strcmp(action, "mitigate") != 0) {
+            fprintf(stderr, "cfusa disposition add: invalid --action '%s' (accept|fix|mitigate)\n", action);
+            return 2;
+        }
         do_add(dir, rule, rationale, action, reviewer, ref);
     } else if (!strcmp(subcmd, "list")) {
         do_list(dir);

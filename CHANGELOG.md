@@ -7,6 +7,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.23] — 2026-06-13
+
+### Fixed
+- **`metrics` subcommand validation** (go-FuSa parity) — `cfusa metrics` now returns exit 2 when no subcommand is given or an unknown subcommand is specified. Previously it defaulted to `show` when no subcommand was given. Also `metrics record` output now includes "Metrics recorded" prefix. Matches go-FuSa `TestRunMetrics_NoSubcmd`, `TestRunMetrics_UnknownSubcmd`, `TestRunMetricsRecord_EmptyDir`.
+- **`hooks install` already-exists returns exit 2** (go-FuSa parity) — `cfusa hooks install` now returns exit 2 when the hook file already exists. Also uses `cfusa_mkdir_p` to create the hooks directory if missing (returns exit 3 on failure). Messages use lowercase "pre-commit hook installed/removed". Matches go-FuSa `TestHooksInstall_AlreadyExists`, `TestHooksInstall_MkdirAllError`, `TestHooksInstall_Success_V025`.
+- **`hooks remove` not-found returns exit 2** (go-FuSa parity) — `cfusa hooks remove` now returns exit 2 when the hook file is not found (was: exit 0 with info message). Returns exit 3 on other remove errors. Matches go-FuSa `TestHooksRemove_NotFound`, `TestHooksRemove_RuntimeError`, `TestHooksRemove_Success_V025`.
+- **`badge` positional report file + too-many-args exit 3** (go-FuSa parity) — `cfusa badge` now accepts the report file as an optional positional argument (in addition to `--report`). Passing more than one positional argument returns exit 3. Matches go-FuSa `TestRunBadge_TooManyArgs`, `TestRunBadge_FromFileWithErrors`, `TestRunBadge_OutputFile`.
+- **`disposition add` invalid `--action` returns exit 2** (go-FuSa parity) — `cfusa disposition add` now validates `--action` accepts only `accept`, `fix`, `mitigate` and returns exit 2 for any other value. Matches go-FuSa `TestRunDispositionAdd_InvalidAction`.
+
 ## [0.5.22] — 2026-06-13
 
 ### Fixed

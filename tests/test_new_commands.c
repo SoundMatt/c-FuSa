@@ -277,6 +277,17 @@ void test_disposition_add_missing_rationale_returns_2(void)
     TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
+void test_disposition_invalid_action_returns_2(void)
+{
+    char *argv[] = {"cfusa", "add",
+                    "--rule", "LINT001",
+                    "--reviewer", "alice",
+                    "--rationale", "reason",
+                    "--action", "delete", NULL};
+    int rc = cmd_disposition(10, argv);
+    TEST_ASSERT_EQUAL_INT(2, rc);
+}
+
 /* ── release --spdx-version ──────────────────────────────────────── */
 
 void test_release_spdx_version_flag(void)
@@ -370,6 +381,7 @@ int main(void)
     RUN_TEST(test_disposition_unknown_subcmd_returns_2);
     RUN_TEST(test_disposition_add_missing_reviewer_returns_2);
     RUN_TEST(test_disposition_add_missing_rationale_returns_2);
+    RUN_TEST(test_disposition_invalid_action_returns_2);
     /* release */
     RUN_TEST(test_release_spdx_version_flag);
     RUN_TEST(test_release_spdx_23_default);

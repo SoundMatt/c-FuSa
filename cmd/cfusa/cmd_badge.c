@@ -35,6 +35,15 @@ int cmd_badge(int argc, char **argv)
         }
     }
 
+    /* Positional argument: optional report file */
+    if (optind < argc) {
+        if (argc - optind > 1) {
+            fprintf(stderr, "cfusa badge: too many arguments (expected at most one report file)\n");
+            return 3;
+        }
+        report = argv[optind];
+    }
+
     /* Read score from JSON report if provided */
     double score = 100.0;
     int errors = 0, warnings = 0;
