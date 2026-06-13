@@ -81,23 +81,32 @@ int cmd_hooks(int argc, char **argv)
     }
 
     if (uninstall) {
-        if (cfusa_file_exists(hook_path)) {
-            if (remove(hook_path) == 0)
-                printf("Pre-commit hook removed: %s\n", hook_path);
-            else
-                perror(hook_path);
-        } else {
-            printf("No cfusa hook found at %s\n", hook_path);
+        struct stat st;
+        if (stat(hook_path, &st) != 0) {
+            fprintf(stderr, "cfusa hooks: no hook found at %s\n", hook_path);
+            return 2;
         }
+        if (remove(hook_path) != 0) {
+            perror(hook_path);
+            return 3;
+        }
+        printf("pre-commit hook removed: %s\n", hook_path);
         return 0;
     }
 
     /* Install */
     char hooks_dir[512];
     snprintf(hooks_dir, sizeof(hooks_dir), "%s/.git/hooks", dir);
-    if (!cfusa_dir_exists(hooks_dir)) {
-        fprintf(stderr, "cfusa hooks: %s not found — is this a git repository?\n", hooks_dir);
-        return 1;
+
+    /* Already installed? */
+    if (cfusa_file_exists(hook_path)) {
+        fprintf(stderr, "cfusa hooks: hook already exists at %s (remove first)\n", hook_path);
+        return 2;
+    }
+
+    if (cfusa_mkdir_p(hooks_dir) != 0) {
+        fprintf(stderr, "cfusa hooks: cannot create %s\n", hooks_dir);
+        return 3;
     }
 
     FILE *f = fopen(hook_path, "w");
@@ -106,7 +115,7 @@ int cmd_hooks(int argc, char **argv)
     fclose(f);
     chmod(hook_path, 0755);
 
-    printf("Pre-commit hook installed: %s\n", hook_path);
+    printf("pre-commit hook installed: %s\n", hook_path);
     printf("cfusa check will run on every 'git commit'.\n");
     return 0;
 }

@@ -560,6 +560,16 @@ void test_badge_runs_no_crash(void)
     (void)rc;
 }
 
+//cfusa:req REQ-BADGE-POS001
+//cfusa:test REQ-BADGE-POS001
+void test_badge_too_many_args_returns_3(void)
+{
+    /* Two positional report files → exit 3 */
+    char *argv[] = {"cfusa", "/tmp/f1.json", "/tmp/f2.json", NULL};
+    int rc = cmd_badge(3, argv);
+    TEST_ASSERT_EQUAL_INT(3, rc);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -586,6 +596,7 @@ int main(void)
     RUN_TEST(test_audit_pack_runs_no_crash);
     RUN_TEST(test_diff_help_returns_zero);
     RUN_TEST(test_badge_runs_no_crash);
+    RUN_TEST(test_badge_too_many_args_returns_3);
     RUN_TEST(test_slsa_help_returns_zero);
     RUN_TEST(test_slsa_json_format);
     RUN_TEST(test_capabilities_json_has_slsa);

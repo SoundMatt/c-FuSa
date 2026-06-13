@@ -83,6 +83,13 @@
     {"id":"REQ-VULN-OUTDIR001","title":"cfusa vuln --output-dir <dir> creates dir, writes vuln.json, prints summary to stdout; parity with go-FuSa TestRunVuln_OutputDir","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-DISP-SUBCMD001","title":"cfusa disposition returns exit 2 when no subcommand given; parity with go-FuSa TestRunDisposition_NoSubcmd","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-DISP-SUBCMD002","title":"cfusa disposition returns exit 2 for unknown subcommand; parity with go-FuSa TestRunDisposition_UnknownSubcmd","standard":"go-FuSa parity","level":"ASIL-A"},
-    {"id":"REQ-DISP-ADD001","title":"cfusa disposition add returns exit 2 when --rule/--rationale/--reviewer missing; parity with go-FuSa TestRunDispositionAdd_Missing* tests","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-DISP-ADD001","title":"cfusa disposition add returns exit 2 when --rule/--rationale/--reviewer missing; parity with go-FuSa TestRunDispositionAdd_Missing* tests","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-DISP-ACTION001","title":"cfusa disposition add returns exit 2 for invalid --action value; parity with go-FuSa TestRunDispositionAdd_InvalidAction","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-MET-SUBCMD001","title":"cfusa metrics returns exit 2 when no subcommand given; parity with go-FuSa TestRunMetrics_NoSubcmd","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-MET-SUBCMD002","title":"cfusa metrics returns exit 2 for unknown subcommand; parity with go-FuSa TestRunMetrics_UnknownSubcmd","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-MET-REC001","title":"cfusa metrics record output contains 'Metrics recorded'; parity with go-FuSa TestRunMetricsRecord_EmptyDir","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-HOOK-INSTALL001","title":"cfusa hooks install returns exit 2 when hook already exists; parity with go-FuSa TestHooksInstall_AlreadyExists","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-HOOK-REMOVE001","title":"cfusa hooks remove returns exit 2 when hook not found; parity with go-FuSa TestHooksRemove_NotFound","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-BADGE-POS001","title":"cfusa badge with more than one positional report file returns exit 3; parity with go-FuSa TestRunBadge_TooManyArgs","standard":"go-FuSa parity","level":"ASIL-A"}
   ]
 }

@@ -154,7 +154,7 @@ static void do_record(const char *dir,
     fprintf(f, "}\n");
     fclose(f);
 
-    printf("Recorded: errors=%d warnings=%d info=%d reqs=%d traced=%d",
+    printf("Metrics recorded: errors=%d warnings=%d info=%d reqs=%d traced=%d",
            errors, warnings, infos, total_reqs, traced_reqs);
     if (coverage_pct >= 0.0)
         printf(" coverage=%.1f%%", coverage_pct);
@@ -285,7 +285,7 @@ static void do_show(const char *dir, const char *fmt, FILE *out)
 
 int cmd_metrics(int argc, char **argv)
 {
-    const char *subcmd   = "show";
+    const char *subcmd   = NULL;
     const char *dir      = ".";
     const char *label    = "auto";
     const char *fmt      = "text";
@@ -336,6 +336,15 @@ int cmd_metrics(int argc, char **argv)
             return 0;
         default: return 2;
         }
+    }
+
+    if (!subcmd) {
+        fprintf(stderr, "cfusa metrics: subcommand required (record|show)\n");
+        return 2;
+    }
+    if (strcmp(subcmd, "record") != 0 && strcmp(subcmd, "show") != 0) {
+        fprintf(stderr, "cfusa metrics: unknown subcommand '%s' (record|show)\n", subcmd);
+        return 2;
     }
 
     cfusa_config_t cfg;

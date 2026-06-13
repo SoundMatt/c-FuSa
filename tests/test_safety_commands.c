@@ -111,8 +111,8 @@ void test_boundary_help_no_crash(void)
 //cfusa:test REQ-MET001
 void test_metrics_runs_on_empty_dir(void)
 {
-    char *argv[] = {"cfusa", "--dir", SC_TEST_DIR, NULL};
-    int rc = cmd_metrics(3, argv);
+    char *argv[] = {"cfusa", "show", "--dir", SC_TEST_DIR, NULL};
+    int rc = cmd_metrics(4, argv);
     TEST_ASSERT_EQUAL(0, rc);
 }
 

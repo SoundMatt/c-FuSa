@@ -239,6 +239,35 @@ void test_pr_runs_no_crash(void)
     (void)rc;
 }
 
+/* ---- metrics subcommand validation ---- */
+
+//cfusa:req REQ-MET-SUBCMD001
+//cfusa:test REQ-MET-SUBCMD001
+void test_metrics_no_subcmd_returns_2(void)
+{
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, NULL};
+    int rc = cmd_metrics(3, argv);
+    TEST_ASSERT_EQUAL_INT(2, rc);
+}
+
+//cfusa:req REQ-MET-SUBCMD001
+//cfusa:test REQ-MET-SUBCMD001
+void test_metrics_unknown_subcmd_returns_2(void)
+{
+    char *argv[] = {"cfusa", "frobber", "--dir", CMD2_DIR, NULL};
+    int rc = cmd_metrics(4, argv);
+    TEST_ASSERT_EQUAL_INT(2, rc);
+}
+
+//cfusa:req REQ-MET-SUBCMD001
+//cfusa:test REQ-MET-SUBCMD001
+void test_metrics_record_outputs_metrics_recorded(void)
+{
+    char *argv[] = {"cfusa", "record", "--dir", CMD2_DIR, NULL};
+    int rc = cmd_metrics(4, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+}
+
 /* ---- hooks ---- */
 
 //cfusa:req REQ-HOOK001
@@ -248,6 +277,39 @@ void test_hooks_runs_no_crash(void)
     char *argv[] = {"cfusa", NULL};
     int rc = cmd_hooks(1, argv);
     (void)rc;
+}
+
+#define HOOKS_INSTALL_DIR "/tmp/cfusa_hooks_install_test"
+
+//cfusa:req REQ-HOOK-INSTALL001
+//cfusa:test REQ-HOOK-INSTALL001
+void test_hooks_install_already_exists_returns_2(void)
+{
+    /* Create the hooks dir and pre-commit file so install detects existing hook */
+    char git_dir[256], hook_dir[256], hook_path[256];
+    snprintf(git_dir,   sizeof(git_dir),   "%s/.git", HOOKS_INSTALL_DIR);
+    snprintf(hook_dir,  sizeof(hook_dir),  "%s/.git/hooks", HOOKS_INSTALL_DIR);
+    snprintf(hook_path, sizeof(hook_path), "%s/.git/hooks/pre-commit", HOOKS_INSTALL_DIR);
+    (void)mkdir(HOOKS_INSTALL_DIR, 0755);
+    (void)mkdir(git_dir, 0755);
+    (void)mkdir(hook_dir, 0755);
+    FILE *f = fopen(hook_path, "w");
+    if (f) { fputs("#!/bin/sh\n", f); fclose(f); }
+
+    char *argv[] = {"cfusa", "install", "--dir", HOOKS_INSTALL_DIR, NULL};
+    int rc = cmd_hooks(4, argv);
+    TEST_ASSERT_EQUAL_INT(2, rc);
+
+    (void)remove(hook_path);
+}
+
+//cfusa:req REQ-HOOK-REMOVE001
+//cfusa:test REQ-HOOK-REMOVE001
+void test_hooks_remove_not_found_returns_2(void)
+{
+    char *argv[] = {"cfusa", "remove", "--dir", "/tmp/cfusa_hooks_notfound_test", NULL};
+    int rc = cmd_hooks(4, argv);
+    TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
 /* ---- template ---- */
@@ -410,9 +472,14 @@ int main(void)
     RUN_TEST(test_metrics_json_format);
     RUN_TEST(test_metrics_record_auto);
     RUN_TEST(test_metrics_show_json_output);
+    RUN_TEST(test_metrics_no_subcmd_returns_2);
+    RUN_TEST(test_metrics_unknown_subcmd_returns_2);
+    RUN_TEST(test_metrics_record_outputs_metrics_recorded);
     RUN_TEST(test_pr_help_returns_zero);
     RUN_TEST(test_pr_runs_no_crash);
     RUN_TEST(test_hooks_runs_no_crash);
+    RUN_TEST(test_hooks_install_already_exists_returns_2);
+    RUN_TEST(test_hooks_remove_not_found_returns_2);
     RUN_TEST(test_template_help_returns_zero);
     RUN_TEST(test_template_runs_no_crash);
     RUN_TEST(test_template_type_all);
