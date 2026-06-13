@@ -4,36 +4,79 @@
 #include <getopt.h>
 #include "cfusa/utils.h"
 
+static int sign_keygen(const char *path)
+{
+    unsigned char buf[32];
+    FILE *urandom = fopen("/dev/urandom", "rb");
+    if (!urandom) {
+        fprintf(stderr, "cfusa sign: cannot open /dev/urandom\n");
+        return 3;
+    }
+    if (fread(buf, 1, sizeof(buf), urandom) != sizeof(buf)) {
+        fclose(urandom);
+        fprintf(stderr, "cfusa sign: failed to read random bytes\n");
+        return 3;
+    }
+    fclose(urandom);
+
+    char hex[65];
+    static const char *h = "0123456789abcdef";
+    for (int i = 0; i < 32; i++) {
+        hex[i*2]   = h[buf[i] >> 4];
+        hex[i*2+1] = h[buf[i] & 0xf];
+    }
+    hex[64] = '\0';
+
+    FILE *f = fopen(path, "w");
+    if (!f) {
+        fprintf(stderr, "cfusa sign: cannot write key to %s\n", path);
+        return 3;
+    }
+    fprintf(f, "%s\n", hex);
+    fclose(f);
+
+    printf("Key written to %s (keep this secret)\n", path);
+    return 0;
+}
+
 int cmd_sign(int argc, char **argv)
 {
     const char *key    = NULL;
     const char *file   = NULL;
     const char *verify = NULL;
+    const char *keygen = NULL;
 
     static const struct option long_opts[] = {
         {"key",    required_argument, NULL, 'k'},
         {"file",   required_argument, NULL, 'i'},
         {"verify", required_argument, NULL, 'V'},
+        {"keygen", required_argument, NULL, 'g'},
         {"help",   no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "k:i:V:h", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "k:i:V:g:h", long_opts, NULL)) != -1) {
         switch (c) {
         case 'k': key    = optarg; break;
         case 'i': file   = optarg; break;
         case 'V': verify = optarg; break;
+        case 'g': keygen = optarg; break;
         case 'h':
             printf("Usage: cfusa sign --key <secret> --file <path>\n"
-                   "       cfusa sign --key <secret> --verify <path.sig>\n\n"
+                   "       cfusa sign --key <secret> --verify <path.sig>\n"
+                   "       cfusa sign --keygen <keyfile>\n\n"
                    "Signs a file with HMAC-SHA256 and writes <path>.sig,\n"
-                   "or verifies an existing .sig file.\n");
+                   "or verifies an existing .sig file.\n"
+                   "Use --keygen to generate a new random key.\n");
             return 0;
         default: return 2;
         }
     }
+
+    if (keygen)
+        return sign_keygen(keygen);
 
     if (!key) {
         /* Read from env if not passed on command line */
