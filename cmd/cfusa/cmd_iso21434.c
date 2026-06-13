@@ -184,7 +184,7 @@ int cmd_iso21434(int argc, char **argv)
             first = 0;
         }
         fprintf(out, "\n  ]\n}\n");
-    } else {
+    } else if (!strcmp(fmt, "text")) {
         fprintf(out, "ISO 21434 Gap Report — %s  (%s)\n", cfg.project, cal);
         fprintf(out, "============================================\n\n");
         fprintf(out, "%-6s %-45s %-10s %s\n", "Clause", "Objective", "Status", "Evidence");
@@ -213,6 +213,10 @@ int cmd_iso21434(int argc, char **argv)
                 pass, gap, manual, na, cal);
         if (gap > 0)
             fprintf(out, "Run cfusa tara, cfusa vuln, cfusa release to generate missing evidence.\n");
+    } else {
+        if (output && out != stdout) fclose(out);
+        fprintf(stderr, "cfusa iso21434: unknown format '%s' (text or json)\n", fmt);
+        return 3;
     }
 
     if (output && out != stdout) fclose(out);

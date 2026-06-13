@@ -21,7 +21,10 @@ int cmd_version(int argc, char **argv)
                CFUSA_VERSION_STRING, CFUSA_SPEC_VERSION);
         return 0;
     }
-
-    printf("c-FuSa %s\n", CFUSA_VERSION_STRING);
-    return 0;
+    if (!strcmp(fmt, "text")) {
+        printf("c-FuSa %s\n", CFUSA_VERSION_STRING);
+        return 0;
+    }
+    fprintf(stderr, "cfusa version: unknown format %s (text or json)\n", fmt);
+    return 2;
 }

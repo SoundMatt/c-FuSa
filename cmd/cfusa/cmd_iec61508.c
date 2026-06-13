@@ -175,7 +175,7 @@ int cmd_iec61508(int argc, char **argv)
             first = 0;
         }
         fprintf(out, "\n  ]\n}\n");
-    } else {
+    } else if (!strcmp(fmt_s, "text")) {
         fprintf(out, "IEC 61508 Parts 1-3 Gap Report — %s (target %s)\n", cfg.project, sil);
         fprintf(out, "=====================================================\n\n");
         fprintf(out, "%-8s %-45s %-15s %-10s %s\n", "Clause", "Objective", "cfusa Rule", "Reqmt", "Status");
@@ -202,6 +202,10 @@ int cmd_iec61508(int argc, char **argv)
         fprintf(out, "\nSummary: %d covered, %d mandatory gap(s), %d recommended gap(s), "
                "%d not applicable for %s\n",
                covered, gaps_m, gaps_r, na, sil);
+    } else {
+        if (output && out != stdout) fclose(out);
+        fprintf(stderr, "cfusa iec61508: unknown format '%s' (text or json)\n", fmt_s);
+        return 3;
     }
 
     if (output && out != stdout) fclose(out);

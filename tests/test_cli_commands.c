@@ -24,6 +24,7 @@ extern int cmd_diff(int argc, char **argv);
 extern int cmd_badge(int argc, char **argv);
 extern int cmd_slsa(int argc, char **argv);
 extern int cmd_capabilities(int argc, char **argv);
+extern int cmd_version(int argc, char **argv);
 
 #define CLI_TEST_DIR "/tmp/cfusa_cli_testdir"
 
@@ -421,6 +422,44 @@ void test_diff_help_returns_zero(void)
     TEST_ASSERT_EQUAL(0, rc);
 }
 
+/* ---- invalid format exit codes ---- */
+
+//cfusa:req REQ-FMTERR001
+//cfusa:test REQ-FMTERR001
+void test_version_bad_format_returns_2(void)
+{
+    char *argv[] = {"cfusa", "--format", "xml", NULL};
+    int rc = cmd_version(3, argv);
+    TEST_ASSERT_EQUAL(2, rc);
+}
+
+//cfusa:req REQ-FMTERR001
+//cfusa:test REQ-FMTERR001
+void test_iso26262_bad_format_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--format", "xml", NULL};
+    int rc = cmd_iso26262(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
+//cfusa:req REQ-FMTERR001
+//cfusa:test REQ-FMTERR001
+void test_iec61508_bad_format_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--format", "xml", NULL};
+    int rc = cmd_iec61508(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
+//cfusa:req REQ-FMTERR001
+//cfusa:test REQ-FMTERR001
+void test_iso21434_bad_format_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--format", "xml", NULL};
+    int rc = cmd_iso21434(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
 /* ---- badge ---- */
 
 //cfusa:req REQ-BADGE
@@ -462,5 +501,9 @@ int main(void)
     RUN_TEST(test_slsa_json_format);
     RUN_TEST(test_capabilities_json_has_slsa);
     RUN_TEST(test_capabilities_json_lists_all_commands);
+    RUN_TEST(test_version_bad_format_returns_2);
+    RUN_TEST(test_iso26262_bad_format_returns_3);
+    RUN_TEST(test_iec61508_bad_format_returns_3);
+    RUN_TEST(test_iso21434_bad_format_returns_3);
     return UNITY_END();
 }

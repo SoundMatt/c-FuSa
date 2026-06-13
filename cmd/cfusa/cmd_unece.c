@@ -147,7 +147,7 @@ int cmd_unece(int argc, char **argv)
             first = 0;
         }
         fprintf(out, "\n  ]\n}\n");
-    } else {
+    } else if (!strcmp(fmt, "text")) {
         fprintf(out, "UN R.155 Gap Report — %s\n", cfg.project);
         fprintf(out, "====================================\n\n");
         fprintf(out, "%-6s %-40s %-10s %-12s %s\n",
@@ -178,6 +178,10 @@ int cmd_unece(int argc, char **argv)
         fprintf(out, "\nSummary: %d PASS, %d GAP, %d MANUAL\n", pass, gap, manual);
         if (gap > 0)
             fprintf(out, "Run cfusa tara, cfusa vuln, cfusa release to generate missing evidence.\n");
+    } else {
+        if (output && out != stdout) fclose(out);
+        fprintf(stderr, "cfusa unece: unknown format '%s' (text or json)\n", fmt);
+        return 3;
     }
 
     if (output && out != stdout) fclose(out);

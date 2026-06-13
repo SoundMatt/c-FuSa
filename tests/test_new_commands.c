@@ -197,6 +197,15 @@ void test_unece_json_has_manual_entries(void)
     TEST_ASSERT_TRUE(file_contains("unece.json", "\"manual\""));
 }
 
+//cfusa:req REQ-FMTERR001
+//cfusa:test REQ-FMTERR001
+void test_unece_bad_format_returns_3(void)
+{
+    char *argv[] = {"cfusa unece", "--dir", NC_DIR, "--format", "xml", NULL};
+    int rc = cmd_unece(5, argv);
+    TEST_ASSERT_EQUAL_INT(3, rc);
+}
+
 /* ── disposition (aligned flags) ─────────────────────────────────── */
 
 void test_disposition_add_reviewer_action(void)
@@ -324,6 +333,7 @@ int main(void)
     RUN_TEST(test_unece_text_no_evidence);
     RUN_TEST(test_unece_json_format);
     RUN_TEST(test_unece_json_has_manual_entries);
+    RUN_TEST(test_unece_bad_format_returns_3);
     /* disposition */
     RUN_TEST(test_disposition_add_reviewer_action);
     RUN_TEST(test_disposition_list_shows_reviewer);
