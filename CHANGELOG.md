@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.11] — 2026-06-13
+
+### Fixed
+- **`capabilities` commands list was incomplete** (spec §9.1 MUST) — 11 implemented commands were missing from the advertised list: `verify`, `coupling`, `badge`, `sas`, `sci`, `pr`, `hooks`, `impact`, `metrics`, `comp`, `template`. All are now listed, matching go-FuSa parity. Also added `"comp": ["text","json"]` to the formats map.
+
 ## [0.5.10] — 2026-06-13
 
 ### Fixed
