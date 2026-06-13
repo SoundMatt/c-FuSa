@@ -80,6 +80,28 @@ static const template_t TEMPLATES[] = {
     {NULL, NULL, NULL, NULL}
 };
 
+int cfusa_template_generate_all(const char *docs_dir)
+{
+    cfusa_mkdir_p(docs_dir);
+    cfusa_config_t cfg; cfusa_config_load(".", &cfg);
+    char ts[32]; cfusa_timestamp_now(ts);
+    for (int i = 0; TEMPLATES[i].name; i++) {
+        char out_path[512];
+        cfusa_path_join(out_path, sizeof(out_path), docs_dir, TEMPLATES[i].filename);
+        FILE *f = fopen(out_path, "w");
+        if (!f) { perror(out_path); continue; }
+        const char *p = TEMPLATES[i].content;
+        while (*p) {
+            if      (strncmp(p, "{PROJECT}",   9)  == 0) { fputs(cfg.project, f); p += 9;  }
+            else if (strncmp(p, "{VERSION}",   9)  == 0) { fputs(cfg.version, f); p += 9;  }
+            else if (strncmp(p, "{TIMESTAMP}", 11) == 0) { fputs(ts, f);          p += 11; }
+            else fputc(*p++, f);
+        }
+        fclose(f);
+    }
+    return 0;
+}
+
 int cmd_template(int argc, char **argv)
 {
     const char *dir  = ".";

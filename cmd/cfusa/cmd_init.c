@@ -6,6 +6,8 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+extern int cfusa_template_generate_all(const char *docs_dir);
+
 int cmd_init(int argc, char **argv)
 {
     const char *dir             = ".";
@@ -13,6 +15,7 @@ int cmd_init(int argc, char **argv)
     const char *project_version = "0.1.0";
     const char *standard        = NULL;
     int force = 0;
+    int docs  = 0;
 
     static const struct option long_opts[] = {
         {"dir",             required_argument, NULL, 'd'},
@@ -21,26 +24,29 @@ int cmd_init(int argc, char **argv)
         {"project-version", required_argument, NULL, 'V'},
         {"standard",        required_argument, NULL, 'S'},
         {"force",           no_argument,       NULL, 'F'},
+        {"docs",            no_argument,       NULL, 'D'},
         {"help",            no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:p:V:S:Fh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:p:V:S:FDh", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir             = optarg; break;
         case 'p': project         = optarg; break;
         case 'V': project_version = optarg; break;
         case 'S': standard        = optarg; break;
         case 'F': force           = 1;      break;
+        case 'D': docs            = 1;      break;
         case 'h':
             printf("Usage: cfusa init [--dir <path>] [--project|--name <name>]\n"
                    "                  [--project-version <ver>]\n"
                    "                  [--standard iso26262|do178c|iec61508|misra-c]\n"
-                   "                  [--force]\n\n"
+                   "                  [--force] [--docs]\n\n"
                    "Creates .fusa.json and .fusa-reqs.json in the target directory.\n"
-                   "Per-file: skips any file that already exists (--force overwrites).\n");
+                   "Per-file: skips any file that already exists (--force overwrites).\n"
+                   "--docs: also generate starter safety documentation templates.\n");
             return 0;
         default: return 2;
         }
@@ -122,5 +128,13 @@ int cmd_init(int argc, char **argv)
     printf("  standard: %s\n",
            cfg.standards_count > 0 ? cfg.standards[0] : "(none)");
     printf("\nRun 'cfusa check' to scan your project.\n");
+
+    if (docs) {
+        char docs_dir[512];
+        cfusa_path_join(docs_dir, sizeof(docs_dir), dir, "docs/safety");
+        cfusa_template_generate_all(docs_dir);
+        printf("Generated safety templates in %s\n", docs_dir);
+    }
+
     return 0;
 }

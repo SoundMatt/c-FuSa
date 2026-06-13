@@ -422,6 +422,23 @@ void test_diff_help_returns_zero(void)
     TEST_ASSERT_EQUAL(0, rc);
 }
 
+/* ---- init --docs ---- */
+
+//cfusa:req REQ-INIT-DOCS001
+//cfusa:test REQ-INIT-DOCS001
+void test_init_docs_generates_templates(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--docs", NULL};
+    int rc = cmd_init(4, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    char path[256];
+    snprintf(path, sizeof(path), "%s/docs/safety/safety-plan.md", CLI_TEST_DIR);
+    FILE *f = fopen(path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+}
+
 /* ---- invalid format exit codes ---- */
 
 //cfusa:req REQ-FMTERR001
@@ -519,6 +536,7 @@ int main(void)
     RUN_TEST(test_slsa_json_format);
     RUN_TEST(test_capabilities_json_has_slsa);
     RUN_TEST(test_capabilities_json_lists_all_commands);
+    RUN_TEST(test_init_docs_generates_templates);
     RUN_TEST(test_version_bad_format_returns_2);
     RUN_TEST(test_iso26262_bad_format_returns_3);
     RUN_TEST(test_iec61508_bad_format_returns_3);

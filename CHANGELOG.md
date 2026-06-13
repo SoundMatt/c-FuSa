@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.17] — 2026-06-13
+
+### Added
+- **`init --docs`** (go-FuSa parity) — `cfusa init --docs` now generates starter safety documentation templates (`safety-plan.md`, `test-evidence.md`, `hara.md`, `psac.md`) in `<dir>/docs/safety/`, matching go-FuSa's `init --docs` behaviour. Equivalent to running `cfusa template` for all template types.
+
 ## [0.5.16] — 2026-06-13
 
 ### Fixed
