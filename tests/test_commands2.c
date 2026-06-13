@@ -255,6 +255,35 @@ void test_template_runs_no_crash(void)
     (void)rc;
 }
 
+//cfusa:req REQ-TMPL002
+//cfusa:test REQ-TMPL002
+void test_template_type_all(void)
+{
+    char tdir[256];
+    snprintf(tdir, sizeof(tdir), "%s/tmpl_all", CMD2_DIR);
+    char *argv[] = {"cfusa", "--type", "all", "--dir", tdir, NULL};
+    int rc = cmd_template(5, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    /* Verify at least one template was created */
+    char path[512];
+    snprintf(path, sizeof(path), "%s/safety-plan.md", tdir);
+    FILE *f = fopen(path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+}
+
+//cfusa:req REQ-TMPL002
+//cfusa:test REQ-TMPL002
+void test_template_type_safety_plan(void)
+{
+    char tdir[256];
+    snprintf(tdir, sizeof(tdir), "%s/tmpl_sp", CMD2_DIR);
+    char *argv[] = {"cfusa", "--type", "safety-plan", "--dir", tdir, NULL};
+    int rc = cmd_template(5, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
 /* ---- fix ---- */
 
 //cfusa:req REQ-FIX001
@@ -370,6 +399,8 @@ int main(void)
     RUN_TEST(test_hooks_runs_no_crash);
     RUN_TEST(test_template_help_returns_zero);
     RUN_TEST(test_template_runs_no_crash);
+    RUN_TEST(test_template_type_all);
+    RUN_TEST(test_template_type_safety_plan);
     RUN_TEST(test_fix_help_returns_zero);
     RUN_TEST(test_fix_runs_no_crash);
     RUN_TEST(test_do178_help_returns_zero);

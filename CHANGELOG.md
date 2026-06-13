@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.18] — 2026-06-13
+
+### Added
+- **`template --type <type>`** (go-FuSa parity) — `cfusa template` now accepts a `--type` flag (`safety-plan`, `test-evidence`, `hara`, `psac`, `all`). Default is `all`, which writes all templates to the output directory and prints "Templates written to <dir>". The legacy positional-arg form is still accepted. Default output directory is now `docs/safety` (matching go-FuSa) when `--dir` is not specified. Matches `TestRunTemplate_SafetyPlan`, `TestRunTemplate_All`, `TestRunTemplate_Default`.
+
 ## [0.5.17] — 2026-06-13
 
 ### Added
