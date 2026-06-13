@@ -54,6 +54,21 @@ void test_vuln_json_format(void)
     (void)rc;
 }
 
+//cfusa:req REQ-VULN-OUTDIR001
+//cfusa:test REQ-VULN-OUTDIR001
+void test_vuln_output_dir(void)
+{
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, "--output-dir", "/tmp/cfusa_vuln_outdir_test", NULL};
+    int rc = cmd_vuln(5, argv);
+    /* exit 0 = no hits; exit 1 = hits found; both are acceptable */
+    TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+
+    /* verify vuln.json was created */
+    FILE *f = fopen("/tmp/cfusa_vuln_outdir_test/vuln.json", "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+}
+
 /* ---- sci ---- */
 
 //cfusa:req REQ-SCI001
@@ -381,6 +396,7 @@ int main(void)
     RUN_TEST(test_vuln_help_returns_zero);
     RUN_TEST(test_vuln_runs_on_empty_dir);
     RUN_TEST(test_vuln_json_format);
+    RUN_TEST(test_vuln_output_dir);
     RUN_TEST(test_sci_help_returns_zero);
     RUN_TEST(test_sci_runs_no_crash);
     RUN_TEST(test_coverage_help_returns_zero);

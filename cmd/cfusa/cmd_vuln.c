@@ -106,28 +106,34 @@ static int vuln_file(const char *path, void *v)
 
 int cmd_vuln(int argc, char **argv)
 {
-    const char *dir    = ".";
-    const char *output = NULL;
-    const char *fmt_s  = "text";
+    const char *dir        = ".";
+    const char *output     = NULL;
+    const char *output_dir = NULL;
+    const char *fmt_s      = "text";
 
     static const struct option lo[] = {
-        {"dir",    required_argument, NULL, 'd'},
-        {"output", required_argument, NULL, 'o'},
-        {"format", required_argument, NULL, 'f'},
-        {"help",   no_argument,       NULL, 'h'},
+        {"dir",        required_argument, NULL, 'd'},
+        {"output",     required_argument, NULL, 'o'},
+        {"output-dir", required_argument, NULL, 'D'},
+        {"format",     required_argument, NULL, 'f'},
+        {"help",       no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c; optind = 1;
-    while ((c = getopt_long(argc, argv, "d:o:f:h", lo, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:o:D:f:h", lo, NULL)) != -1) {
         switch (c) {
-        case 'd': dir    = optarg; break;
-        case 'o': output = optarg; break;
-        case 'f': fmt_s  = optarg; break;
+        case 'd': dir        = optarg; break;
+        case 'o': output     = optarg; break;
+        case 'D': output_dir = optarg; break;
+        case 'f': fmt_s      = optarg; break;
         case 'h':
-            printf("Usage: cfusa vuln [--dir <path>] [--output <file>] [--format text|json]\n\n"
+            printf("Usage: cfusa vuln [--dir <path>] [--output <file>]\n"
+                   "                  [--output-dir <dir>] [--format text|json]\n\n"
                    "Scans source for known-vulnerable function patterns "
-                   "mapped to CWE/CVE categories.\n");
+                   "mapped to CWE/CVE categories.\n"
+                   "--output-dir writes vuln.json to that directory "
+                   "(default: project root).\n");
             return 0;
         default: return 2;
         }
@@ -139,8 +145,48 @@ int cmd_vuln(int argc, char **argv)
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
 
+    /* --output-dir: write vuln.json to that directory, print summary to stdout */
+    if (output_dir) {
+        cfusa_mkdir_p(output_dir);
+        char json_path[512];
+        cfusa_path_join(json_path, sizeof(json_path), output_dir, "vuln.json");
+        FILE *jf = fopen(json_path, "w");
+        if (!jf) { perror(json_path); return 3; }
+        char ts[32]; cfusa_timestamp_now(ts);
+        fprintf(jf,
+            "{\n"
+            "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
+            "  \"kind\": \"vuln\",\n"
+            "  \"tool\": \"c-FuSa\",\n"
+            "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
+            "  \"language\": \"c\",\n"
+            "  \"generatedAt\": \"%s\",\n"
+            "  \"total\": %d,\n"
+            "  \"findings\": [\n", ts, g_hit_count);
+        for (int i = 0; i < g_hit_count; i++) {
+            fprintf(jf,
+                "    {\"file\": \"%s\", \"line\": %d, \"cwe\": \"%s\","
+                " \"description\": \"%s\", \"remediation\": \"%s\"}%s\n",
+                g_hits[i].file, g_hits[i].line,
+                g_hits[i].pat->cve_or_cwe,
+                g_hits[i].pat->description,
+                g_hits[i].pat->remediation,
+                (i < g_hit_count - 1) ? "," : "");
+        }
+        fprintf(jf, "  ]\n}\n");
+        fclose(jf);
+        printf("Vulnerability scan report written to %s\n", json_path);
+        printf("Scanned: %d pattern(s)  Findings: %d\n",
+               (int)(sizeof(PATTERNS)/sizeof(PATTERNS[0])) - 1, g_hit_count);
+        return g_hit_count > 0 ? 1 : 0;
+    }
+
+    /* --output <file>: write in requested format to file */
     FILE *out = stdout;
-    if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 3; } }
+    if (output) {
+        out = fopen(output, "w");
+        if (!out) { perror(output); return 3; }
+    }
 
     if (fmt == FMT_JSON) {
         char ts[32]; cfusa_timestamp_now(ts);

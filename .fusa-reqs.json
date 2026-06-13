@@ -79,6 +79,7 @@
     {"id":"REQ-INIT-EXISTS001","title":"cfusa init returns exit 2 when all target files already exist and --force not set; parity with go-FuSa TestRunInit_AlreadyExists","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-INIT-MODULE001","title":"cfusa init --module <path> flag accepted without error; parity with go-FuSa TestRunInit_WithNameAndModule","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-SAS-PREP001","title":"cfusa sas --prepared-by <name> includes preparer name in generated SAS document; parity with go-FuSa TestRunSas_PreparedBy","standard":"DO-178C","level":"DAL-A"},
-    {"id":"REQ-SAS-STDOUT001","title":"cfusa sas --output - writes to stdout instead of a file; parity with go-FuSa --output - convention","standard":"DO-178C","level":"DAL-A"}
+    {"id":"REQ-SAS-STDOUT001","title":"cfusa sas --output - writes to stdout instead of a file; parity with go-FuSa --output - convention","standard":"DO-178C","level":"DAL-A"},
+    {"id":"REQ-VULN-OUTDIR001","title":"cfusa vuln --output-dir <dir> creates dir, writes vuln.json, prints summary to stdout; parity with go-FuSa TestRunVuln_OutputDir","standard":"go-FuSa parity","level":"ASIL-A"}
   ]
 }
