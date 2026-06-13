@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.13] — 2026-06-13
+
+### Added
+- **`check --no-summary`** (go-FuSa parity) — text output now includes a per-category `SUMMARY` table and a `TOP RULES` table after the findings list, matching go-FuSa's text report format. The new `--no-summary` flag suppresses these tables (equivalent to go-FuSa's `--no-summary`). The `Summary: N total` and `Result: PASS/FAIL` lines always appear.
+
 ## [0.5.12] — 2026-06-13
 
 ### Fixed

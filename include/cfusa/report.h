@@ -39,6 +39,7 @@ typedef struct {
     char             timestamp[32];
     char             project_root[512];
     char             kind[32];
+    int              no_summary; /* if non-zero, suppress SUMMARY/TOP-RULES block in text output */
 } cfusa_report_t;
 
 typedef enum {

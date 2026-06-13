@@ -15,32 +15,35 @@ int cmd_check(int argc, char **argv)
     const char *dir    = ".";
     const char *fmt_s  = "text";
     const char *output = NULL;
-    int strict = 0;
+    int strict = 0, no_summary = 0;
 
     static const struct option long_opts[] = {
-        {"dir",      required_argument, NULL, 'd'},
-        {"format",   required_argument, NULL, 'f'},
-        {"output",   required_argument, NULL, 'o'},
-        {"strict",   no_argument,       NULL, 's'},
-        {"no-color", no_argument,       NULL, 'C'},
-        {"help",     no_argument,       NULL, 'h'},
+        {"dir",        required_argument, NULL, 'd'},
+        {"format",     required_argument, NULL, 'f'},
+        {"output",     required_argument, NULL, 'o'},
+        {"strict",     no_argument,       NULL, 's'},
+        {"no-color",   no_argument,       NULL, 'C'},
+        {"no-summary", no_argument,       NULL, 'S'},
+        {"help",       no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:f:o:sCh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:f:o:sCSh", long_opts, NULL)) != -1) {
         switch (c) {
-        case 'd': dir    = optarg; break;
-        case 'f': fmt_s  = optarg; break;
-        case 'o': output = optarg; break;
-        case 's': strict = 1;     break;
+        case 'd': dir        = optarg; break;
+        case 'f': fmt_s      = optarg; break;
+        case 'o': output     = optarg; break;
+        case 's': strict     = 1;     break;
         case 'C': break; /* no-color: text output has no ANSI codes; accepted for spec compliance */
+        case 'S': no_summary = 1;     break;
         case 'h':
             printf("Usage: cfusa check [--dir <path>] [--format text|json|sarif|html|md]\n"
-                   "                   [--output <file>] [--strict] [--no-color]\n\n"
+                   "                   [--output <file>] [--strict] [--no-color] [--no-summary]\n\n"
                    "Runs all lint + analyze + cyber rules.\n"
-                   "Exits 1 on any ERROR; with --strict, exits 1 on any WARNING too.\n");
+                   "Exits 1 on any ERROR; with --strict, exits 1 on any WARNING too.\n"
+                   "--no-summary suppresses the per-category and top-rules summary block.\n");
             return 0;
         default: return 2;
         }
@@ -78,6 +81,7 @@ int cmd_check(int argc, char **argv)
     }
     strncpy(rpt.standard, std_buf, sizeof(rpt.standard) - 1);
 
+    rpt.no_summary = no_summary;
     cfusa_engine_run_all(dir, &cfg, &rpt);
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);

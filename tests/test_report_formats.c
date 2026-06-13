@@ -279,6 +279,42 @@ void test_category_lint_unchanged(void)
     cfusa_report_free(&r);
 }
 
+/* ---- Text summary block (--no-summary parity with go-FuSa) ---- */
+
+//cfusa:req REQ-NOSUMMARY001
+//cfusa:test REQ-NOSUMMARY001
+void test_text_summary_block_present_by_default(void)
+{
+    cfusa_report_write(&rpt, RPT_TMP, FMT_TEXT);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    TEST_ASSERT_NOT_NULL(strstr(out, "SUMMARY"));
+    TEST_ASSERT_NOT_NULL(strstr(out, "TOP RULES"));
+    free(out);
+}
+
+void test_text_no_summary_suppresses_block(void)
+{
+    rpt.no_summary = 1;
+    cfusa_report_write(&rpt, RPT_TMP, FMT_TEXT);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    TEST_ASSERT_NULL(strstr(out, "SUMMARY"));
+    TEST_ASSERT_NULL(strstr(out, "TOP RULES"));
+    free(out);
+}
+
+void test_text_always_has_summary_line(void)
+{
+    rpt.no_summary = 1;
+    cfusa_report_write(&rpt, RPT_TMP, FMT_TEXT);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    TEST_ASSERT_NOT_NULL(strstr(out, "Summary:"));
+    TEST_ASSERT_NOT_NULL(strstr(out, "Result:"));
+    free(out);
+}
+
 /* ---- Format parse ---- */
 
 //cfusa:req REQ-RPT002
@@ -320,5 +356,8 @@ int main(void)
     RUN_TEST(test_category_cyber_maps_to_security);
     RUN_TEST(test_category_analyze_maps_to_safety);
     RUN_TEST(test_category_lint_unchanged);
+    RUN_TEST(test_text_summary_block_present_by_default);
+    RUN_TEST(test_text_no_summary_suppresses_block);
+    RUN_TEST(test_text_always_has_summary_line);
     return UNITY_END();
 }
