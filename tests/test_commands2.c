@@ -401,6 +401,25 @@ void test_do178_runs_no_crash(void)
     (void)rc;
 }
 
+//cfusa:req REQ-DO178-DAL001
+//cfusa:test REQ-DO178-DAL001
+void test_do178_invalid_dal_returns_2(void)
+{
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, "--dal", "DAL-Z", NULL};
+    int rc = cmd_do178(5, argv);
+    TEST_ASSERT_EQUAL(2, rc);
+}
+
+//cfusa:req REQ-DO178-DAL001
+//cfusa:test REQ-DO178-DAL001
+void test_do178_dal_prefix_format_accepted(void)
+{
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, "--dal", "DAL-A", NULL};
+    int rc = cmd_do178(5, argv);
+    /* DAL-A prefix format accepted, runs without usage error */
+    TEST_ASSERT_TRUE(rc != 2);
+}
+
 /* ---- version ---- */
 
 //cfusa:req REQ-VER001
@@ -488,6 +507,8 @@ int main(void)
     RUN_TEST(test_fix_runs_no_crash);
     RUN_TEST(test_do178_help_returns_zero);
     RUN_TEST(test_do178_runs_no_crash);
+    RUN_TEST(test_do178_invalid_dal_returns_2);
+    RUN_TEST(test_do178_dal_prefix_format_accepted);
     RUN_TEST(test_version_returns_zero);
     RUN_TEST(test_boundary_help_returns_zero);
     RUN_TEST(test_boundary_runs_no_crash);

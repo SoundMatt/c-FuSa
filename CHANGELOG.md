@@ -7,6 +7,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.26] — 2026-06-13
+
+### Fixed
+- `cfusa do178 --dal DAL-Z` (invalid DAL) now returns exit 2 (usage error) instead of exit 1. Parity with go-FuSa `TestRunDo178_InvalidDALv2`.
+- `cfusa do178 --dal DAL-A` prefix format now parsed correctly — previously `DAL-A` was silently misread as DAL-D because only the first character was checked. Accepted values: `a|b|c|d` or `DAL-A|DAL-B|DAL-C|DAL-D` (case-insensitive).
+
+### Requirements
+- REQ-DO178-DAL001
+
 ## [0.5.25] — 2026-06-13
 
 ### Added
