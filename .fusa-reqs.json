@@ -90,6 +90,10 @@
     {"id":"REQ-MET-REC001","title":"cfusa metrics record output contains 'Metrics recorded'; parity with go-FuSa TestRunMetricsRecord_EmptyDir","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-HOOK-INSTALL001","title":"cfusa hooks install returns exit 2 when hook already exists; parity with go-FuSa TestHooksInstall_AlreadyExists","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-HOOK-REMOVE001","title":"cfusa hooks remove returns exit 2 when hook not found; parity with go-FuSa TestHooksRemove_NotFound","standard":"go-FuSa parity","level":"ASIL-A"},
-    {"id":"REQ-BADGE-POS001","title":"cfusa badge with more than one positional report file returns exit 3; parity with go-FuSa TestRunBadge_TooManyArgs","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-BADGE-POS001","title":"cfusa badge with more than one positional report file returns exit 3; parity with go-FuSa TestRunBadge_TooManyArgs","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-REQCOV-M2-001","title":"cfusa trace --req-coverage checks function annotation density (metric 2) in addition to requirement traceability (metric 1); parity with go-FuSa TestRunTraceReqCoverage_Metric2Fail","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-REQCOV-NA-001","title":"cfusa trace --req-coverage returns exit 0 when no requirements and no functions defined (both N/A); parity with go-FuSa TestRunTraceReqCoverage_NoRequirementsNoFunctions","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-REQCOV-ZERO-001","title":"cfusa trace --req-coverage 0 disables the gate and shows regular trace matrix output; parity with go-FuSa TestRun_Trace_ReqCoverage_Zero_Disabled","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-REQCOV-TRUNC-001","title":"cfusa trace --req-coverage truncates UNANNOTATED listing at 20 with '... and N more'; parity with go-FuSa TestRunTraceReqCoverage_UncoveredListTruncated","standard":"go-FuSa parity","level":"ASIL-A"}
   ]
 }

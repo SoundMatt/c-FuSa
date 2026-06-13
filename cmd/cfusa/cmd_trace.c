@@ -191,6 +191,92 @@ static void compute_coverage(int *traced, int *tested, int *sec_tested)
     }
 }
 
+/* ---- Metric 2: function annotation density ---- */
+
+#define MAX_FUNCS 512
+
+static char g_func_names[MAX_FUNCS][192];
+static int  g_func_covered[MAX_FUNCS];
+static int  g_func_count;
+static int  g_func_covered_count;
+
+static int is_test_file(const char *path)
+{
+    const char *b = strrchr(path, '/');
+    b = b ? b + 1 : path;
+    if (strncmp(b, "test_", 5) == 0) return 1;
+    size_t n = strlen(b);
+    return n > 7 && strcmp(b + n - 7, "_test.c") == 0;
+}
+
+static int looks_like_funcdef(const char *line, char *name, size_t sz)
+{
+    if (!line[0] || (!isalpha((unsigned char)line[0]) && line[0] != '_'))
+        return 0;
+    static const char *kws[] = {"typedef ", "struct ", "enum ", "//", "/*",
+                                  "static ", "extern ", NULL};
+    for (int i = 0; kws[i]; i++)
+        if (strncmp(line, kws[i], strlen(kws[i])) == 0) return 0;
+    const char *paren = strchr(line, '(');
+    if (!paren) return 0;
+    const char *p = paren - 1;
+    while (p > line && (*p == ' ' || *p == '\t' || *p == '*')) p--;
+    const char *end = p + 1;
+    while (p > line && (isalnum((unsigned char)*(p - 1)) || *(p - 1) == '_')) p--;
+    size_t n = (size_t)(end - p);
+    if (n == 0 || n >= sz) return 0;
+    if (!isalpha((unsigned char)*p) && *p != '_') return 0;
+    memcpy(name, p, n);
+    name[n] = '\0';
+    return 1;
+}
+
+typedef struct { const char *relpath; int annotated; } fscan_ctx_t;
+
+static void func_line_cb(const char *path, int lineno, const char *line, void *v)
+{
+    (void)path; (void)lineno;
+    fscan_ctx_t *ctx = v;
+    char name[128];
+    if (g_func_count < MAX_FUNCS && looks_like_funcdef(line, name, sizeof(name))) {
+        snprintf(g_func_names[g_func_count], 192, "%s:%s", ctx->relpath, name);
+        g_func_covered[g_func_count] = ctx->annotated;
+        if (ctx->annotated) g_func_covered_count++;
+        g_func_count++;
+    }
+}
+
+static int funcfile_cb(const char *path, void *v)
+{
+    (void)v;
+    if (is_test_file(path)) return 0;
+    const char *rel = path;
+    if (g_dir_abs[0]) {
+        size_t pl = strlen(g_dir_abs);
+        if (strncmp(path, g_dir_abs, pl) == 0 &&
+            (path[pl] == '/' || path[pl] == '\0'))
+            rel = path + pl + (path[pl] == '/');
+    }
+    while (rel[0] == '.' && rel[1] == '/') rel += 2;
+    const char *relpath = rel[0] ? rel : path;
+
+    int ann = 0;
+    for (int i = 0; i < g_tag_count && !ann; i++)
+        if (g_tags[i].kind == KIND_IMPL && strcmp(g_tags[i].file, relpath) == 0)
+            ann = 1;
+
+    fscan_ctx_t ctx = {relpath, ann};
+    cfusa_scan_lines(path, func_line_cb, &ctx);
+    return 0;
+}
+
+static void do_scan_funcs(const char *root)
+{
+    g_func_count = g_func_covered_count = 0;
+    static const char * const fexts[] = {".c"};
+    cfusa_walk_sources(root, fexts, 1, funcfile_cb, NULL);
+}
+
 int cmd_trace(int argc, char **argv)
 {
     const char *dir  = ".";
@@ -257,18 +343,66 @@ int cmd_trace(int argc, char **argv)
     int traced, tested, sec_tested_count;
     compute_coverage(&traced, &tested, &sec_tested_count);
 
-    /* --- coverage gates --- */
-    if (req_coverage > 0 && total > 0) {
-        int pct = traced * 100 / total;
-        printf("req-coverage: %d%% (%d/%d requirements have implementation traces)\n",
-               pct, traced, total);
-        if (pct < req_coverage) {
-            fprintf(stderr,
-                    "cfusa trace: req-coverage gate failed: %d%% < required %d%%\n",
-                    pct, req_coverage);
-            return 1;
+    /* --- req-coverage gate (metric 1 + metric 2) --- */
+    if (req_coverage > 0) {
+        printf("Requirement Coverage Report\n\n");
+
+        /* Metric 1: requirement traceability */
+        int m1na = (total == 0);
+        int req_pct = 0;
+        if (m1na) {
+            printf("Metric 1 — Requirement traceability:  N/A (no requirements defined)\n");
+        } else {
+            req_pct = traced * 100 / total;
+            printf("Metric 1 — Requirement traceability:  %d%% (%d/%d requirements traced)\n",
+                   req_pct, traced, total);
+            for (int i = 0; i < g_req_count; i++) {
+                int found = 0;
+                for (int j = 0; j < g_tag_count && !found; j++)
+                    if (g_tags[j].kind == KIND_IMPL &&
+                        strcmp(g_tags[j].req_id, g_reqs[i].id) == 0) found = 1;
+                if (!found)
+                    printf("  UNTRACED  %-20s  %s\n", g_reqs[i].id, g_reqs[i].title);
+            }
         }
-        return 0;
+
+        /* Metric 2: function annotation density — use same root as trace scan */
+        do_scan_funcs(dir);
+        int m2na = (g_func_count == 0);
+        int func_pct = m2na ? 0 : g_func_covered_count * 100 / g_func_count;
+        if (m2na) {
+            printf("\nMetric 2 — Function annotation density: N/A (no exported functions found)\n");
+        } else {
+            printf("\nMetric 2 — Function annotation density: %d%% (%d/%d functions in annotated files)\n",
+                   func_pct, g_func_covered_count, g_func_count);
+            int shown = 0;
+            for (int i = 0; i < g_func_count; i++) {
+                if (g_func_covered[i]) continue;
+                if (shown >= 20) {
+                    int rem = 0;
+                    for (int k = i; k < g_func_count; k++) if (!g_func_covered[k]) rem++;
+                    printf("  ... and %d more\n", rem);
+                    break;
+                }
+                printf("  UNANNOTATED  %s\n", g_func_names[i]);
+                shown++;
+            }
+        }
+
+        int failed = 0;
+        if (!m1na && req_pct < req_coverage) {
+            fprintf(stderr,
+                    "cfusa trace: req-coverage gate failed (metric 1: %d%% < required %d%%)\n",
+                    req_pct, req_coverage);
+            failed = 1;
+        }
+        if (!m2na && func_pct < req_coverage) {
+            fprintf(stderr,
+                    "cfusa trace: req-coverage gate failed (metric 2: %d%% < required %d%%)\n",
+                    func_pct, req_coverage);
+            failed = 1;
+        }
+        return failed ? 1 : 0;
     }
     if (sec_tested > 0 && total > 0) {
         int pct = tested * 100 / total;
