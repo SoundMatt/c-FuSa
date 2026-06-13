@@ -1,3 +1,7 @@
+/* open()/fdopen() are POSIX; required on Linux with -std=c99 */
+#if defined(__linux__) || defined(__unix__)
+#  define _POSIX_C_SOURCE 200809L
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
