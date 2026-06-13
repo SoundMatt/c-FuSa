@@ -181,12 +181,12 @@ static void do_show(const char *dir, const char *disp_id)
 
 int cmd_disposition(int argc, char **argv)
 {
-    const char *subcmd    = "list";
+    const char *subcmd    = NULL;
     const char *dir       = ".";
     const char *rule      = NULL;
-    const char *rationale = "(no rationale provided)";
+    const char *rationale = NULL;
     const char *action    = "accept";
-    const char *reviewer  = "unknown";
+    const char *reviewer  = NULL;
     const char *ref       = "";
     const char *show_id   = NULL;
 
@@ -205,7 +205,7 @@ int cmd_disposition(int argc, char **argv)
         subcmd = argv[1];
         argv++; argc--;
     }
-    if (!strcmp(subcmd, "show") && argc >= 2 && argv[1][0] != '-') {
+    if (subcmd && !strcmp(subcmd, "show") && argc >= 2 && argv[1][0] != '-') {
         show_id = argv[1];
         argv++; argc--;
     }
@@ -223,8 +223,8 @@ int cmd_disposition(int argc, char **argv)
         case 'h':
             printf("Usage: cfusa disposition <subcommand> [options]\n\n"
                    "Subcommands:\n"
-                   "  add   --rule <ID> --action accept|fix\n"
-                   "        --rationale <text> --reviewer <name> [--ref <ticket>]\n"
+                   "  add   --rule <ID> --rationale <text> --reviewer <name>\n"
+                   "        [--action accept|fix] [--ref <ticket>]\n"
                    "  list  Show all dispositions\n"
                    "  show  <DISP-ID>  Show single disposition detail\n\n"
                    "Stored in .fusa-dispositions.json\n");
@@ -233,23 +233,40 @@ int cmd_disposition(int argc, char **argv)
         }
     }
 
+    /* Subcommand is required */
+    if (!subcmd) {
+        fprintf(stderr, "cfusa disposition: subcommand required (add|list|show)\n");
+        return 2;
+    }
+
     cfusa_config_t cfg;
     cfusa_config_load(dir, &cfg);
 
     if (!strcmp(subcmd, "add")) {
         if (!rule) {
             fprintf(stderr, "cfusa disposition add: --rule is required\n");
-            return 1;
+            return 2;
+        }
+        if (!rationale) {
+            fprintf(stderr, "cfusa disposition add: --rationale is required\n");
+            return 2;
+        }
+        if (!reviewer) {
+            fprintf(stderr, "cfusa disposition add: --reviewer is required\n");
+            return 2;
         }
         do_add(dir, rule, rationale, action, reviewer, ref);
+    } else if (!strcmp(subcmd, "list")) {
+        do_list(dir);
     } else if (!strcmp(subcmd, "show")) {
         if (!show_id) {
             fprintf(stderr, "cfusa disposition show: requires a DISP-ID argument\n");
-            return 1;
+            return 2;
         }
         do_show(dir, show_id);
     } else {
-        do_list(dir);
+        fprintf(stderr, "cfusa disposition: unknown subcommand '%s' (add|list|show)\n", subcmd);
+        return 2;
     }
 
     return 0;
