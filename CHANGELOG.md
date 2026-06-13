@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.22] — 2026-06-13
+
+### Fixed
+- **`disposition` subcommand validation** (go-FuSa parity) — `cfusa disposition` now returns exit 2 when no subcommand is given, when an unknown subcommand is specified, or when required `add` flags (`--rule`, `--rationale`, `--reviewer`) are missing. Previously these cases either defaulted to `list` (no subcommand) or returned exit 1 (missing flags). Matches go-FuSa `TestRunDisposition_NoSubcmd`, `TestRunDisposition_UnknownSubcmd`, `TestRunDispositionAdd_MissingFlags`, `TestRunDispositionAdd_MissingReviewer`, `TestRunDispositionAdd_MissingRationale`.
+
 ## [0.5.21] — 2026-06-13
 
 ### Added

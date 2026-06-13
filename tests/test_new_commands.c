@@ -246,7 +246,35 @@ void test_disposition_add_requires_rule(void)
                     "--dir",      NC_DIR,
                     "--reviewer", "carol", NULL};
     int rc = cmd_disposition(6, argv);
-    TEST_ASSERT_EQUAL_INT(1, rc);
+    TEST_ASSERT_EQUAL_INT(2, rc);
+}
+
+void test_disposition_no_subcmd_returns_2(void)
+{
+    char *argv[] = {"cfusa", "--dir", NC_DIR, NULL};
+    int rc = cmd_disposition(3, argv);
+    TEST_ASSERT_EQUAL_INT(2, rc);
+}
+
+void test_disposition_unknown_subcmd_returns_2(void)
+{
+    char *argv[] = {"cfusa", "frobber", "--dir", NC_DIR, NULL};
+    int rc = cmd_disposition(4, argv);
+    TEST_ASSERT_EQUAL_INT(2, rc);
+}
+
+void test_disposition_add_missing_reviewer_returns_2(void)
+{
+    char *argv[] = {"cfusa", "add", "--rule", "LINT001", "--rationale", "ok", NULL};
+    int rc = cmd_disposition(6, argv);
+    TEST_ASSERT_EQUAL_INT(2, rc);
+}
+
+void test_disposition_add_missing_rationale_returns_2(void)
+{
+    char *argv[] = {"cfusa", "add", "--rule", "LINT001", "--reviewer", "alice", NULL};
+    int rc = cmd_disposition(6, argv);
+    TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
 /* ── release --spdx-version ──────────────────────────────────────── */
@@ -338,6 +366,10 @@ int main(void)
     RUN_TEST(test_disposition_add_reviewer_action);
     RUN_TEST(test_disposition_list_shows_reviewer);
     RUN_TEST(test_disposition_add_requires_rule);
+    RUN_TEST(test_disposition_no_subcmd_returns_2);
+    RUN_TEST(test_disposition_unknown_subcmd_returns_2);
+    RUN_TEST(test_disposition_add_missing_reviewer_returns_2);
+    RUN_TEST(test_disposition_add_missing_rationale_returns_2);
     /* release */
     RUN_TEST(test_release_spdx_version_flag);
     RUN_TEST(test_release_spdx_23_default);

@@ -80,6 +80,9 @@
     {"id":"REQ-INIT-MODULE001","title":"cfusa init --module <path> flag accepted without error; parity with go-FuSa TestRunInit_WithNameAndModule","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-SAS-PREP001","title":"cfusa sas --prepared-by <name> includes preparer name in generated SAS document; parity with go-FuSa TestRunSas_PreparedBy","standard":"DO-178C","level":"DAL-A"},
     {"id":"REQ-SAS-STDOUT001","title":"cfusa sas --output - writes to stdout instead of a file; parity with go-FuSa --output - convention","standard":"DO-178C","level":"DAL-A"},
-    {"id":"REQ-VULN-OUTDIR001","title":"cfusa vuln --output-dir <dir> creates dir, writes vuln.json, prints summary to stdout; parity with go-FuSa TestRunVuln_OutputDir","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-VULN-OUTDIR001","title":"cfusa vuln --output-dir <dir> creates dir, writes vuln.json, prints summary to stdout; parity with go-FuSa TestRunVuln_OutputDir","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-DISP-SUBCMD001","title":"cfusa disposition returns exit 2 when no subcommand given; parity with go-FuSa TestRunDisposition_NoSubcmd","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-DISP-SUBCMD002","title":"cfusa disposition returns exit 2 for unknown subcommand; parity with go-FuSa TestRunDisposition_UnknownSubcmd","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-DISP-ADD001","title":"cfusa disposition add returns exit 2 when --rule/--rationale/--reviewer missing; parity with go-FuSa TestRunDispositionAdd_Missing* tests","standard":"go-FuSa parity","level":"ASIL-A"}
   ]
 }
