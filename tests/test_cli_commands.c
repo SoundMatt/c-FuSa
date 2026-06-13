@@ -8,6 +8,7 @@
 #include "../vendor/unity/unity.h"
 
 extern int cmd_init(int argc, char **argv);
+extern int cmd_sas(int argc, char **argv);
 extern int cmd_check(int argc, char **argv);
 extern int cmd_release(int argc, char **argv);
 extern int cmd_qualify(int argc, char **argv);
@@ -495,6 +496,59 @@ void test_slsa_bad_format_returns_3(void)
     TEST_ASSERT_EQUAL(3, rc);
 }
 
+/* ---- init already-exists returns 2 ---- */
+
+//cfusa:req REQ-INIT-EXISTS001
+//cfusa:test REQ-INIT-EXISTS001
+void test_init_already_exists_returns_2(void)
+{
+    /* init a fresh dir, then init again — second call must return 2 */
+    char *argv1[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    cmd_init(3, argv1);
+
+    char *argv2[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    int rc = cmd_init(3, argv2);
+    TEST_ASSERT_EQUAL(2, rc);
+}
+
+/* ---- init --module accepted ---- */
+
+#define INIT_MODULE_TEST_DIR "/tmp/cfusa_init_module_test"
+
+//cfusa:req REQ-INIT-MODULE001
+//cfusa:test REQ-INIT-MODULE001
+void test_init_module_flag_accepted(void)
+{
+    (void)mkdir(INIT_MODULE_TEST_DIR, 0700);
+    char *argv[] = {"cfusa", "--dir", INIT_MODULE_TEST_DIR, "--module", "github.com/example/safety",
+                    "--force", NULL};
+    int rc = cmd_init(6, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+/* ---- sas --prepared-by ---- */
+
+//cfusa:req REQ-SAS-PREP001
+//cfusa:test REQ-SAS-PREP001
+void test_sas_prepared_by(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--prepared-by", "Alice Smith",
+                    "--output", "-", NULL};
+    int rc = cmd_sas(7, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+/* ---- sas --output - writes to stdout ---- */
+
+//cfusa:req REQ-SAS-STDOUT001
+//cfusa:test REQ-SAS-STDOUT001
+void test_sas_output_dash_stdout(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--output", "-", NULL};
+    int rc = cmd_sas(5, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
 /* ---- badge ---- */
 
 //cfusa:req REQ-BADGE
@@ -543,5 +597,9 @@ int main(void)
     RUN_TEST(test_iso21434_bad_format_returns_3);
     RUN_TEST(test_iec62443_bad_format_returns_3);
     RUN_TEST(test_slsa_bad_format_returns_3);
+    RUN_TEST(test_init_already_exists_returns_2);
+    RUN_TEST(test_init_module_flag_accepted);
+    RUN_TEST(test_sas_prepared_by);
+    RUN_TEST(test_sas_output_dash_stdout);
     return UNITY_END();
 }
