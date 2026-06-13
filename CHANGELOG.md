@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.16] — 2026-06-13
+
+### Fixed
+- **Invalid `--format` exit codes — batch 2** (go-FuSa parity) — `cfusa slsa`, `iec62443`, and `comp` now return proper exit codes for unrecognised `--format` values. `slsa` and `iec62443` return exit 3 (matches `TestRunSLSA_BadFormat` / `TestRunIEC62443_BadFormat`); `comp` returns exit 2 (matches `TestRunComp_BadFormat` which expects `ExitUsage`). Previously all three silently fell back to text output and returned 0.
+
 ## [0.5.15] — 2026-06-13
 
 ### Fixed

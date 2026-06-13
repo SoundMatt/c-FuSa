@@ -460,6 +460,24 @@ void test_iso21434_bad_format_returns_3(void)
     TEST_ASSERT_EQUAL(3, rc);
 }
 
+//cfusa:req REQ-FMTERR001
+//cfusa:test REQ-FMTERR001
+void test_iec62443_bad_format_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--format", "xml", NULL};
+    int rc = cmd_iec62443(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
+//cfusa:req REQ-FMTERR001
+//cfusa:test REQ-FMTERR001
+void test_slsa_bad_format_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--format", "xml", NULL};
+    int rc = cmd_slsa(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
 /* ---- badge ---- */
 
 //cfusa:req REQ-BADGE
@@ -505,5 +523,7 @@ int main(void)
     RUN_TEST(test_iso26262_bad_format_returns_3);
     RUN_TEST(test_iec61508_bad_format_returns_3);
     RUN_TEST(test_iso21434_bad_format_returns_3);
+    RUN_TEST(test_iec62443_bad_format_returns_3);
+    RUN_TEST(test_slsa_bad_format_returns_3);
     return UNITY_END();
 }

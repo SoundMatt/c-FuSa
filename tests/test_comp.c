@@ -249,6 +249,15 @@ void test_comp_dal_b_is_default(void)
     TEST_ASSERT_EQUAL(1, rc);
 }
 
+//cfusa:req REQ-FMTERR001
+//cfusa:test REQ-FMTERR001
+void test_comp_bad_format_returns_2(void)
+{
+    char *argv[] = {"cfusa comp", "--dir", CTDIR, "--format", "html", NULL};
+    int rc = cmd_comp(5, argv);
+    TEST_ASSERT_EQUAL(2, rc);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -267,5 +276,6 @@ int main(void)
     RUN_TEST(test_comp_verbose_shows_clean_functions);
     RUN_TEST(test_comp_summary_fields_in_json);
     RUN_TEST(test_comp_dal_b_is_default);
+    RUN_TEST(test_comp_bad_format_returns_2);
     return UNITY_END();
 }

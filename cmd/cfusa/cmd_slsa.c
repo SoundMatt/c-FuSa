@@ -176,7 +176,7 @@ int cmd_slsa(int argc, char **argv)
                     OBJECTIVES[i].id, OBJECTIVES[i].title,
                     ok ? "[x] Satisfied" : "[ ] Gap");
         }
-    } else {
+    } else if (!strcmp(fmt_s, "text")) {
         fprintf(out, "SLSA v1.0 Gap Report\n"
                 "Project: %s v%s   Level: %d   Generated: %s\n"
                 "Satisfied: %d / %d objectives  (%d gaps)\n\n",
@@ -196,6 +196,10 @@ int cmd_slsa(int argc, char **argv)
                     ok ? "[x] SATISFIED" : "[ ] GAP");
         }
         fprintf(out, "\nProvide evidence files or update CI to close remaining gaps.\n");
+    } else {
+        if (output && out != stdout) fclose(out);
+        fprintf(stderr, "cfusa slsa: unknown format '%s' (text, json, or md)\n", fmt_s);
+        return 3;
     }
 
     if (output && out != stdout) fclose(out);

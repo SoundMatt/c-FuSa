@@ -193,7 +193,7 @@ int cmd_iec62443(int argc, char **argv)
             first = 0;
         }
         fprintf(out, "\n  ]\n}\n");
-    } else {
+    } else if (!strcmp(fmt_s, "text")) {
         fprintf(out, "IEC 62443-4-2 Gap Report — %s (target %s)\n", cfg.project, sl);
         fprintf(out, "==================================================\n\n");
         if (!has_cfg)
@@ -226,6 +226,10 @@ int cmd_iec62443(int argc, char **argv)
         if (!has_cfg)
             fprintf(out, "Create %s to enable IEC62443-001..004 engine rules.\n",
                     IEC62443_FILE);
+    } else {
+        if (output && out != stdout) fclose(out);
+        fprintf(stderr, "cfusa iec62443: unknown format '%s' (text or json)\n", fmt_s);
+        return 3;
     }
 
     if (output && out != stdout) fclose(out);
