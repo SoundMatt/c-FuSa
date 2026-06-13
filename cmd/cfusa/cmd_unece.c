@@ -184,6 +184,9 @@ int cmd_unece(int argc, char **argv)
         return 3;
     }
 
-    if (output && out != stdout) fclose(out);
+    if (output && out != stdout) {
+        fclose(out);
+        fprintf(stderr, "UN R.155 gap report written to %s\n", output);
+    }
     return (gap > 0) ? 1 : 0;
 }
