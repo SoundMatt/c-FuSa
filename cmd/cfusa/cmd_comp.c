@@ -319,8 +319,14 @@ int cmd_comp(int argc, char **argv)
         print_json(out, show, show_n, threshold, violations, max_vg, dir);
     else if (strcmp(fmt_s, "md") == 0)
         print_md(out, show, show_n, threshold, violations, max_vg);
-    else
+    else if (strcmp(fmt_s, "text") == 0)
         print_text(out, show, show_n, threshold, violations, max_vg);
+    else {
+        if (output) fclose(out);
+        free(filtered); free(ctx.fns);
+        fprintf(stderr, "cfusa comp: unknown format '%s' (text, json, or md)\n", fmt_s);
+        return 2;
+    }
 
     if (output) {
         fclose(out);
