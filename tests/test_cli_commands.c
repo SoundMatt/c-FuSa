@@ -333,7 +333,7 @@ void test_slsa_json_format(void)
 
 //cfusa:req REQ-CAP001
 //cfusa:test REQ-CAP001
-void test_capabilities_json_includes_slsa_command(void)
+void test_capabilities_json_has_slsa(void)
 {
     char out[256];
     snprintf(out, sizeof(out), "%s/capabilities.json", CLI_TEST_DIR);
@@ -412,6 +412,6 @@ int main(void)
     RUN_TEST(test_badge_runs_no_crash);
     RUN_TEST(test_slsa_help_returns_zero);
     RUN_TEST(test_slsa_json_format);
-    RUN_TEST(test_capabilities_json_includes_slsa_command);
+    RUN_TEST(test_capabilities_json_has_slsa);
     return UNITY_END();
 }

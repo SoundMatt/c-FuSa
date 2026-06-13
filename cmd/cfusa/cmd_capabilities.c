@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <getopt.h>
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
@@ -9,12 +11,9 @@ int cmd_capabilities(int argc, char **argv)
 {
     const char *fmt    = "text";
     const char *output = NULL;
-
     static const struct option lo[] = {
-        {"format", required_argument, NULL, 'f'},
-        {"output", required_argument, NULL, 'o'},
-        {"help",   no_argument,       NULL, 'h'},
-        {NULL,0,NULL,0}
+        {"format",required_argument,NULL,'f'},{"output",required_argument,NULL,'o'},
+        {"help",no_argument,NULL,'h'},{NULL,0,NULL,0}
     };
     int c; optind = 1;
     while ((c = getopt_long(argc, argv, "f:o:h", lo, NULL)) != -1) {
@@ -28,13 +27,12 @@ int cmd_capabilities(int argc, char **argv)
         default: return 2;
         }
     }
-
     FILE *out = stdout;
     if (output) {
-        out = fopen(output, "w");
-        if (!out) { perror(output); return 3; }
+        int fd = open(output, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+        if (fd < 0) { perror(output); return 3; }
+        if (!(out = fdopen(fd, "w"))) { close(fd); return 3; }
     }
-
     if (!strcmp(fmt, "json")) {
         char ts[32]; cfusa_timestamp_now(ts);
         fprintf(out,
@@ -80,11 +78,9 @@ int cmd_capabilities(int argc, char **argv)
                "}\n",
                ts);
     } else {
-        fprintf(out, "c-FuSa %s (spec %s)\n", CFUSA_VERSION_STRING, CFUSA_SPEC_VERSION);
-        fprintf(out, "Required commands: version capabilities init check trace qualify release audit-pack report\n");
-        fprintf(out, "Standards: iso26262 iec61508 iec62443 do178c misra-c iso21434 unece-r155 slsa\n");
+        fprintf(out, "c-FuSa %s (spec %s)\nRequired commands: version capabilities init check trace qualify release audit-pack report\nStandards: iso26262 iec61508 iec62443 do178c misra-c iso21434 unece-r155 slsa\n",
+                CFUSA_VERSION_STRING, CFUSA_SPEC_VERSION);
     }
-
-    if (output && out != stdout) fclose(out);
+    if (out != stdout) fclose(out);
     return 0;
 }
