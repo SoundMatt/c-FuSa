@@ -286,10 +286,12 @@ void test_hooks_runs_no_crash(void)
 void test_hooks_install_already_exists_returns_2(void)
 {
     /* Create the hooks dir and pre-commit file so install detects existing hook */
-    char hook_dir[256], hook_path[256];
+    char git_dir[256], hook_dir[256], hook_path[256];
+    snprintf(git_dir,   sizeof(git_dir),   "%s/.git", HOOKS_INSTALL_DIR);
     snprintf(hook_dir,  sizeof(hook_dir),  "%s/.git/hooks", HOOKS_INSTALL_DIR);
     snprintf(hook_path, sizeof(hook_path), "%s/.git/hooks/pre-commit", HOOKS_INSTALL_DIR);
     (void)mkdir(HOOKS_INSTALL_DIR, 0755);
+    (void)mkdir(git_dir, 0755);
     (void)mkdir(hook_dir, 0755);
     FILE *f = fopen(hook_path, "w");
     if (f) { fputs("#!/bin/sh\n", f); fclose(f); }
