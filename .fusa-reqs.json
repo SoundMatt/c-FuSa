@@ -94,6 +94,7 @@
     {"id":"REQ-REQCOV-M2-001","title":"cfusa trace --req-coverage checks function annotation density (metric 2) in addition to requirement traceability (metric 1); parity with go-FuSa TestRunTraceReqCoverage_Metric2Fail","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-REQCOV-NA-001","title":"cfusa trace --req-coverage returns exit 0 when no requirements and no functions defined (both N/A); parity with go-FuSa TestRunTraceReqCoverage_NoRequirementsNoFunctions","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-REQCOV-ZERO-001","title":"cfusa trace --req-coverage 0 disables the gate and shows regular trace matrix output; parity with go-FuSa TestRun_Trace_ReqCoverage_Zero_Disabled","standard":"go-FuSa parity","level":"ASIL-A"},
-    {"id":"REQ-REQCOV-TRUNC-001","title":"cfusa trace --req-coverage truncates UNANNOTATED listing at 20 with '... and N more'; parity with go-FuSa TestRunTraceReqCoverage_UncoveredListTruncated","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-REQCOV-TRUNC-001","title":"cfusa trace --req-coverage truncates UNANNOTATED listing at 20 with '... and N more'; parity with go-FuSa TestRunTraceReqCoverage_UncoveredListTruncated","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-SIGN-KEYGEN001","title":"cfusa sign --keygen <path> generates a 32-byte random key (64 hex chars), writes to path with mode 0600, overwrites existing; exit 3 on write error; parity with go-FuSa TestSignKeygen_*","standard":"go-FuSa parity","level":"ASIL-A"}
   ]
 }

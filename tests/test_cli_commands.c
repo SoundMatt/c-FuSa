@@ -168,6 +168,73 @@ void test_sign_help_returns_zero(void)
     TEST_ASSERT_EQUAL(0, rc);
 }
 
+//cfusa:req REQ-SIGN-KEYGEN001
+//cfusa:test REQ-SIGN-KEYGEN001
+void test_sign_keygen_creates_key_file(void)
+{
+    char key_path[256];
+    snprintf(key_path, sizeof(key_path), "%s/test_keygen.key", CLI_TEST_DIR);
+    remove(key_path);
+
+    char *argv[] = {"cfusa", "--keygen", key_path, NULL};
+    int rc = cmd_sign(3, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen(key_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[128];
+        buf[0] = '\0';
+        fgets(buf, sizeof(buf), f);
+        fclose(f);
+        /* strip newline */
+        size_t len = strlen(buf);
+        if (len > 0 && buf[len-1] == '\n') buf[--len] = '\0';
+        TEST_ASSERT_EQUAL(64, (int)len);
+    }
+    remove(key_path);
+}
+
+//cfusa:req REQ-SIGN-KEYGEN001
+//cfusa:test REQ-SIGN-KEYGEN001
+void test_sign_keygen_overwrites_existing_file(void)
+{
+    char key_path[256];
+    snprintf(key_path, sizeof(key_path), "%s/test_keygen_overwrite.key", CLI_TEST_DIR);
+
+    /* Create an existing file with different content */
+    FILE *pre = fopen(key_path, "w");
+    if (pre) { fputs("old-content\n", pre); fclose(pre); }
+
+    char *argv[] = {"cfusa", "--keygen", key_path, NULL};
+    int rc = cmd_sign(3, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen(key_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[128];
+        buf[0] = '\0';
+        fgets(buf, sizeof(buf), f);
+        fclose(f);
+        size_t len = strlen(buf);
+        if (len > 0 && buf[len-1] == '\n') buf[--len] = '\0';
+        TEST_ASSERT_EQUAL(64, (int)len);
+        /* Must not contain old content */
+        TEST_ASSERT_NULL(strstr(buf, "old-content"));
+    }
+    remove(key_path);
+}
+
+//cfusa:req REQ-SIGN-KEYGEN001
+//cfusa:test REQ-SIGN-KEYGEN001
+void test_sign_keygen_bad_path_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--keygen", "/nonexistent/dir/fusa.key", NULL};
+    int rc = cmd_sign(3, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
 /* ---- iso26262 / iec61508 / misra ---- */
 
 //cfusa:req REQ-ISO26262
@@ -584,6 +651,9 @@ int main(void)
     RUN_TEST(test_qualify_runs_no_crash);
     RUN_TEST(test_safety_case_runs_no_crash);
     RUN_TEST(test_sign_help_returns_zero);
+    RUN_TEST(test_sign_keygen_creates_key_file);
+    RUN_TEST(test_sign_keygen_overwrites_existing_file);
+    RUN_TEST(test_sign_keygen_bad_path_returns_3);
     RUN_TEST(test_iso26262_help_returns_zero);
     RUN_TEST(test_iso26262_json_format);
     RUN_TEST(test_iec61508_help_returns_zero);

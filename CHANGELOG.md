@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.25] — 2026-06-13
+
+### Added
+- `cfusa sign --keygen <path>` generates a 32-byte random key (64 hex chars) and writes it to `<path>`, overwriting any existing file. Prints "Key written to \<path\> (keep this secret)". Returns exit 3 on write error. Parity with go-FuSa `TestSignKeygen_*` tests.
+
+### Requirements
+- REQ-SIGN-KEYGEN001
+
 ## [0.5.24] — 2026-06-13
 
 ### Added
