@@ -154,6 +154,98 @@ double cfusa_report_score(const cfusa_report_t *rpt)
     return score < 0.0 ? 0.0 : score;
 }
 
+/* ---- TEXT output helpers ---- */
+
+#define RPT_COLS 53
+
+/* Accumulate per-category counts and emit SUMMARY table. */
+static void print_summary_table(const cfusa_report_t *rpt, FILE *out)
+{
+    /* Collect up to 16 distinct categories */
+    char cats[16][32];
+    int  cat_err[16], cat_warn[16], cat_info[16], ncat = 0;
+    memset(cats, 0, sizeof(cats));
+    memset(cat_err, 0, sizeof(cat_err)); memset(cat_warn, 0, sizeof(cat_warn));
+    memset(cat_info, 0, sizeof(cat_info));
+
+    for (int i = 0; i < rpt->count; i++) {
+        const cfusa_finding_t *f = &rpt->findings[i];
+        int ci = -1;
+        for (int j = 0; j < ncat; j++)
+            if (!strcmp(cats[j], f->category)) { ci = j; break; }
+        if (ci < 0 && ncat < 16) { strncpy(cats[ncat], f->category, 31); ci = ncat++; }
+        if (ci < 0) continue;
+        if (f->severity == SEV_ERROR)        cat_err[ci]++;
+        else if (f->severity == SEV_WARNING)  cat_warn[ci]++;
+        else                                  cat_info[ci]++;
+    }
+
+    char sep[RPT_COLS + 1];
+    memset(sep, '-', RPT_COLS); sep[RPT_COLS] = '\0';
+    fprintf(out, "\nSUMMARY\n%s\n", sep);
+    fprintf(out, "%-14s  %8s  %8s  %8s  %8s\n", "Category","Errors","Warnings","Info","Total");
+    fprintf(out, "%s\n", sep);
+    for (int i = 0; i < ncat; i++) {
+        int tot = cat_err[i] + cat_warn[i] + cat_info[i];
+        fprintf(out, "%-14s  %8d  %8d  %8d  %8d\n", cats[i], cat_err[i], cat_warn[i], cat_info[i], tot);
+    }
+    fprintf(out, "%s\n%-14s  %8d  %8d  %8d  %8d\n", sep, "Total",
+            rpt->error_count, rpt->warning_count, rpt->info_count,
+            rpt->error_count + rpt->warning_count + rpt->info_count);
+}
+
+/* Emit TOP RULES table (top 10 by count). */
+static void print_top_rules(const cfusa_report_t *rpt, FILE *out)
+{
+#define MAX_RULES 256
+    char rule_ids[MAX_RULES][32];
+    int  rule_cnt[MAX_RULES];
+    cfusa_severity_t rule_sev[MAX_RULES];
+    int nrules = 0;
+    memset(rule_ids, 0, sizeof(rule_ids));
+    memset(rule_cnt, 0, sizeof(rule_cnt));
+    memset(rule_sev, 0, sizeof(rule_sev));
+
+    for (int i = 0; i < rpt->count; i++) {
+        const cfusa_finding_t *f = &rpt->findings[i];
+        int ri = -1;
+        for (int j = 0; j < nrules; j++)
+            if (!strcmp(rule_ids[j], f->rule_id)) { ri = j; break; }
+        if (ri < 0 && nrules < MAX_RULES) {
+            strncpy(rule_ids[nrules], f->rule_id, 31);
+            rule_sev[nrules] = f->severity;
+            ri = nrules++;
+        }
+        if (ri >= 0) rule_cnt[ri]++;
+    }
+    /* Insertion-sort descending by count (small N) */
+    for (int i = 1; i < nrules; i++) {
+        char tmp_id[32]; int tmp_c = rule_cnt[i]; cfusa_severity_t tmp_s = rule_sev[i];
+        strncpy(tmp_id, rule_ids[i], 31); tmp_id[31] = '\0';
+        int j = i - 1;
+        while (j >= 0 && rule_cnt[j] < tmp_c) {
+            rule_cnt[j+1] = rule_cnt[j]; rule_sev[j+1] = rule_sev[j];
+            strncpy(rule_ids[j+1], rule_ids[j], 31);
+            j--;
+        }
+        rule_cnt[j+1] = tmp_c; rule_sev[j+1] = tmp_s;
+        strncpy(rule_ids[j+1], tmp_id, 31);
+    }
+
+    char sep[RPT_COLS + 1];
+    memset(sep, '-', RPT_COLS); sep[RPT_COLS] = '\0';
+    fprintf(out, "\nTOP RULES\n%s\n", sep);
+    fprintf(out, "%-14s  %-9s  %8s\n", "Rule", "Severity", "Count");
+    fprintf(out, "%s\n", sep);
+    int shown = nrules < 10 ? nrules : 10;
+    for (int i = 0; i < shown; i++)
+        fprintf(out, "%-14s  %-9s  %8d\n", rule_ids[i], cfusa_severity_str(rule_sev[i]), rule_cnt[i]);
+    if (nrules > 10)
+        fprintf(out, "  ... and %d more rules\n", nrules - 10);
+    fprintf(out, "%s\n", sep);
+#undef MAX_RULES
+}
+
 /* ---- TEXT output ---- */
 static void print_text(const cfusa_report_t *rpt, FILE *out)
 {
@@ -172,6 +264,16 @@ static void print_text(const cfusa_report_t *rpt, FILE *out)
     }
     if (rpt->count == 0)
         fprintf(out, "No findings.\n");
+
+    int total = rpt->error_count + rpt->warning_count + rpt->info_count;
+    fprintf(out, "\nSummary: %d total  %d errors  %d warnings  %d infos\n",
+            total, rpt->error_count, rpt->warning_count, rpt->info_count);
+    fprintf(out, "Result:  %s\n", rpt->error_count > 0 ? "FAIL" : "PASS");
+
+    if (!rpt->no_summary && rpt->count > 0) {
+        print_summary_table(rpt, out);
+        print_top_rules(rpt, out);
+    }
 }
 
 /* ---- JSON output ---- */

@@ -81,6 +81,29 @@ void test_check_runs_on_empty_dir(void)
     TEST_ASSERT_TRUE(rc == 0 || rc == 1);
 }
 
+/* ---- check --no-summary ---- */
+
+//cfusa:req REQ-NOSUMMARY001
+//cfusa:test REQ-NOSUMMARY001
+void test_check_no_summary_suppresses_block(void)
+{
+    char out[256];
+    snprintf(out, sizeof(out), "%s/check_nosummary.txt", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--no-summary", "--output", out, NULL};
+    int rc = cmd_check(6, argv);
+    TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NULL(strstr(buf, "SUMMARY"));
+        TEST_ASSERT_NULL(strstr(buf, "TOP RULES"));
+    }
+    (void)remove(out);
+}
+
 /* ---- release ---- */
 
 //cfusa:req REQ-REL001
@@ -416,6 +439,7 @@ int main(void)
     RUN_TEST(test_init_help_returns_zero);
     RUN_TEST(test_check_help_returns_zero);
     RUN_TEST(test_check_runs_on_empty_dir);
+    RUN_TEST(test_check_no_summary_suppresses_block);
     RUN_TEST(test_release_help_returns_zero);
     RUN_TEST(test_release_runs_no_crash);
     RUN_TEST(test_qualify_help_returns_zero);

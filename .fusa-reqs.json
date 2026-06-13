@@ -69,6 +69,7 @@
     {"id":"REQ-SLSA002","title":"capabilities standards array lists slsa","standard":"FuSaOps §9.1","level":"ASIL-A"},
     {"id":"REQ-CAP001","title":"capabilities --output writes JSON to file","standard":"FuSaOps §9.1","level":"ASIL-A"},
     {"id":"REQ-CAP002","title":"capabilities lists all implemented commands including verify/metrics/comp/impact/hooks/badge/template","standard":"FuSaOps §9.1","level":"ASIL-A"},
-    {"id":"REQ-CAT001","title":"finding.category must be in spec §4 closed enum (lint/safety/security/coverage/requirement/concurrency/supply-chain/config/other)","standard":"FuSaOps §4","level":"ASIL-B"}
+    {"id":"REQ-CAT001","title":"finding.category must be in spec §4 closed enum (lint/safety/security/coverage/requirement/concurrency/supply-chain/config/other)","standard":"FuSaOps §4","level":"ASIL-B"},
+    {"id":"REQ-NOSUMMARY001","title":"check --no-summary suppresses SUMMARY/TOP-RULES block in text output; parity with go-FuSa","standard":"go-FuSa parity","level":"ASIL-A"}
   ]
 }
