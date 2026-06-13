@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(cfusa
-    VERSION 0.5.16
+    VERSION 0.5.17
     DESCRIPTION "C functional safety toolkit"
     LANGUAGES C
 )
