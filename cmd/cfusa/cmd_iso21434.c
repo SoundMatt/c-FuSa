@@ -220,9 +220,5 @@ int cmd_iso21434(int argc, char **argv)
     }
 
     if (output && out != stdout) fclose(out);
-    if (output)
-        printf("ISO 21434 gap report written to %s (%d gap%s)\n",
-               output, gap, gap == 1 ? "" : "s");
-
     return (gap > 0) ? 1 : 0;
 }
