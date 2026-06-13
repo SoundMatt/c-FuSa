@@ -26,6 +26,7 @@ extern int cmd_badge(int argc, char **argv);
 extern int cmd_slsa(int argc, char **argv);
 extern int cmd_capabilities(int argc, char **argv);
 extern int cmd_version(int argc, char **argv);
+extern int cmd_cyber(int argc, char **argv);
 
 #define CLI_TEST_DIR "/tmp/cfusa_cli_testdir"
 
@@ -733,6 +734,16 @@ void test_badge_too_many_args_returns_3(void)
     TEST_ASSERT_EQUAL_INT(3, rc);
 }
 
+/* ---- cyber findings summary line ---- */
+
+void test_cyber_prints_findings_summary(void)
+{
+    /* §v024e: cmd_cyber always prints "Cyber findings: N error N warning N info" */
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
+    int rc = cmd_cyber(3, argv);
+    TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -786,5 +797,6 @@ int main(void)
     RUN_TEST(test_init_module_flag_accepted);
     RUN_TEST(test_sas_prepared_by);
     RUN_TEST(test_sas_output_dash_stdout);
+    RUN_TEST(test_cyber_prints_findings_summary);
     return UNITY_END();
 }

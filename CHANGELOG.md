@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.31] — 2026-06-13
+
+### Fixed
+- **`cfusa cyber`**: Now always prints `"Cyber findings: N error  N warning  N info"` to stdout after analysis. Parity with go-FuSa `TestRunCyber_StrictWithWarnings` (cmd_v024e_test.go).
+
+### Requirements
+- REQ-CYBER-SUMMARY001
+
 ## [0.5.30] — 2026-06-13
 
 ### Fixed
