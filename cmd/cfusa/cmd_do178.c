@@ -141,14 +141,18 @@ int cmd_do178(int argc, char **argv)
         }
     }
 
-    /* Determine DAL level */
-    char dal_char = dal_s[0] | 0x20; /* lowercase */
+    /* Determine DAL level — accept "a" or "DAL-A" format (case-insensitive) */
+    const char *dal_key = dal_s;
+    if ((dal_key[0]|0x20)=='d' && (dal_key[1]|0x20)=='a' &&
+        (dal_key[2]|0x20)=='l' && dal_key[3]=='-')
+        dal_key += 4; /* skip "DAL-" prefix */
+    char dal_char = dal_key[0] | 0x20;
     int dal_col = 0; /* 0=A,1=B,2=C,3=D */
-    if      (dal_char=='a') dal_col=0;
-    else if (dal_char=='b') dal_col=1;
-    else if (dal_char=='c') dal_col=2;
-    else if (dal_char=='d') dal_col=3;
-    else { fprintf(stderr,"cfusa do178: invalid DAL '%s'\n",dal_s); return 1; }
+    if      (dal_char=='a' && dal_key[1]=='\0') dal_col=0;
+    else if (dal_char=='b' && dal_key[1]=='\0') dal_col=1;
+    else if (dal_char=='c' && dal_key[1]=='\0') dal_col=2;
+    else if (dal_char=='d' && dal_key[1]=='\0') dal_col=3;
+    else { fprintf(stderr,"cfusa do178: invalid DAL '%s' (use a|b|c|d or DAL-A|DAL-B|DAL-C|DAL-D)\n",dal_s); return 2; }
 
     cfusa_config_t cfg;
     cfusa_config_load(dir, &cfg);
