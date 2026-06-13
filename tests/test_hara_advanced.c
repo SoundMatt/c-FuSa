@@ -111,27 +111,29 @@ void test_hara_missing_controllability_fails(void)
 
 //cfusa:req REQ-HARA006
 //cfusa:test REQ-HARA006
-void test_hara_s0_returns_error(void)
+void test_hara_s0_returns_qm(void)
 {
-    /* S=0 is treated as "not provided" and should fail */
+    /* S=0 → QM (valid boundary — parity with go-FuSa SeverityS0→ASILQM) */
     int rc = asil("0", "4", "3");
-    TEST_ASSERT_TRUE(rc != 0);
+    TEST_ASSERT_EQUAL(0, rc);
 }
 
 //cfusa:req REQ-HARA006
 //cfusa:test REQ-HARA006
-void test_hara_e0_returns_error(void)
+void test_hara_e0_returns_qm(void)
 {
+    /* E=0 → QM (valid boundary — parity with go-FuSa ExposureE0→ASILQM) */
     int rc = asil("3", "0", "3");
-    TEST_ASSERT_TRUE(rc != 0);
+    TEST_ASSERT_EQUAL(0, rc);
 }
 
 //cfusa:req REQ-HARA006
 //cfusa:test REQ-HARA006
-void test_hara_c0_returns_error(void)
+void test_hara_c0_is_valid(void)
 {
+    /* C=0 is now a valid controllability class (parity with go-FuSa ControllabilityC0) */
     int rc = asil("3", "4", "0");
-    TEST_ASSERT_TRUE(rc != 0);
+    TEST_ASSERT_EQUAL(0, rc);
 }
 
 //cfusa:req REQ-HARA007
@@ -201,9 +203,9 @@ int main(void)
     RUN_TEST(test_hara_missing_severity_fails);
     RUN_TEST(test_hara_missing_exposure_fails);
     RUN_TEST(test_hara_missing_controllability_fails);
-    RUN_TEST(test_hara_s0_returns_error);
-    RUN_TEST(test_hara_e0_returns_error);
-    RUN_TEST(test_hara_c0_returns_error);
+    RUN_TEST(test_hara_s0_returns_qm);
+    RUN_TEST(test_hara_e0_returns_qm);
+    RUN_TEST(test_hara_c0_is_valid);
     RUN_TEST(test_hara_s5_returns_qm);
     RUN_TEST(test_hara_init_creates_file);
     RUN_TEST(test_hara_show_missing_file_no_crash);
