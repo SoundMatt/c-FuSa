@@ -1,5 +1,11 @@
+/* open()/fdopen() are POSIX; required on Linux with -std=c99 */
+#if defined(__linux__) || defined(__unix__)
+#  define _POSIX_C_SOURCE 200809L
+#endif
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <getopt.h>
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
@@ -7,28 +13,34 @@
 /* §9.1: capabilities --format json — discovery handshake for FuSaOps */
 int cmd_capabilities(int argc, char **argv)
 {
-    const char *fmt = "text";
-
+    const char *fmt    = "text";
+    const char *output = NULL;
     static const struct option lo[] = {
-        {"format", required_argument, NULL, 'f'},
-        {"help",   no_argument,       NULL, 'h'},
-        {NULL,0,NULL,0}
+        {"format",required_argument,NULL,'f'},{"output",required_argument,NULL,'o'},
+        {"help",no_argument,NULL,'h'},{NULL,0,NULL,0}
     };
     int c; optind = 1;
-    while ((c = getopt_long(argc, argv, "f:h", lo, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "f:o:h", lo, NULL)) != -1) {
         switch (c) {
-        case 'f': fmt = optarg; break;
+        case 'f': fmt    = optarg; break;
+        case 'o': output = optarg; break;
         case 'h':
-            printf("Usage: cfusa capabilities [--format text|json]\n\n"
+            printf("Usage: cfusa capabilities [--format text|json] [--output <file>]\n\n"
                    "Emits the tool's supported commands and formats.\n");
             return 0;
         default: return 2;
         }
     }
-
+    FILE *out = stdout;
+    if (output) {
+        int fd = open(output, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+        if (fd < 0) { perror(output); return 3; }
+        if (!(out = fdopen(fd, "w"))) { close(fd); return 3; }
+    }
     if (!strcmp(fmt, "json")) {
         char ts[32]; cfusa_timestamp_now(ts);
-        printf("{\n"
+        fprintf(out,
+               "{\n"
                "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
                "  \"kind\": \"capabilities\",\n"
                "  \"tool\": \"c-FuSa\",\n"
@@ -43,7 +55,7 @@ int cmd_capabilities(int argc, char **argv)
                "    \"boundary\", \"safety-case\", \"tara\", \"hara\",\n"
                "    \"coverage\", \"diff\", \"req\", \"disposition\",\n"
                "    \"iso26262\", \"iec61508\", \"iec62443\", \"do178\", \"misra\",\n"
-               "    \"iso21434\", \"unece\", \"sign\", \"fix\"\n"
+               "    \"iso21434\", \"unece\", \"slsa\", \"sign\", \"fix\"\n"
                "  ],\n"
                "  \"formats\": {\n"
                "    \"check\":     [\"text\", \"json\", \"sarif\", \"html\", \"md\"],\n"
@@ -58,6 +70,7 @@ int cmd_capabilities(int argc, char **argv)
                "    \"misra\":     [\"text\", \"json\"],\n"
                "    \"iso21434\":  [\"text\", \"json\"],\n"
                "    \"unece\":     [\"text\", \"json\"],\n"
+               "    \"slsa\":      [\"text\", \"json\"],\n"
                "    \"vuln\":      [\"text\", \"json\"],\n"
                "    \"diff\":      [\"json\"],\n"
                "    \"sci\":       [\"text\", \"json\"],\n"
@@ -65,13 +78,13 @@ int cmd_capabilities(int argc, char **argv)
                "    \"version\":   [\"text\", \"json\"]\n"
                "  },\n"
                "  \"standards\": [\"iso26262\", \"iec61508\", \"iec62443\", \"do178c\", \"misra-c\",\n"
-               "               \"iso21434\", \"unece-r155\"]\n"
+               "               \"iso21434\", \"unece-r155\", \"slsa\"]\n"
                "}\n",
                ts);
     } else {
-        printf("c-FuSa %s (spec %s)\n", CFUSA_VERSION_STRING, CFUSA_SPEC_VERSION);
-        printf("Required commands: version capabilities init check trace qualify release audit-pack report\n");
-        printf("Standards: iso26262 iec61508 iec62443 do178c misra-c iso21434 unece-r155\n");
+        fprintf(out, "c-FuSa %s (spec %s)\nRequired commands: version capabilities init check trace qualify release audit-pack report\nStandards: iso26262 iec61508 iec62443 do178c misra-c iso21434 unece-r155 slsa\n",
+                CFUSA_VERSION_STRING, CFUSA_SPEC_VERSION);
     }
+    if (out != stdout) fclose(out);
     return 0;
 }

@@ -380,9 +380,9 @@ static void coup001_line(const char *path, int lineno, const char *line,
     if (*p == '/' || *p == '*') return;
     if (*p == '#') return;
 
-    /* Match: "extern <type> <name>;" with no "const" and no "(*" fn-ptr */
+    /* Match: "extern <type> <name>;" — mutable vars only; skip fn decls (have '(') */
     if (strstr(p, "extern ") && !strstr(p, "const ") &&
-        !strstr(p, "(*") && strchr(p, ';') &&
+        !strchr(p, '(') && strchr(p, ';') &&
         !strstr(p, "extern \"C\"")) {
         cfusa_report_add(ctx->rpt,
             "COUP001", "analyze", SEV_WARNING,

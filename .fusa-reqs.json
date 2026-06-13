@@ -64,6 +64,9 @@
     {"id":"REQ-MET005","title":"cfusa metrics show supports --format json --output","standard":"IEC 61508","level":"SIL-4"},
     {"id":"REQ-RPT-SPAN001","title":"JSON location emits endLine+endColumn when set","standard":"FuSaOps §4","level":"ASIL-B"},
     {"id":"REQ-RPT-SPAN002","title":"JSON location omits span fields when end_line is zero","standard":"FuSaOps §4","level":"ASIL-B"},
-    {"id":"REQ-RPT-SPAN003","title":"SARIF region includes endLine/endColumn when set","standard":"FuSaOps §4","level":"ASIL-B"}
+    {"id":"REQ-RPT-SPAN003","title":"SARIF region includes endLine/endColumn when set","standard":"FuSaOps §4","level":"ASIL-B"},
+    {"id":"REQ-SLSA001","title":"capabilities commands array lists slsa","standard":"FuSaOps §9.1","level":"ASIL-A"},
+    {"id":"REQ-SLSA002","title":"capabilities standards array lists slsa","standard":"FuSaOps §9.1","level":"ASIL-A"},
+    {"id":"REQ-CAP001","title":"capabilities --output writes JSON to file","standard":"FuSaOps §9.1","level":"ASIL-A"}
   ]
 }
