@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.14] — 2026-06-13
+
+### Added
+- **`hara show --format json|markdown`** (go-FuSa parity) — `cfusa hara show` now accepts `--format text|json|markdown`. JSON dumps the `.fusa-hara.json` file content; Markdown emits a `| ID | Event | S | E | C | ASIL | Safety Goal |` table. Default remains `text` (unchanged). Matches go-FuSa's `hara show -format json|markdown` behaviour.
+
 ## [0.5.13] — 2026-06-13
 
 ### Added

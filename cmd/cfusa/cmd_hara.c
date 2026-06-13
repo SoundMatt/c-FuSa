@@ -110,6 +110,66 @@ static void do_init(const char *dir, const char *project, const char *version)
     printf("Edit hazards and run 'cfusa hara show' to review.\n");
 }
 
+static void do_show_json(const char *dir)
+{
+    char path[512];
+    cfusa_path_join(path, sizeof(path), dir, HARA_FILE);
+    size_t len;
+    char *content = cfusa_read_file(path, &len);
+    if (!content) {
+        char legacy[512];
+        cfusa_path_join(legacy, sizeof(legacy), dir, HARA_FILE_LEGACY);
+        content = cfusa_read_file(legacy, &len);
+    }
+    if (!content) {
+        fprintf(stderr, "cfusa hara: no %s found — run 'cfusa hara init' first\n", HARA_FILE);
+        return;
+    }
+    fwrite(content, 1, len, stdout);
+    if (len > 0 && content[len - 1] != '\n') putchar('\n');
+    free(content);
+}
+
+static void do_show_md(const char *dir)
+{
+    char path[512];
+    cfusa_path_join(path, sizeof(path), dir, HARA_FILE);
+    size_t len;
+    char *content = cfusa_read_file(path, &len);
+    if (!content) {
+        char legacy[512];
+        cfusa_path_join(legacy, sizeof(legacy), dir, HARA_FILE_LEGACY);
+        content = cfusa_read_file(legacy, &len);
+    }
+    if (!content) {
+        fprintf(stderr, "cfusa hara: no %s found — run 'cfusa hara init' first\n", HARA_FILE);
+        return;
+    }
+
+    printf("# Hazard Analysis and Risk Assessment (HARA)\n\n");
+    printf("| ID | Hazardous Event | S | E | C | ASIL | Safety Goal |\n");
+    printf("|---|---|---|---|---|---|---|\n");
+
+    char *p = content;
+    while ((p = strstr(p, "\"id\"")) != NULL) {
+        char id[32]="", event[128]="", asil[16]="", goal[128]="";
+        int sev=0, exp=0, ctl=0;
+        char *blk = p;
+        char *end = strstr(blk + 1, "\"id\"");
+        if (!end) end = content + len;
+        { char *fp = strstr(blk,"\"id\":");          if (fp) { fp+=5; while(*fp==' ') fp++; if(*fp=='"') fp++; sscanf(fp,"%31[^\"]",id); } }
+        { char *fp = strstr(blk,"\"hazardous_event\":"); if (fp) { fp+=18; while(*fp==' ') fp++; if(*fp=='"') fp++; sscanf(fp,"%127[^\"]",event); } }
+        { char *fp = strstr(blk,"\"asil\":");         if (fp) { fp+=7;  while(*fp==' ') fp++; if(*fp=='"') fp++; sscanf(fp,"%15[^\"]",asil); } }
+        { char *fp = strstr(blk,"\"safety_goal\":");  if (fp) { fp+=14; while(*fp==' ') fp++; if(*fp=='"') fp++; sscanf(fp,"%127[^\"]",goal); } }
+        { char *fp = strstr(blk,"\"severity\":");  if (fp) sscanf(fp,"\"severity\": %d",&sev); }
+        { char *fp = strstr(blk,"\"exposure\":");  if (fp) sscanf(fp,"\"exposure\": %d",&exp); }
+        { char *fp = strstr(blk,"\"controllability\":"); if (fp) sscanf(fp,"\"controllability\": %d",&ctl); }
+        printf("| %s | %s | %d | %d | %d | %s | %s |\n", id, event, sev, exp, ctl, asil, goal);
+        p = end;
+    }
+    free(content);
+}
+
 static void do_show(const char *dir)
 {
     char path[512];
@@ -212,10 +272,12 @@ int cmd_hara(int argc, char **argv)
 {
     const char *subcmd  = "show";
     const char *dir     = ".";
+    const char *format  = "text";
     int s = 0, e = 0, c = 0;
 
     static const struct option long_opts[] = {
         {"dir",            required_argument, NULL, 'd'},
+        {"format",         required_argument, NULL, 'F'},
         {"severity",       required_argument, NULL, 's'},
         {"exposure",       required_argument, NULL, 'e'},
         {"controllability",required_argument, NULL, 'c'},
@@ -232,9 +294,10 @@ int cmd_hara(int argc, char **argv)
 
     int opt;
     optind = 1;
-    while ((opt = getopt_long(argc, argv, "d:s:e:c:h", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "d:F:s:e:c:h", long_opts, NULL)) != -1) {
         switch (opt) {
-        case 'd': dir = optarg; break;
+        case 'd': dir    = optarg; break;
+        case 'F': format = optarg; break;
         case 's': s = atoi(optarg); break;
         case 'e': e = atoi(optarg); break;
         case 'c': c = atoi(optarg); break;
@@ -244,6 +307,8 @@ int cmd_hara(int argc, char **argv)
                    "  init   Write a .fusa-hara.json skeleton\n"
                    "  show   Display all hazard entries with ASIL rating\n"
                    "  asil   Compute ASIL from S/E/C parameters\n\n"
+                   "Options for 'show':\n"
+                   "  --format text|json|markdown  Output format (default: text)\n\n"
                    "Options for 'asil':\n"
                    "  --severity N        Severity class S1-S3 (1-3, per ISO 26262-3 Table 4)\n"
                    "  --exposure N        Exposure class E1-E4 (1-4)\n"
@@ -265,6 +330,10 @@ int cmd_hara(int argc, char **argv)
             return 1;
         }
         do_asil(s, e, c);
+    } else if (!strcmp(format, "json")) {
+        do_show_json(dir);
+    } else if (!strcmp(format, "markdown") || !strcmp(format, "md")) {
+        do_show_md(dir);
     } else {
         do_show(dir);
     }
