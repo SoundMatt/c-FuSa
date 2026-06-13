@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.15] — 2026-06-13
+
+### Fixed
+- **Invalid `--format` exit codes** (go-FuSa parity) — `cfusa unece`, `iso26262`, `iec61508`, and `iso21434` now return exit 3 when given an unrecognised `--format` value (e.g. `--format xml`). Previously they silently fell back to text output and returned 0. Matches go-FuSa's `TestRunUNECE_BadFormat` / `TestRunISO26262_BadFormat` / `TestRunIEC61508_BadFormat` / `TestRunISO21434_BadFormat` expectations. `cfusa version` already returned exit 2 for bad format; no change needed there.
+
 ## [0.5.14] — 2026-06-13
 
 ### Added

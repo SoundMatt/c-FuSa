@@ -177,7 +177,7 @@ int cmd_iso26262(int argc, char **argv)
             first = 0;
         }
         fprintf(out, "\n  ]\n}\n");
-    } else {
+    } else if (!strcmp(fmt_s, "text")) {
         fprintf(out, "ISO 26262 Parts 6-11 Gap Report — %s (target %s)\n",
                 cfg.project, asil);
         fprintf(out, "=======================================================\n\n");
@@ -205,6 +205,10 @@ int cmd_iso26262(int argc, char **argv)
                covered, gaps, na, asil);
         if (gaps > 0)
             fprintf(out, "Review gaps and add manual evidence or custom cfusa rules.\n");
+    } else {
+        if (output && out != stdout) fclose(out);
+        fprintf(stderr, "cfusa iso26262: unknown format '%s' (text or json)\n", fmt_s);
+        return 3;
     }
 
     if (output && out != stdout) fclose(out);
