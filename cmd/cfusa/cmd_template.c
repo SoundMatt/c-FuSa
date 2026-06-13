@@ -104,12 +104,14 @@ int cfusa_template_generate_all(const char *docs_dir)
 
 int cmd_template(int argc, char **argv)
 {
-    const char *dir  = ".";
-    const char *name = NULL;
+    const char *dir  = NULL;  /* NULL → defaults to docs/safety */
+    const char *typ  = "all"; /* --type: all, safety-plan, test-evidence, hara, psac */
+    const char *name = NULL;  /* positional arg (legacy) */
     int list = 0;
 
     static const struct option long_opts[] = {
         {"dir",  required_argument, NULL, 'd'},
+        {"type", required_argument, NULL, 't'},
         {"list", no_argument,       NULL, 'l'},
         {"help", no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
@@ -117,61 +119,82 @@ int cmd_template(int argc, char **argv)
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:lh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:t:lh", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir  = optarg; break;
+        case 't': typ  = optarg; break;
         case 'l': list = 1;     break;
         case 'h':
-            printf("Usage: cfusa template [--list] [--dir <path>] [<name>]\n\n"
-                   "Available templates: safety-plan, test-evidence, hara, psac\n\n"
-                   "Example: cfusa template safety-plan\n");
+            printf("Usage: cfusa template [--type <type>] [--dir <path>]\n\n"
+                   "  --type  Template type: safety-plan, test-evidence, hara, psac, all (default: all)\n"
+                   "  --dir   Output directory (default: docs/safety)\n\n"
+                   "Available types: safety-plan, test-evidence, hara, psac\n");
             return 0;
         default: return 2;
         }
     }
     if (optind < argc) name = argv[optind];
 
-    if (list || !name) {
+    /* Resolve output directory */
+    char out_dir[512];
+    if (dir) {
+        strncpy(out_dir, dir, sizeof(out_dir) - 1);
+    } else {
+        snprintf(out_dir, sizeof(out_dir), "docs/safety");
+    }
+
+    if (list) {
         printf("Available templates:\n\n");
         for (int i=0; TEMPLATES[i].name; i++)
             printf("  %-18s %s  →  %s\n",
                    TEMPLATES[i].name, TEMPLATES[i].description,
                    TEMPLATES[i].filename);
-        printf("\nUsage: cfusa template <name>\n");
+        printf("\nUsage: cfusa template --type <name>\n");
         return 0;
     }
 
+    /* Resolve type from --type flag or legacy positional arg */
+    const char *resolved_typ = name ? name : typ;
+
+    /* "all" or default: generate everything */
+    if (!strcmp(resolved_typ, "all")) {
+        cfusa_template_generate_all(out_dir);
+        printf("Templates written to %s\n", out_dir);
+        return 0;
+    }
+
+    /* Single template */
     const template_t *tmpl = NULL;
     for (int i=0; TEMPLATES[i].name; i++)
-        if (!strcmp(TEMPLATES[i].name, name)) { tmpl = &TEMPLATES[i]; break; }
+        if (!strcmp(TEMPLATES[i].name, resolved_typ)) { tmpl = &TEMPLATES[i]; break; }
 
     if (!tmpl) {
-        fprintf(stderr,"cfusa template: unknown template '%s'\n",name);
+        fprintf(stderr,"cfusa template: unknown template '%s'\n", resolved_typ);
         fprintf(stderr,"Run 'cfusa template --list' for available templates.\n");
         return 1;
     }
 
+    cfusa_mkdir_p(out_dir);
     cfusa_config_t cfg;
-    cfusa_config_load(dir, &cfg);
+    cfusa_config_load(".", &cfg);
 
     char out_path[512];
-    cfusa_path_join(out_path, sizeof(out_path), dir, tmpl->filename);
+    cfusa_path_join(out_path, sizeof(out_path), out_dir, tmpl->filename);
 
     FILE *f = fopen(out_path,"w");
     if (!f) { perror(out_path); return 3; }
 
     char ts[32]; cfusa_timestamp_now(ts);
 
-    /* Simple substitution */
     const char *p = tmpl->content;
     while (*p) {
-        if (strncmp(p,"{PROJECT}",9)==0)  { fputs(cfg.project,f); p+=9; }
-        else if (strncmp(p,"{VERSION}",9)==0)  { fputs(cfg.version,f); p+=9; }
-        else if (strncmp(p,"{TIMESTAMP}",11)==0){ fputs(ts,f); p+=11; }
+        if      (strncmp(p,"{PROJECT}",   9)  == 0) { fputs(cfg.project,f); p+=9;  }
+        else if (strncmp(p,"{VERSION}",   9)  == 0) { fputs(cfg.version,f); p+=9;  }
+        else if (strncmp(p,"{TIMESTAMP}", 11) == 0) { fputs(ts,f);          p+=11; }
         else fputc(*p++, f);
     }
     fclose(f);
 
-    printf("Template '%s' written to %s\n", name, out_path);
+    printf("Template '%s' written to %s\n", resolved_typ, out_path);
     return 0;
 }
