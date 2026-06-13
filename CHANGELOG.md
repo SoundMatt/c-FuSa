@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.21] — 2026-06-13
+
+### Added
+- **`vuln --output-dir <dir>`** (go-FuSa parity) — `cfusa vuln` now accepts `--output-dir <dir>`. When set, it creates the directory, writes `vuln.json` (JSON format) there, prints "Vulnerability scan report written to {path}", and prints a summary line to stdout. Matches go-FuSa `TestRunVuln_OutputDir`.
+
 ## [0.5.20] — 2026-06-13
 
 ### Added
