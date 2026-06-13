@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.12] — 2026-06-13
+
+### Fixed
+- **`finding.category` spec §4 MUST conformance** — `"cyber"` is now mapped to `"security"` and `"analyze"` is mapped to `"safety"` at report storage time, bringing all finding categories into the spec §4 closed enum (`lint`, `style`, `safety`, `security`, `coverage`, `requirement`, `concurrency`, `supply-chain`, `config`, `other`). Previously `check --format json` would fail the FuSaOps `check/category-enum` conformance check. Internal engine filtering (`--category analyze`/`--category cyber`) is unchanged.
+
 ## [0.5.11] — 2026-06-13
 
 ### Fixed

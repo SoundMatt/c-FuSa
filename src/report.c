@@ -73,6 +73,9 @@ void cfusa_report_add(cfusa_report_t *rpt, const char *rule_id,
     cfusa_finding_t *f = &rpt->findings[rpt->count++];
     memset(f, 0, sizeof(*f));
     strncpy(f->rule_id,  rule_id,  sizeof(f->rule_id)  - 1);
+    /* Map internal categories to spec §4 closed enum values (§1.5.1). */
+    if (!strcmp(category, "cyber"))   category = "security";
+    else if (!strcmp(category, "analyze")) category = "safety";
     strncpy(f->category, category, sizeof(f->category) - 1);
 
     /* Relativize file path against project_root (§4 location.file MUST be

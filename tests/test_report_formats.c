@@ -251,6 +251,34 @@ void test_sarif_region_includes_end_line(void)
     cfusa_report_free(&rpt2);
 }
 
+/* ---- §4 category enum conformance ---- */
+
+//cfusa:req REQ-CAT001
+//cfusa:test REQ-CAT001
+void test_category_cyber_maps_to_security(void)
+{
+    cfusa_report_t r; cfusa_report_init(&r);
+    cfusa_report_add(&r, "CFUSA-CY001", "cyber", SEV_WARNING, "x.c", 1, "test");
+    TEST_ASSERT_EQUAL_STRING("security", r.findings[0].category);
+    cfusa_report_free(&r);
+}
+
+void test_category_analyze_maps_to_safety(void)
+{
+    cfusa_report_t r; cfusa_report_init(&r);
+    cfusa_report_add(&r, "CFUSA-A001", "analyze", SEV_WARNING, "x.c", 1, "test");
+    TEST_ASSERT_EQUAL_STRING("safety", r.findings[0].category);
+    cfusa_report_free(&r);
+}
+
+void test_category_lint_unchanged(void)
+{
+    cfusa_report_t r; cfusa_report_init(&r);
+    cfusa_report_add(&r, "CFUSA-L001", "lint", SEV_WARNING, "x.c", 1, "test");
+    TEST_ASSERT_EQUAL_STRING("lint", r.findings[0].category);
+    cfusa_report_free(&r);
+}
+
 /* ---- Format parse ---- */
 
 //cfusa:req REQ-RPT002
@@ -289,5 +317,8 @@ int main(void)
     RUN_TEST(test_json_location_emits_end_line_end_column);
     RUN_TEST(test_json_location_omits_span_when_zero);
     RUN_TEST(test_sarif_region_includes_end_line);
+    RUN_TEST(test_category_cyber_maps_to_security);
+    RUN_TEST(test_category_analyze_maps_to_safety);
+    RUN_TEST(test_category_lint_unchanged);
     return UNITY_END();
 }
