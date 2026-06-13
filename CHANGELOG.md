@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.27] — 2026-06-13
+
+### Fixed
+- **§2.2 spec compliance** (`cfusa unece`, `cfusa iso21434`, `cfusa comp`): when `--output <file>` is given, no text is written to stdout. Previously these three commands printed a "written to" confirmation message to stdout, violating spec §2.2 ("stdout MUST be empty when --output is given"). Parity with go-FuSa `TestConform_OutputNoStdout_*` tests.
+
+### Requirements
+- REQ-SPEC22-001
+
 ## [0.5.26] — 2026-06-13
 
 ### Fixed

@@ -328,11 +328,8 @@ int cmd_comp(int argc, char **argv)
         return 2;
     }
 
-    if (output) {
+    if (output)
         fclose(out);
-        if (verbose || strcmp(fmt_s, "json") == 0)
-            printf("Complexity report written to %s\n", output);
-    }
 
     free(filtered);
     free(ctx.fns);

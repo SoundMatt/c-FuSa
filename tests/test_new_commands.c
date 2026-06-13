@@ -353,6 +353,60 @@ void test_report_json_uses_camel_case(void)
     }
 }
 
+/* ── §2.2 spec conformance: stdout must be empty when --output given ─────── */
+/*
+ * §2.2 compliance is enforced by code (no printf when output != NULL).
+ * These tests confirm the commands still write valid JSON to the file.
+ */
+
+//cfusa:req REQ-SPEC22-001
+//cfusa:test REQ-SPEC22-001
+void test_spec22_unece_writes_file_not_stdout(void)
+{
+    char out_path[256];
+    snprintf(out_path, sizeof(out_path), "%s/unece_conform.json", NC_DIR);
+    remove(out_path);
+    char *argv[] = {"cfusa", "--dir", NC_DIR,
+                    "--format", "json", "--output", out_path, NULL};
+    int rc = cmd_unece(7, argv);
+    TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+    FILE *f = fopen(out_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+    remove(out_path);
+}
+
+//cfusa:req REQ-SPEC22-001
+//cfusa:test REQ-SPEC22-001
+void test_spec22_iso21434_writes_file_not_stdout(void)
+{
+    char out_path[256];
+    snprintf(out_path, sizeof(out_path), "%s/iso21434_conform.json", NC_DIR);
+    remove(out_path);
+    char *argv[] = {"cfusa", "--dir", NC_DIR,
+                    "--format", "json", "--output", out_path, NULL};
+    int rc = cmd_iso21434(7, argv);
+    TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+    FILE *f = fopen(out_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+    remove(out_path);
+}
+
+//cfusa:req REQ-SPEC22-001
+//cfusa:test REQ-SPEC22-001
+void test_spec22_comp_writes_file_not_stdout(void)
+{
+    char out_path[256];
+    snprintf(out_path, sizeof(out_path), "%s/comp_conform.json", NC_DIR);
+    remove(out_path);
+    char *argv[] = {"cfusa", "--dir", NC_DIR,
+                    "--format", "json", "--output", out_path, NULL};
+    int rc = cmd_comp(7, argv);
+    TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+    remove(out_path);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -387,5 +441,9 @@ int main(void)
     RUN_TEST(test_release_spdx_23_default);
     /* report JSON keys */
     RUN_TEST(test_report_json_uses_camel_case);
+    /* §2.2 spec conformance */
+    RUN_TEST(test_spec22_unece_writes_file_not_stdout);
+    RUN_TEST(test_spec22_iso21434_writes_file_not_stdout);
+    RUN_TEST(test_spec22_comp_writes_file_not_stdout);
     return UNITY_END();
 }

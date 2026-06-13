@@ -96,6 +96,7 @@
     {"id":"REQ-REQCOV-ZERO-001","title":"cfusa trace --req-coverage 0 disables the gate and shows regular trace matrix output; parity with go-FuSa TestRun_Trace_ReqCoverage_Zero_Disabled","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-REQCOV-TRUNC-001","title":"cfusa trace --req-coverage truncates UNANNOTATED listing at 20 with '... and N more'; parity with go-FuSa TestRunTraceReqCoverage_UncoveredListTruncated","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-SIGN-KEYGEN001","title":"cfusa sign --keygen <path> generates a 32-byte random key (64 hex chars), writes to path with mode 0600, overwrites existing; exit 3 on write error; parity with go-FuSa TestSignKeygen_*","standard":"go-FuSa parity","level":"ASIL-A"},
-    {"id":"REQ-DO178-DAL001","title":"cfusa do178 --dal with invalid value returns exit 2 (usage error); accepts both a|b|c|d and DAL-A|DAL-B|DAL-C|DAL-D formats; parity with go-FuSa TestRunDo178_InvalidDALv2","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-DO178-DAL001","title":"cfusa do178 --dal with invalid value returns exit 2 (usage error); accepts both a|b|c|d and DAL-A|DAL-B|DAL-C|DAL-D formats; parity with go-FuSa TestRunDo178_InvalidDALv2","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-SPEC22-001","title":"when --output <file> is given cfusa unece/iso21434/comp write no bytes to stdout (spec §2.2 'stdout MUST be empty'); parity with go-FuSa TestConform_OutputNoStdout_*","standard":"FuSaOps §2.2","level":"ASIL-B"}
   ]
 }
