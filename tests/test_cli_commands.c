@@ -22,6 +22,8 @@ extern int cmd_iec62443(int argc, char **argv);
 extern int cmd_audit_pack(int argc, char **argv);
 extern int cmd_diff(int argc, char **argv);
 extern int cmd_badge(int argc, char **argv);
+extern int cmd_slsa(int argc, char **argv);
+extern int cmd_capabilities(int argc, char **argv);
 
 #define CLI_TEST_DIR "/tmp/cfusa_cli_testdir"
 
@@ -295,6 +297,61 @@ void test_iec62443_json_format(void)
     }
 }
 
+/* ---- slsa ---- */
+
+//cfusa:req REQ-SLSA001
+//cfusa:test REQ-SLSA001
+void test_slsa_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_slsa(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+//cfusa:req REQ-SLSA002
+//cfusa:test REQ-SLSA002
+void test_slsa_json_format(void)
+{
+    char out[256];
+    snprintf(out, sizeof(out), "%s/slsa.json", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--format", "json", "--output", out, NULL};
+    cmd_slsa(7, argv);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"gap-report\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"slsa\""));
+    }
+    (void)remove(out);
+}
+
+/* ---- capabilities ---- */
+
+//cfusa:req REQ-CAP001
+//cfusa:test REQ-CAP001
+void test_capabilities_json_includes_slsa_command(void)
+{
+    char out[256];
+    snprintf(out, sizeof(out), "%s/capabilities.json", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--format", "json", "--output", out, NULL};
+    int rc = cmd_capabilities(5, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"commands\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"slsa\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standards\""));
+    }
+    (void)remove(out);
+}
+
 /* ---- audit_pack ---- */
 
 //cfusa:req REQ-AUDIT
@@ -353,5 +410,8 @@ int main(void)
     RUN_TEST(test_audit_pack_runs_no_crash);
     RUN_TEST(test_diff_help_returns_zero);
     RUN_TEST(test_badge_runs_no_crash);
+    RUN_TEST(test_slsa_help_returns_zero);
+    RUN_TEST(test_slsa_json_format);
+    RUN_TEST(test_capabilities_json_includes_slsa_command);
     return UNITY_END();
 }

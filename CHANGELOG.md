@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.10] — 2026-06-13
+
+### Fixed
+- **`capabilities` omitted `slsa`** (spec §9.1 MUST) — `slsa` is now listed in the `commands` array, the `formats` map (`["text","json"]`), and the `standards` array (`slsa`). The command also gains `--output <file>` for machine-readable discovery (parity with go-FuSa).
+
 ## [0.5.9] — 2026-06-12
 
 ### Added
