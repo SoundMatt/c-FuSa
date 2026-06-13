@@ -7,6 +7,20 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.29] — 2026-06-13
+
+### Fixed
+- **`cfusa hara` ASIL table**: Extended from 3-column (C1-C3) to 4-column (C0-C3) to match go-FuSa's `DetermineASIL`. C0 is now a valid controllability class (always one level less severe than C1). S2/E4/C2 now correctly yields ASIL-C (was ASIL-B), S2/E4/C3 → ASIL-D (was ASIL-C), etc.
+- **`cfusa hara asil`**: Accepts `Sx`/`Ex`/`Cx` prefix format (e.g. `--severity S2 --exposure E4 --controllability C2`). Parity with go-FuSa `TestRunHara_ASIL`.
+- **`cfusa hara asil`**: Missing `--severity`/`--exposure`/`--controllability` now returns exit 2 (was exit 1). Parity with go-FuSa `TestRunHara_ASIL_MissingFlags`.
+- **`cfusa hara init`**: Returns exit 2 with "already exists" in stderr when `.fusa-hara.json` already exists. Parity with go-FuSa `TestRunHara_InitAlreadyExists`.
+- **`cfusa hara <unknown>`**: Unknown subcommand now returns exit 2. Parity with go-FuSa `TestRunHara_UnknownSubcommand`.
+
+### Requirements
+- REQ-HARA-ASIL-C0001
+- REQ-HARA-INIT-EXISTS001
+- REQ-HARA-SUBCMD001
+
 ## [0.5.28] — 2026-06-13
 
 ### Fixed

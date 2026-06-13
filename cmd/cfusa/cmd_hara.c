@@ -23,39 +23,39 @@
 #define HARA_FILE_LEGACY ".cfusa-hara.json"
 
 /*
- * ISO 26262-3:2018 Table 4 ASIL determination.
- * Indices: [S1-S3][E1-E4][C1-C3]  (C0 always QM, omitted)
+ * ISO 26262-3:2018 Table 4 ASIL determination with C0 extension.
+ * Indices: [S1-S3][E1-E4][C0-C3]  — parity with go-FuSa DetermineASIL.
  */
 //cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA006 REQ-HARA007 REQ-HARA008 REQ-HARA009
-static const char *asil_table[3][4][3] = {
+static const char *asil_table[3][4][4] = {
     /* S1: slight to moderate injuries */
     {
-        {"QM","QM","QM"},      /* E1 */
-        {"QM","QM","QM"},      /* E2 */
-        {"QM","QM","ASIL-A"},  /* E3 */
-        {"QM","ASIL-A","ASIL-B"}  /* E4 */
+        {"QM","QM","QM","QM"},         /* E1: C0,C1,C2,C3 */
+        {"QM","QM","QM","QM"},         /* E2 */
+        {"QM","QM","QM","ASIL-A"},     /* E3 */
+        {"QM","QM","ASIL-A","ASIL-B"}  /* E4 */
     },
     /* S2: severe/life-threatening injuries, survival probable */
     {
-        {"QM","QM","QM"},         /* E1 */
-        {"QM","QM","ASIL-A"},     /* E2 */
-        {"QM","ASIL-A","ASIL-B"}, /* E3 */
-        {"ASIL-A","ASIL-B","ASIL-C"}  /* E4 */
+        {"QM","QM","QM","QM"},              /* E1 */
+        {"QM","QM","ASIL-A","ASIL-B"},      /* E2 */
+        {"QM","ASIL-A","ASIL-B","ASIL-C"},  /* E3 */
+        {"ASIL-A","ASIL-B","ASIL-C","ASIL-D"}  /* E4 */
     },
     /* S3: life-threatening injuries, survival uncertain / fatal */
     {
-        {"QM","QM","ASIL-A"},     /* E1 */
-        {"QM","ASIL-A","ASIL-B"}, /* E2 */
-        {"ASIL-A","ASIL-B","ASIL-C"},  /* E3 */
-        {"ASIL-B","ASIL-C","ASIL-D"}   /* E4 */
+        {"QM","ASIL-A","ASIL-B","ASIL-C"},     /* E1 */
+        {"ASIL-A","ASIL-B","ASIL-C","ASIL-D"}, /* E2 */
+        {"ASIL-B","ASIL-C","ASIL-D","ASIL-D"}, /* E3 */
+        {"ASIL-C","ASIL-D","ASIL-D","ASIL-D"}  /* E4 */
     }
 };
 
 static const char *compute_asil(int s, int e, int c)
 {
-    /* s: 1-3 (S1-S3), e: 1-4 (E1-E4), c: 1-3 (C1-C3) */
-    if (s < 1 || s > 3 || e < 1 || e > 4 || c < 1 || c > 3) return "QM";
-    return asil_table[s - 1][e - 1][c - 1];
+    /* s: 1-3 (S1-S3), e: 1-4 (E1-E4), c: 0-3 (C0-C3) */
+    if (s < 1 || s > 3 || e < 1 || e > 4 || c < 0 || c > 3) return "QM";
+    return asil_table[s - 1][e - 1][c];
 }
 
 static void do_asil(int s, int e, int c)
@@ -67,13 +67,18 @@ static void do_asil(int s, int e, int c)
     printf("  Result       %s\n", compute_asil(s, e, c));
 }
 
-static void do_init(const char *dir, const char *project, const char *version)
+static int do_init(const char *dir, const char *project, const char *version)
 {
     char path[512];
     cfusa_path_join(path, sizeof(path), dir, HARA_FILE);
 
+    if (cfusa_file_exists(path)) {
+        fprintf(stderr, "cfusa hara init: %s already exists\n", HARA_FILE);
+        return 2;
+    }
+
     FILE *f = fopen(path, "w");
-    if (!f) { perror(path); return; }
+    if (!f) { perror(path); return 3; }
 
     char ts[32]; cfusa_timestamp_now(ts);
 
@@ -108,6 +113,7 @@ static void do_init(const char *dir, const char *project, const char *version)
 
     printf("HARA skeleton written to %s\n", path);
     printf("Edit hazards and run 'cfusa hara show' to review.\n");
+    return 0;
 }
 
 static void do_show_json(const char *dir, FILE *out)
@@ -274,7 +280,7 @@ int cmd_hara(int argc, char **argv)
     const char *dir     = ".";
     const char *format  = "text";
     const char *output  = NULL;
-    int s = 0, e = 0, c = 0;
+    int s = -1, e = -1, c = -1;
 
     static const struct option long_opts[] = {
         {"dir",            required_argument, NULL, 'd'},
@@ -301,9 +307,9 @@ int cmd_hara(int argc, char **argv)
         case 'd': dir    = optarg; break;
         case 'F': format = optarg; break;
         case 'o': output = optarg; break;
-        case 's': s = atoi(optarg); break;
-        case 'e': e = atoi(optarg); break;
-        case 'c': c = atoi(optarg); break;
+        case 's': { const char *v = optarg; if (v[0]=='S'||v[0]=='s') v++; s = atoi(v); break; }
+        case 'e': { const char *v = optarg; if (v[0]=='E'||v[0]=='e') v++; e = atoi(v); break; }
+        case 'c': { const char *v = optarg; if (v[0]=='C'||v[0]=='c') v++; c = atoi(v); break; }
         case 'h':
             printf("Usage: cfusa hara <subcommand> [options]\n\n"
                    "Subcommands:\n"
@@ -314,9 +320,9 @@ int cmd_hara(int argc, char **argv)
                    "  --format text|json|markdown  Output format (default: text)\n"
                    "  --output <file>              Write output to file (default: stdout)\n\n"
                    "Options for 'asil':\n"
-                   "  --severity N        Severity class S1-S3 (1-3, per ISO 26262-3 Table 4)\n"
-                   "  --exposure N        Exposure class E1-E4 (1-4)\n"
-                   "  --controllability N Controllability class C1-C3 (1-3)\n\n"
+                   "  --severity N        Severity class S0-S3 (0-3, per ISO 26262-3 Table 4)\n"
+                   "  --exposure N        Exposure class E0-E4 (0-4)\n"
+                   "  --controllability N Controllability class C0-C3 (0-3)\n\n"
                    "ISO 26262-3:2018 Clause 6 — Hazard Analysis and Risk Assessment.\n");
             return 0;
         default: return 2;
@@ -327,14 +333,14 @@ int cmd_hara(int argc, char **argv)
     cfusa_config_load(dir, &cfg);
 
     if (!strcmp(subcmd, "init")) {
-        do_init(dir, cfg.project, cfg.version);
+        return do_init(dir, cfg.project, cfg.version);
     } else if (!strcmp(subcmd, "asil")) {
-        if (s == 0 || e == 0 || c == 0) {
+        if (s < 0 || e < 0 || c < 0) {
             fprintf(stderr, "cfusa hara asil: requires --severity, --exposure, --controllability\n");
-            return 1;
+            return 2;
         }
         do_asil(s, e, c);
-    } else {
+    } else if (!strcmp(subcmd, "show")) {
         FILE *out = stdout;
         if (output) {
             out = fopen(output, "w");
@@ -347,6 +353,9 @@ int cmd_hara(int argc, char **argv)
         else
             do_show(dir, out);
         if (output && out != stdout) fclose(out);
+    } else {
+        fprintf(stderr, "cfusa hara: unknown subcommand '%s' (init|show|asil)\n", subcmd);
+        return 2;
     }
 
     return 0;
