@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.33] — 2026-06-13
+
+### Fixed
+- **`cfusa iec62443`**: Text output header changed from `"IEC 62443-4-2 Gap Report"` to `"IEC 62443 Gap Report"` so the canonical substring `"IEC 62443 Gap Report"` is present. Parity with go-FuSa `TestRunIEC62443_TextDefault`.
+
+### Requirements
+- REQ-IEC62443-HEADER001
+
 ## [0.5.32] — 2026-06-13
 
 ### Fixed

@@ -109,6 +109,7 @@
     {"id":"REQ-CYBER-SUMMARY001","title":"cfusa cyber always prints 'Cyber findings: N error N warning N info' to stdout after analysis; parity with go-FuSa TestRunCyber_StrictWithWarnings","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-COMP-TEXT001","title":"cfusa comp text output shows 'Total functions: N  Exceeding threshold: N' summary; parity with go-FuSa TestRunComp_Text_NoExceedances","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-CLI-REQ002","title":"cfusa req import exits 2 for empty CSV or bad header, exits 3 for file not found; parity with go-FuSa TestRunReqImport_CSVEmptyFile/CSVBadHeader/CSVReadError","standard":"go-FuSa parity","level":"ASIL-A"},
-    {"id":"REQ-CLI-FIX001","title":"cfusa fix accepts --report <file> flag and writes JSON findings report; parity with go-FuSa TestRunFix_WithFindingsAndOutput","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-CLI-FIX001","title":"cfusa fix accepts --report <file> flag and writes JSON findings report; parity with go-FuSa TestRunFix_WithFindingsAndOutput","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-IEC62443-HEADER001","title":"cfusa iec62443 text header is 'IEC 62443 Gap Report' (contains canonical substring); parity with go-FuSa TestRunIEC62443_TextDefault","standard":"go-FuSa parity","level":"ASIL-A"}
   ]
 }
