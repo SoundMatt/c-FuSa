@@ -7,6 +7,19 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.32] — 2026-06-13
+
+### Fixed
+- **`cfusa comp`**: Text output now shows `"Total functions: N  Exceeding threshold: N"` summary line (was `"Functions: N  Violations: N  Max V(G): N"`). Parity with go-FuSa `TestRunComp_Text_NoExceedances`.
+- **`cfusa comp`**: JSON output now includes top-level `"total"` and `"exceeding"` fields. Parity with go-FuSa `TestRunComp_JSON` / `TestRunComp_DALFlag`.
+- **`cfusa req import`**: CSV empty file now exits 2; bad CSV header (first field not "id") exits 2; file not found exits 3. Parity with go-FuSa `TestRunReqImport_CSVEmptyFile`, `TestRunReqImport_CSVBadHeader`, `TestRunReqImport_CSVReadError`.
+- **`cfusa fix`**: Added `--report <file>` flag that writes a JSON findings report. Parity with go-FuSa `TestRunFix_WithFindingsAndOutput`.
+
+### Requirements
+- REQ-COMP-TEXT001
+- REQ-CLI-REQ002
+- REQ-CLI-FIX001
+
 ## [0.5.31] — 2026-06-13
 
 ### Fixed

@@ -122,22 +122,26 @@ static const fix_entry_t *lookup_fix(const char *rule_id)
 
 int cmd_fix(int argc, char **argv)
 {
-    const char *dir = ".";
+    const char *dir         = ".";
+    const char *report_file = NULL;
 
     static const struct option lo[] = {
-        {"dir",  required_argument, NULL, 'd'},
-        {"help", no_argument,       NULL, 'h'},
+        {"dir",    required_argument, NULL, 'd'},
+        {"report", required_argument, NULL, 'r'},
+        {"help",   no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c; optind = 1;
-    while ((c = getopt_long(argc, argv, "d:h", lo, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:r:h", lo, NULL)) != -1) {
         switch (c) {
-        case 'd': dir = optarg; break;
+        case 'd': dir         = optarg; break;
+        case 'r': report_file = optarg; break;
         case 'h':
-            printf("Usage: cfusa fix [--dir <path>]\n\n"
+            printf("Usage: cfusa fix [--dir <path>] [--report <file>]\n\n"
                    "Re-runs all checks and lists findings that have deterministic\n"
-                   "remediation guidance, with step-by-step fix instructions.\n");
+                   "remediation guidance, with step-by-step fix instructions.\n"
+                   "  --report <file>   Write JSON findings report to file\n");
             return 0;
         default: return 2;
         }
@@ -188,7 +192,16 @@ int cmd_fix(int argc, char **argv)
     printf("%d finding(s) total: %d with fix guidance, %d without\n",
            total, fixable, total - fixable);
 
+    if (report_file) {
+        if (cfusa_report_write(&rpt, report_file, FMT_JSON) != 0) {
+            cfusa_report_free(&rpt);
+            cfusa_engine_reset();
+            return 3;
+        }
+        printf("Report written to %s\n", report_file);
+    }
+
     cfusa_report_free(&rpt);
     cfusa_engine_reset();
-    return 0;
+    return total > 0 ? 1 : 0;
 }

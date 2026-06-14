@@ -106,6 +106,9 @@
     {"id":"REQ-HARA-INIT-EXISTS001","title":"cfusa hara init returns exit 2 with 'already exists' in stderr when .fusa-hara.json already exists; parity with go-FuSa TestRunHara_InitAlreadyExists","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-HARA-SUBCMD001","title":"cfusa hara unknown subcommand returns exit 2; parity with go-FuSa TestRunHara_UnknownSubcommand","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-UNECE-OUT001","title":"cfusa unece --output <file> writes report to file and prints 'UN R.155 gap report written to' to stderr; stdout remains empty (§2.2); parity with go-FuSa TestRunUNECE_OutputFile","standard":"go-FuSa parity","level":"ASIL-A"},
-    {"id":"REQ-CYBER-SUMMARY001","title":"cfusa cyber always prints 'Cyber findings: N error N warning N info' to stdout after analysis; parity with go-FuSa TestRunCyber_StrictWithWarnings","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-CYBER-SUMMARY001","title":"cfusa cyber always prints 'Cyber findings: N error N warning N info' to stdout after analysis; parity with go-FuSa TestRunCyber_StrictWithWarnings","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-COMP-TEXT001","title":"cfusa comp text output shows 'Total functions: N  Exceeding threshold: N' summary; parity with go-FuSa TestRunComp_Text_NoExceedances","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-CLI-REQ002","title":"cfusa req import exits 2 for empty CSV or bad header, exits 3 for file not found; parity with go-FuSa TestRunReqImport_CSVEmptyFile/CSVBadHeader/CSVReadError","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-CLI-FIX001","title":"cfusa fix accepts --report <file> flag and writes JSON findings report; parity with go-FuSa TestRunFix_WithFindingsAndOutput","standard":"go-FuSa parity","level":"ASIL-A"}
   ]
 }
