@@ -194,7 +194,7 @@ int cmd_iec62443(int argc, char **argv)
         }
         fprintf(out, "\n  ]\n}\n");
     } else if (!strcmp(fmt_s, "text")) {
-        fprintf(out, "IEC 62443-4-2 Gap Report — %s (target %s)\n", cfg.project, sl);
+        fprintf(out, "IEC 62443 Gap Report — %s (target %s, profile 4-2)\n", cfg.project, sl);
         fprintf(out, "==================================================\n\n");
         if (!has_cfg)
             fprintf(out, "NOTE: no %s found — run 'cfusa iec62443 init' to create\n\n",
