@@ -148,7 +148,7 @@ static void iso8601_now(char *buf, size_t n)
 /* ── Output helpers ─────────────────────────────────────────────────────── */
 
 static void print_text(FILE *out, const fn_info_t *fns, int n,
-                       int threshold, int violations, int max_vg)
+                       int threshold, int violations)
 {
     fprintf(out, "Cyclomatic Complexity Report  (threshold: %d)\n", threshold);
     fprintf(out, "%-68s %5s  %s\n", "Function", "V(G)", "Status");
@@ -167,7 +167,7 @@ static void print_text(FILE *out, const fn_info_t *fns, int n,
     }
     fprintf(out, "%s\n", "--------------------------------------------------------------------"
                          "--------");
-    fprintf(out, "Functions: %d  Violations: %d  Max V(G): %d\n", n, violations, max_vg);
+    fprintf(out, "\nTotal functions: %d  Exceeding threshold: %d\n", n, violations);
 }
 
 static void print_md(FILE *out, const fn_info_t *fns, int n,
@@ -199,6 +199,8 @@ static void print_json(FILE *out, const fn_info_t *fns, int n,
     fprintf(out, "  \"generatedAt\": \"%s\",\n", ts);
     fprintf(out, "  \"projectRoot\": \"%s\",\n", root);
     fprintf(out, "  \"threshold\": %d,\n", threshold);
+    fprintf(out, "  \"total\": %d,\n", n);
+    fprintf(out, "  \"exceeding\": %d,\n", violations);
     fprintf(out, "  \"functions\": [\n");
     for (int i = 0; i < n; i++) {
         fprintf(out, "    { \"file\": \"%s\", \"line\": %d, \"function\": \"%s\","
@@ -320,7 +322,7 @@ int cmd_comp(int argc, char **argv)
     else if (strcmp(fmt_s, "md") == 0)
         print_md(out, show, show_n, threshold, violations, max_vg);
     else if (strcmp(fmt_s, "text") == 0)
-        print_text(out, show, show_n, threshold, violations, max_vg);
+        print_text(out, show, show_n, threshold, violations);
     else {
         if (output) fclose(out);
         free(filtered); free(ctx.fns);

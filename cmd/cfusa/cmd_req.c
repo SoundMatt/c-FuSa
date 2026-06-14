@@ -602,8 +602,8 @@ static size_t import_jama_csv(FILE *f, char *new_entries, size_t buf_sz,
     return ne_len;
 }
 
-static void do_req_import(const char *dir, const char *input_file,
-                          const char *fmt)
+static int do_req_import(const char *dir, const char *input_file,
+                         const char *fmt)
 {
     /* Auto-detect format from extension if not specified */
     if (!fmt || !fmt[0]) {
@@ -643,42 +643,60 @@ static void do_req_import(const char *dir, const char *input_file,
 
     if (!strcmp(fmt, "doors") ||
         (!strcmp(fmt, "polarion") && is_xml && strstr(fmt, "reqif"))) {
-        import_reqif(input_file, dir, new_entries, sizeof(new_entries),
-                     &ne_len, &imported);
+        int irc = import_reqif(input_file, dir, new_entries, sizeof(new_entries),
+                               &ne_len, &imported);
+        if (irc) { free(existing); return irc; }
     } else if (!strcmp(fmt, "polarion")) {
+        int irc;
         if (is_xml)
-            import_polarion_xml(input_file, new_entries, sizeof(new_entries),
-                                &ne_len, &imported);
+            irc = import_polarion_xml(input_file, new_entries, sizeof(new_entries),
+                                      &ne_len, &imported);
         else
-            import_reqif(input_file, dir, new_entries, sizeof(new_entries),
-                         &ne_len, &imported);
+            irc = import_reqif(input_file, dir, new_entries, sizeof(new_entries),
+                               &ne_len, &imported);
+        if (irc) { free(existing); return irc; }
     } else if (!strcmp(fmt, "codebeamer")) {
         if (is_xml) {
-            import_codebeamer_xml(input_file, new_entries, sizeof(new_entries),
-                                  &ne_len, &imported);
+            int irc = import_codebeamer_xml(input_file, new_entries, sizeof(new_entries),
+                                            &ne_len, &imported);
+            if (irc) { free(existing); return irc; }
         } else {
             FILE *f = fopen(input_file, "r");
-            if (!f) { perror(input_file); free(existing); return; }
+            if (!f) { perror(input_file); free(existing); return 3; }
             ne_len = import_cb_csv(f, new_entries, sizeof(new_entries), ne_len, &imported);
             fclose(f);
         }
     } else if (!strcmp(fmt, "jama")) {
         if (is_xml) {
-            import_jama_xml(input_file, new_entries, sizeof(new_entries),
-                            &ne_len, &imported);
+            int irc = import_jama_xml(input_file, new_entries, sizeof(new_entries),
+                                      &ne_len, &imported);
+            if (irc) { free(existing); return irc; }
         } else {
             FILE *f = fopen(input_file, "r");
-            if (!f) { perror(input_file); free(existing); return; }
+            if (!f) { perror(input_file); free(existing); return 3; }
             ne_len = import_jama_csv(f, new_entries, sizeof(new_entries), ne_len, &imported);
             fclose(f);
         }
     } else {
         /* csv (default) */
         FILE *f = fopen(input_file, "r");
-        if (!f) { perror(input_file); free(existing); return; }
+        if (!f) { perror(input_file); free(existing); return 3; }
 
         char line[1024];
-        if (!fgets(line, sizeof(line), f)) { fclose(f); free(existing); return; }
+        if (!fgets(line, sizeof(line), f)) { fclose(f); free(existing); return 2; }
+
+        /* Validate header: first field must be "id" (case-insensitive) */
+        {
+            char hdr_first[16] = "";
+            size_t hi = 0;
+            const char *hp = line;
+            if (*hp == '"') hp++;
+            while (*hp && *hp != ',' && *hp != '"' && *hp != '\n' && *hp != '\r'
+                   && hi < sizeof(hdr_first) - 1)
+                hdr_first[hi++] = (char)tolower((unsigned char)*hp++);
+            hdr_first[hi] = '\0';
+            if (strcmp(hdr_first, "id") != 0) { fclose(f); free(existing); return 2; }
+        }
 
         while (fgets(line, sizeof(line), f)) {
             char cols[5][512] = {{0}};
@@ -702,12 +720,12 @@ static void do_req_import(const char *dir, const char *input_file,
     if (imported == 0) {
         fprintf(stderr, "cfusa req import: no valid rows found in %s\n", input_file);
         free(existing);
-        return;
+        return 0;
     }
 
     /* Write merged file */
     FILE *out = fopen(reqs_path, "w");
-    if (!out) { perror(reqs_path); free(existing); return; }
+    if (!out) { perror(reqs_path); free(existing); return 3; }
 
     fprintf(out, "{\n  \"requirements\": [\n");
 
@@ -736,6 +754,7 @@ static void do_req_import(const char *dir, const char *input_file,
 
     printf("Imported %d requirement(s) into %s (existing: %d)\n",
            imported, reqs_path, existing_count);
+    return 0;
 }
 
 int cmd_req(int argc, char **argv)
@@ -790,8 +809,7 @@ int cmd_req(int argc, char **argv)
             fprintf(stderr, "cfusa req import: requires a file argument\n");
             return 1;
         }
-        do_req_import(dir, infile, fmt);
-        return 0;
+        return do_req_import(dir, infile, fmt);
     }
 
     g_req_count = g_tag_count = 0;

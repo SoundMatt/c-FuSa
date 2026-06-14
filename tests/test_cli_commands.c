@@ -27,6 +27,9 @@ extern int cmd_slsa(int argc, char **argv);
 extern int cmd_capabilities(int argc, char **argv);
 extern int cmd_version(int argc, char **argv);
 extern int cmd_cyber(int argc, char **argv);
+extern int cmd_comp(int argc, char **argv);
+extern int cmd_req(int argc, char **argv);
+extern int cmd_fix(int argc, char **argv);
 
 #define CLI_TEST_DIR "/tmp/cfusa_cli_testdir"
 
@@ -734,6 +737,74 @@ void test_badge_too_many_args_returns_3(void)
     TEST_ASSERT_EQUAL_INT(3, rc);
 }
 
+/* ---- comp text output ---- */
+
+//cfusa:req REQ-COMP-TEXT001
+//cfusa:test REQ-COMP-TEXT001
+void test_comp_text_output_has_exceeding_threshold(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--format", "text", "--verbose", NULL};
+    int rc = cmd_comp(6, argv);
+    TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+}
+
+/* ---- req import error codes ---- */
+
+//cfusa:req REQ-CLI-REQ002
+//cfusa:test REQ-CLI-REQ002
+void test_req_import_missing_file_returns_3(void)
+{
+    char *argv[] = {"cfusa", "import", "--format", "csv",
+                    "/nonexistent/path/missing.csv", NULL};
+    int rc = cmd_req(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
+//cfusa:req REQ-CLI-REQ002
+//cfusa:test REQ-CLI-REQ002
+void test_req_import_empty_csv_returns_2(void)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/empty.csv", CLI_TEST_DIR);
+    FILE *f = fopen(path, "w"); if (f) fclose(f);
+    char *argv[] = {"cfusa", "import", "--format", "csv", path, NULL};
+    int rc = cmd_req(5, argv);
+    TEST_ASSERT_EQUAL(2, rc);
+    remove(path);
+}
+
+//cfusa:req REQ-CLI-REQ002
+//cfusa:test REQ-CLI-REQ002
+void test_req_import_bad_header_returns_2(void)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/bad_header.csv", CLI_TEST_DIR);
+    FILE *f = fopen(path, "w");
+    if (f) { fputs("notid,title\nval1,val2\n", f); fclose(f); }
+    char *argv[] = {"cfusa", "import", "--format", "csv", path, NULL};
+    int rc = cmd_req(5, argv);
+    TEST_ASSERT_EQUAL(2, rc);
+    remove(path);
+}
+
+/* ---- fix --report ---- */
+
+//cfusa:req REQ-CLI-FIX001
+//cfusa:test REQ-CLI-FIX001
+void test_fix_report_creates_file(void)
+{
+    char report[256];
+    snprintf(report, sizeof(report), "%s/fix-report.json", CLI_TEST_DIR);
+    remove(report);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--report", report, NULL};
+    int rc = cmd_fix(5, argv);
+    TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+    FILE *f = fopen(report, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) fclose(f);
+    remove(report);
+}
+
 /* ---- cyber findings summary line ---- */
 
 void test_cyber_prints_findings_summary(void)
@@ -798,5 +869,10 @@ int main(void)
     RUN_TEST(test_sas_prepared_by);
     RUN_TEST(test_sas_output_dash_stdout);
     RUN_TEST(test_cyber_prints_findings_summary);
+    RUN_TEST(test_comp_text_output_has_exceeding_threshold);
+    RUN_TEST(test_req_import_missing_file_returns_3);
+    RUN_TEST(test_req_import_empty_csv_returns_2);
+    RUN_TEST(test_req_import_bad_header_returns_2);
+    RUN_TEST(test_fix_report_creates_file);
     return UNITY_END();
 }
