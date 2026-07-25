@@ -77,7 +77,7 @@ void test_hara001_fires_when_no_file(void)
 void test_hara001_passes_when_file_present(void)
 {
     make_file(".fusa-hara.json",
-        "{\"schemaVersion\":\"1.9\",\"kind\":\"hara\","
+        "{\"schemaVersion\":\"1.10.4\",\"kind\":\"hara\","
         "\"hazards\":[{\"id\":\"H-1\",\"severity\":3,"
         "\"exposure\":3,\"controllability\":2,\"asil\":\"ASIL-C\","
         "\"safety_goal\":\"Prevent unintended acceleration\","
