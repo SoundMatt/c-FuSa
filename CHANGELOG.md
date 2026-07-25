@@ -7,6 +7,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.34 — 2026-07-25
+
+- Fix CFUSA_SCHEMA_VERSION and CFUSA_SPEC_VERSION from "1.9" to "1.10.4"
+- Add docker-publish.yml — publish ghcr.io/soundmatt/c-fusa on tag push
+
 ## [0.5.33] — 2026-06-13
 
 ### Fixed
