@@ -668,5 +668,8 @@ int cmd_qualify(int argc, char **argv)
     }
 
     if (output && out != stdout) fclose(out);
+    /* Drop any engine state accumulated during the rule-exercise suite so
+     * callers in the test harness begin with a clean global rule table. */
+    cfusa_engine_reset();
     return total_fail > 0 ? 1 : 0;
 }
