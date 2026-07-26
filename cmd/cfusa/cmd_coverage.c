@@ -51,8 +51,6 @@ static void parse_mcdc_json(const char *path, int threshold, mcdc_report_t *rep)
      */
     const char *p = json;
     while ((p = strstr(p, "\"covered_true_count\"")) != NULL) {
-        /* Extract the enclosing condition object — scan back to { */
-        const char *obj_start = p;
         /* Find the next closing brace for this condition object */
         const char *obj_end = strchr(p, '}');
         if (!obj_end) { p++; continue; }
@@ -74,7 +72,6 @@ static void parse_mcdc_json(const char *path, int threshold, mcdc_report_t *rep)
             rep->covered_conditions++;
 
         p = obj_end + 1;
-        (void)obj_start;
     }
 
     free(json);
