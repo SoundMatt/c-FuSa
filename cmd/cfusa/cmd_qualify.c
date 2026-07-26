@@ -400,36 +400,102 @@ static fusa_case_t g_cases[] = {
     {NULL, NULL, NULL, 0, NULL, 0}
 };
 
+/* ── Qualification badge and independence helpers (REQ-QUAL003, REQ-VV001) ── */
+
+//cfusa:req REQ-QUAL006
+static const char *qualification_badge(const char *method)
+{
+    if (!method || !method[0])   return "unqualified";
+    if (!strcmp(method, "independent")) return "independently-qualified";
+    if (!strcmp(method, "self"))        return "self-qualified";
+    return "unqualified";
+}
+
+//cfusa:req REQ-VV004
+static const char *independence_status(const char *author, const char *reviewer)
+{
+    if (!reviewer || !reviewer[0]) return "unqualified";
+    if (author && author[0] && !strcmp(author, reviewer)) return "self-reviewed";
+    return "independent";
+}
+
+/* ── Option constants for new long-only flags ── */
+enum {
+    OPT_QUAL_METHOD    = 256,
+    OPT_QUALIFIER,
+    OPT_RECORD_URI,
+    OPT_IMPL_AUTHOR,
+    OPT_IND_REVIEWER,
+    OPT_IND_TEST_EXEC,
+    OPT_ACHIEVE_ASIL
+};
+
 /* ── Main command ─────────────────────────────────────────────────────── */
 
 int cmd_qualify(int argc, char **argv)
 {
-    const char *binary     = NULL;
-    const char *output     = NULL;
-    const char *fmt_s      = "text";
-    int         fmt_explicit = 0;
-    int verbose = 0;
+    const char *binary          = NULL;
+    const char *output          = NULL;
+    const char *fmt_s           = "text";
+    int         fmt_explicit    = 0;
+    int         verbose         = 0;
+    /* Feature 2 — tool qualification display (REQ-QUAL003) */
+    //cfusa:req REQ-QUAL003
+    const char *qual_method     = NULL;
+    const char *qualifier       = NULL;
+    const char *record_uri      = NULL;
+    /* Feature 4 — V&V independence (REQ-VV001) */
+    //cfusa:req REQ-VV001
+    const char *impl_author     = NULL;
+    const char *ind_reviewer    = NULL;
+    const char *ind_test_exec   = NULL;
+    const char *achievable_asil = NULL;
 
     static const struct option long_opts[] = {
-        {"binary",  required_argument, NULL, 'b'},
-        {"output",  required_argument, NULL, 'o'},
-        {"format",  required_argument, NULL, 'f'},
-        {"verbose", no_argument,       NULL, 'v'},
-        {"help",    no_argument,       NULL, 'h'},
+        {"binary",                    required_argument, NULL, 'b'},
+        {"output",                    required_argument, NULL, 'o'},
+        {"format",                    required_argument, NULL, 'f'},
+        {"verbose",                   no_argument,       NULL, 'v'},
+        {"help",                      no_argument,       NULL, 'h'},
+        /* Feature 2 */
+        {"qualification-method",      required_argument, NULL, OPT_QUAL_METHOD},
+        {"qualifier",                 required_argument, NULL, OPT_QUALIFIER},
+        {"record-uri",                required_argument, NULL, OPT_RECORD_URI},
+        /* Feature 4 */
+        {"implementation-author",     required_argument, NULL, OPT_IMPL_AUTHOR},
+        {"independent-reviewer",      required_argument, NULL, OPT_IND_REVIEWER},
+        {"independent-test-executor", required_argument, NULL, OPT_IND_TEST_EXEC},
+        {"achievable-asil",           required_argument, NULL, OPT_ACHIEVE_ASIL},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    { extern int optreset; optreset = 1; }
+#endif
     while ((c = getopt_long(argc, argv, "b:o:f:vh", long_opts, NULL)) != -1) {
         switch (c) {
-        case 'b': binary  = optarg; break;
-        case 'o': output  = optarg; break;
+        case 'b': binary       = optarg;      break;
+        case 'o': output       = optarg;      break;
         case 'f': fmt_s = optarg; fmt_explicit = 1; break;
-        case 'v': verbose = 1;      break;
+        case 'v': verbose      = 1;           break;
+        case OPT_QUAL_METHOD:    qual_method     = optarg; break;
+        case OPT_QUALIFIER:      qualifier       = optarg; break;
+        case OPT_RECORD_URI:     record_uri      = optarg; break;
+        case OPT_IMPL_AUTHOR:    impl_author     = optarg; break;
+        case OPT_IND_REVIEWER:   ind_reviewer    = optarg; break;
+        case OPT_IND_TEST_EXEC:  ind_test_exec   = optarg; break;
+        case OPT_ACHIEVE_ASIL:   achievable_asil = optarg; break;
         case 'h':
             printf("Usage: cfusa qualify [--binary <path>] [--format text|json]\n"
-                   "                     [--output <file>] [--verbose]\n\n"
+                   "                     [--output <file>] [--verbose]\n"
+                   "                     [--qualification-method self|independent]\n"
+                   "                     [--qualifier <name>] [--record-uri <uri>]\n"
+                   "                     [--implementation-author <name>]\n"
+                   "                     [--independent-reviewer <name>]\n"
+                   "                     [--independent-test-executor <name>]\n"
+                   "                     [--achievable-asil <level>]\n\n"
                    "Tool qualification self-test per DO-178C §12 / ISO 26262-8 §11.\n"
                    "Runs SHA-256/HMAC known-answer tests and FUSA rule exercise cases.\n");
             return 0;
@@ -473,6 +539,9 @@ int cmd_qualify(int argc, char **argv)
 
     char ts[32]; cfusa_timestamp_now(ts);
 
+    const char *badge  = qualification_badge(qual_method);          /* REQ-QUAL006 */
+    const char *indep  = independence_status(impl_author, ind_reviewer); /* REQ-VV004 */
+
     if (!strcmp(fmt_s, "json")) {
         fprintf(out,
             "{\n"
@@ -487,10 +556,29 @@ int cmd_qualify(int argc, char **argv)
             "  \"passed\": %d,\n"
             "  \"failed\": %d,\n"
             "  \"qualified\": %s,\n"
-            "  \"results\": [\n",
+            "  \"qualificationBadge\": \"%s\",\n"
+            "  \"independenceStatus\": \"%s\"",
             CFUSA_VERSION_STRING, ts, bin_hash,
             total, total_pass, total_fail,
-            (total_fail == 0) ? "true" : "false");
+            (total_fail == 0) ? "true" : "false",
+            badge, indep);
+        /* Feature 2 optional fields (REQ-QUAL003) */
+        if (qual_method && qual_method[0])
+            fprintf(out, ",\n  \"qualificationMethod\": \"%s\"", qual_method);
+        if (qualifier && qualifier[0])
+            fprintf(out, ",\n  \"qualifierIdentity\": \"%s\"", qualifier);
+        if (record_uri && record_uri[0])
+            fprintf(out, ",\n  \"qualificationRecordUri\": \"%s\"", record_uri);
+        /* Feature 4 optional fields (REQ-VV001) */
+        if (impl_author && impl_author[0])
+            fprintf(out, ",\n  \"implementationAuthor\": \"%s\"", impl_author);
+        if (ind_reviewer && ind_reviewer[0])
+            fprintf(out, ",\n  \"independentReviewer\": \"%s\"", ind_reviewer);
+        if (ind_test_exec && ind_test_exec[0])
+            fprintf(out, ",\n  \"independentTestExecutor\": \"%s\"", ind_test_exec);
+        if (achievable_asil && achievable_asil[0])
+            fprintf(out, ",\n  \"achievableAsil\": \"%s\"", achievable_asil);
+        fprintf(out, ",\n  \"results\": [\n");
         for (int i = 0; g_kat[i].name; i++)
             fprintf(out,
                 "    {\"name\": \"%s\", \"kind\": \"kat\", \"result\": \"%s\"},\n",
@@ -522,6 +610,24 @@ int cmd_qualify(int argc, char **argv)
         fprintf(out, "\nResult: %d passed, %d failed  —  %s\n",
             total_pass, total_fail,
             (total_fail == 0) ? "QUALIFIED" : "NOT QUALIFIED");
+        /* REQ-QUAL006: qualification badge */
+        fprintf(out, "Qualification badge: %s\n", badge);
+        /* REQ-VV004: independence status */
+        fprintf(out, "Independence status: %s\n", indep);
+        if (qual_method && qual_method[0])
+            fprintf(out, "Qualification method: %s\n", qual_method);
+        if (qualifier && qualifier[0])
+            fprintf(out, "Qualifier:            %s\n", qualifier);
+        if (record_uri && record_uri[0])
+            fprintf(out, "Record URI:           %s\n", record_uri);
+        if (impl_author && impl_author[0])
+            fprintf(out, "Implementation author:    %s\n", impl_author);
+        if (ind_reviewer && ind_reviewer[0])
+            fprintf(out, "Independent reviewer:     %s\n", ind_reviewer);
+        if (ind_test_exec && ind_test_exec[0])
+            fprintf(out, "Independent test exec:    %s\n", ind_test_exec);
+        if (achievable_asil && achievable_asil[0])
+            fprintf(out, "Achievable ASIL:          %s\n", achievable_asil);
     }
 
     if (output && out != stdout) fclose(out);
