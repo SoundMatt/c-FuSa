@@ -4,6 +4,8 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include "../vendor/unity/unity.h"
 
@@ -18,8 +20,10 @@ static void write_file(const char *fname, const char *content)
 {
     char path[256];
     snprintf(path, sizeof(path), "%s/%s", HLR_TEST_DIR, fname);
-    FILE *f = fopen(path, "w");
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    FILE *f = (fd >= 0) ? fdopen(fd, "w") : NULL;
     if (f) { fputs(content, f); fclose(f); }
+    else if (fd >= 0) { close(fd); }
 }
 
 static void remove_file(const char *fname)
@@ -123,7 +127,7 @@ void test_strict_hlr_llr_uncovered_hlr_returns_one(void)
 /* JSON output includes hlrllrSummary when HLR/LLR requirements present */
 //cfusa:req REQ-HLR001
 //cfusa:test REQ-HLR001
-void test_json_output_includes_hlrllr_summary(void)
+void test_json_output_has_hlrllr_summary(void)
 {
     write_file(".fusa-reqs.json",
         "{\"requirements\":["
@@ -155,7 +159,7 @@ void test_json_output_includes_hlrllr_summary(void)
 /* JSON output includes parentId field for LLR requirements */
 //cfusa:req REQ-HLR001
 //cfusa:test REQ-HLR001
-void test_json_output_includes_parent_id(void)
+void test_json_output_has_parent_id(void)
 {
     write_file(".fusa-reqs.json",
         "{\"requirements\":["
@@ -185,7 +189,7 @@ void test_json_output_includes_parent_id(void)
 /* Text output includes HLR/LLR summary when hierarchy present */
 //cfusa:req REQ-HLR001
 //cfusa:test REQ-HLR001
-void test_text_output_includes_hlrllr_line(void)
+void test_text_output_has_hlrllr_line(void)
 {
     write_file(".fusa-reqs.json",
         "{\"requirements\":["
@@ -220,8 +224,8 @@ int main(void)
     RUN_TEST(test_strict_hlr_llr_orphaned_llr_returns_one);
     RUN_TEST(test_strict_hlr_llr_bad_parent_returns_one);
     RUN_TEST(test_strict_hlr_llr_uncovered_hlr_returns_one);
-    RUN_TEST(test_json_output_includes_hlrllr_summary);
-    RUN_TEST(test_json_output_includes_parent_id);
-    RUN_TEST(test_text_output_includes_hlrllr_line);
+    RUN_TEST(test_json_output_has_hlrllr_summary);
+    RUN_TEST(test_json_output_has_parent_id);
+    RUN_TEST(test_text_output_has_hlrllr_line);
     return UNITY_END();
 }

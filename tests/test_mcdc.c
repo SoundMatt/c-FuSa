@@ -4,6 +4,8 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include "../vendor/unity/unity.h"
 
@@ -18,8 +20,10 @@ static void write_mcdc_json(const char *fname, const char *content)
 {
     char path[256];
     snprintf(path, sizeof(path), "%s/%s", MCDC_TEST_DIR, fname);
-    FILE *f = fopen(path, "w");
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    FILE *f = (fd >= 0) ? fdopen(fd, "w") : NULL;
     if (f) { fputs(content, f); fclose(f); }
+    else if (fd >= 0) { close(fd); }
 }
 
 /* ── Feature 3 tests ─────────────────────────────────────────────────────── */
@@ -162,7 +166,7 @@ void test_mcdc_threshold_above_coverage_fails(void)
 /* JSON output includes mcdcReport field */
 //cfusa:req REQ-COV015
 //cfusa:test REQ-COV015
-void test_mcdc_json_output_includes_mcdc_report(void)
+void test_mcdc_json_output_has_mcdc_report(void)
 {
     write_mcdc_json("covered2.json",
         "{\"data\":[{\"functions\":["
@@ -203,6 +207,6 @@ int main(void)
     RUN_TEST(test_mcdc_no_records_passes);
     RUN_TEST(test_mcdc_threshold_below_coverage_passes);
     RUN_TEST(test_mcdc_threshold_above_coverage_fails);
-    RUN_TEST(test_mcdc_json_output_includes_mcdc_report);
+    RUN_TEST(test_mcdc_json_output_has_mcdc_report);
     return UNITY_END();
 }
