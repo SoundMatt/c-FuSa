@@ -150,6 +150,7 @@ int cmd_fix(int argc, char **argv)
     cfusa_config_t cfg;
     cfusa_config_load(dir, &cfg);
 
+    cfusa_engine_reset();
     cfusa_lint_register_rules();
     cfusa_analyze_register_rules();
     cfusa_cyber_register_rules();
