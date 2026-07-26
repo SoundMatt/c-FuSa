@@ -7,6 +7,16 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.38 — 2026-07-26
+
+### Fixed
+- **[P0] realpath buffer too small in cmd_init** — replaced `char resolved[512]` with
+  `realpath(dir, NULL)` (dynamic allocation) to fix glibc `_FORTIFY_SOURCE=2` abort on
+  ubuntu-22.04. `__realpath_chk` requires the destination buffer to be at least `PATH_MAX`
+  (4096 bytes); the 512-byte stack buffer triggered `*** buffer overflow detected ***`
+  during `cfusa init --docs --dir <path>` (test_init_docs_generates_templates), aborting
+  all remaining CLI tests in the Release CI build.
+
 ## v0.5.37 — 2026-07-26
 
 ### Fixed
