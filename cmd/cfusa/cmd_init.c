@@ -1,3 +1,6 @@
+#if defined(__linux__) || defined(__unix__)
+#  define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <getopt.h>
@@ -59,11 +62,12 @@ int cmd_init(int argc, char **argv)
     char dir_basename[256] = "project";
     if (!project) {
         const char *abs = dir;
-        char resolved[512];
-        if (realpath(dir, resolved)) abs = resolved;
+        char *resolved = realpath(dir, NULL);
+        if (resolved) abs = resolved;
         const char *slash = strrchr(abs, '/');
         strncpy(dir_basename, slash ? slash + 1 : abs, sizeof(dir_basename) - 1);
         project = dir_basename;
+        free(resolved);
     }
 
     cfusa_config_t cfg;
