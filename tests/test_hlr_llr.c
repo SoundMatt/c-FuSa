@@ -158,8 +158,8 @@ void test_json_output_has_hlrllr_summary(void)
 }
 
 /* JSON output includes parentId field for LLR requirements */
-//cfusa:req REQ-HLR001
-//cfusa:test REQ-HLR001
+//cfusa:req REQ-HLR004
+//cfusa:test REQ-HLR004
 void test_json_output_has_parent_id(void)
 {
     write_file(".fusa-reqs.json",
@@ -188,8 +188,8 @@ void test_json_output_has_parent_id(void)
 }
 
 /* Text output includes HLR/LLR summary when hierarchy present */
-//cfusa:req REQ-HLR001
-//cfusa:test REQ-HLR001
+//cfusa:req REQ-HLR004
+//cfusa:test REQ-HLR004
 void test_text_output_has_hlrllr_line(void)
 {
     write_file(".fusa-reqs.json",

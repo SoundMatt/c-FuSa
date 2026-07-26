@@ -1,6 +1,7 @@
 /*
  * Tests for cmd_qualify — exercises KAT and FUSA rule exercise paths.
  */
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <string.h>
 #include "unity.h"
@@ -10,6 +11,10 @@ extern int cmd_qualify(int argc, char **argv);
 void setUp(void)  {}
 void tearDown(void) {}
 
+//cfusa:req REQ-QUAL001
+//cfusa:req REQ-QUAL002
+//cfusa:test REQ-QUAL001
+//cfusa:test REQ-QUAL002
 void test_qualify_text_qualified(void)
 {
     char *argv[] = {"cfusa", "qualify", NULL};
@@ -17,6 +22,10 @@ void test_qualify_text_qualified(void)
     TEST_ASSERT_EQUAL(0, rc);
 }
 
+//cfusa:req REQ-QUAL001
+//cfusa:req REQ-QUAL002
+//cfusa:test REQ-QUAL001
+//cfusa:test REQ-QUAL002
 void test_qualify_json_qualified(void)
 {
     char *argv[] = {"cfusa", "qualify", "--format", "json", NULL};
@@ -24,6 +33,8 @@ void test_qualify_json_qualified(void)
     TEST_ASSERT_EQUAL(0, rc);
 }
 
+//cfusa:req REQ-QUAL001
+//cfusa:test REQ-QUAL001
 void test_qualify_verbose_qualified(void)
 {
     char *argv[] = {"cfusa", "qualify", "--verbose", NULL};
@@ -31,6 +42,8 @@ void test_qualify_verbose_qualified(void)
     TEST_ASSERT_EQUAL(0, rc);
 }
 
+//cfusa:req REQ-QUAL002
+//cfusa:test REQ-QUAL002
 void test_qualify_output_file(void)
 {
     char *argv[] = {"cfusa", "qualify", "--format", "json",
@@ -43,6 +56,8 @@ void test_qualify_output_file(void)
     if (f) fclose(f);
 }
 
+//cfusa:req REQ-QUAL003
+//cfusa:test REQ-QUAL003
 void test_qualify_help(void)
 {
     char *argv[] = {"cfusa", "qualify", "--help", NULL};

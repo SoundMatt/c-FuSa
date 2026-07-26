@@ -1,7 +1,11 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
+#include <unistd.h>
 #include <errno.h>
 #include <getopt.h>
 #include "cfusa/utils.h"
@@ -88,6 +92,39 @@ static void qt_rm_file(const char *dir, const char *name)
     char p[512]; snprintf(p, sizeof(p), "%s/%s", dir, name); remove(p);
 }
 
+/*
+ * Recursively remove all regular files and sub-directories under path,
+ * then remove path itself.  Uses only POSIX opendir/readdir/lstat/unlink/rmdir —
+ * no system() or shell, so there is no CWE-78 / MISRA-C Rule 21.8 exposure
+ * and no TOCTOU symlink-follow risk (symlinks are unlinked via unlink(), not
+ * followed into their targets).
+ */
+static void qt_rmdir_recursive(const char *path)
+{
+    DIR *d = opendir(path);
+    if (!d) {
+        /* Not a directory — try plain unlink */
+        unlink(path);
+        return;
+    }
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL) {
+        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
+            continue;
+        char child[512];
+        snprintf(child, sizeof(child), "%s/%s", path, ent->d_name);
+        /* Use lstat (not stat) so symlinks are never followed */
+        struct stat st;
+        if (lstat(child, &st) == 0 && S_ISDIR(st.st_mode)) {
+            qt_rmdir_recursive(child);
+        } else {
+            unlink(child);
+        }
+    }
+    closedir(d);
+    rmdir(path);
+}
+
 static int qt_mkdir_p(const char *path)
 {
     char tmp[512]; strncpy(tmp, path, sizeof(tmp)-1); tmp[sizeof(tmp)-1]='\0';
@@ -116,8 +153,8 @@ static int qt_write_file(const char *dir, const char *relpath, const char *conte
 
 static void qt_setup(void)
 {
-    /* Remove and recreate base temp dir */
-    (void)system("rm -rf " QTMP);
+    /* Remove and recreate base temp dir — no system()/shell, no TOCTOU risk */
+    qt_rmdir_recursive(QTMP);
     mkdir(QTMP, 0700);
 }
 

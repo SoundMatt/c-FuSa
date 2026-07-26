@@ -7,6 +7,27 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.36 — 2026-07-26
+
+### Fixed
+- **[P0] Security: cmd_qualify.c symlink/TOCTOU + CWE-78** — replaced `system("rm -rf " QTMP)`
+  in `qt_setup()` with a new `qt_rmdir_recursive()` helper that uses POSIX `opendir`/`readdir`/
+  `unlink`/`rmdir`. Eliminates CWE-78 (OS Command Injection), MISRA-C Rule 21.8, and the
+  TOCTOU symlink-dereference window where an attacker could pre-place a symlink at `QTMP` to
+  cause deletion of an arbitrary directory tree.
+- **[P1] REQ-HLR004 annotation gap** — `cmd_trace.c` parentId loading (load_reqs), parentId
+  JSON output (requirements[] emit), and `hlrllrSummary` block were attributed to REQ-HLR001.
+  Changed inline comments to `//cfusa:req REQ-HLR004`. In `test_hlr_llr.c`,
+  `test_json_output_has_parent_id` and `test_text_output_has_hlrllr_line` re-annotated from
+  REQ-HLR001 to REQ-HLR004 so cfusa trace now surfaces these tests as evidence for REQ-HLR004.
+- **[P1] test_qualify.c requirement annotations** — all 5 test functions were invisible to
+  cfusa trace. Added `//cfusa:req` / `//cfusa:test` annotations:
+  `test_qualify_text_qualified` and `test_qualify_json_qualified` → REQ-QUAL001/REQ-QUAL002;
+  `test_qualify_verbose_qualified` → REQ-QUAL001; `test_qualify_output_file` → REQ-QUAL002;
+  `test_qualify_help` → REQ-QUAL003. Added `#define _POSIX_C_SOURCE 200809L` per project style.
+- **[P2] Dead variable in cmd_coverage.c** — removed unused `obj_start` declaration (line 55)
+  and its `(void)obj_start` suppression cast (line 77) from `parse_mcdc_json()`.
+
 ## v0.5.35 — 2026-07-26
 
 ### Added

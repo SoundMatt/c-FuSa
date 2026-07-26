@@ -99,7 +99,8 @@ static void load_reqs(const char *dir)
         jfield(obj, "title",    g_reqs[g_req_count].title,     MAX_TITLE);
         jfield(obj, "standard", g_reqs[g_req_count].standard,  64);
         jfield(obj, "level",    g_reqs[g_req_count].level,     32);
-        jfield(obj, "parentId", g_reqs[g_req_count].parent_id, MAX_ID); /*REQ-HLR001*/
+        //cfusa:req REQ-HLR004
+        jfield(obj, "parentId", g_reqs[g_req_count].parent_id, MAX_ID);
         if (g_reqs[g_req_count].id[0]) g_req_count++;
         p = be + 1;
     }
@@ -545,8 +546,10 @@ int cmd_trace(int argc, char **argv)
                 fprintf(out, ", \"standard\": \"%s\"", esc_std);
             if (esc_lvl[0])
                 fprintf(out, ", \"level\": \"%s\"",    esc_lvl);
-            if (esc_pid[0])
+            if (esc_pid[0]) {
+                //cfusa:req REQ-HLR004
                 fprintf(out, ", \"parentId\": \"%s\"", esc_pid);
+            }
             fprintf(out, "}%s\n", (i < g_req_count - 1) ? "," : "");
         }
         fprintf(out, "  ],\n");
@@ -578,7 +581,8 @@ int cmd_trace(int argc, char **argv)
             "  }",
             total, traced, tested, sec_tested_count);
 
-        /* hlrllrSummary{} — only when HLR/LLR levels are in use (REQ-HLR001) */
+        /* hlrllrSummary{} — only when HLR/LLR levels are in use */
+        //cfusa:req REQ-HLR004
         if (g_hlr_count > 0 || g_llr_count > 0) {
             fprintf(out,
                 ",\n"
