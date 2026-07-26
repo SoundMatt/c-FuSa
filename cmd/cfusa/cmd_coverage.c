@@ -23,9 +23,10 @@ typedef struct {
 
 /*
  * Parse LLVM MC/DC coverage JSON export.
- * Format: {"data":[{"functions":[{"name":"...","mcdc_records":[{"conditions":[
- *            {"covered_true_count":N,"covered_false_count":M},...]},...]},...]},...]}
- * A condition is MC/DC covered iff covered_true_count > 0 AND covered_false_count > 0.
+ * The file is an array of test-run objects; each contains a "functions" array
+ * whose entries each carry an "mcdc_records" array of condition objects with
+ * covered_true_count and covered_false_count integer fields.
+ * A condition is MC/DC covered when both counts are positive.
  */
 //cfusa:req REQ-COV015
 static void parse_mcdc_json(const char *path, int threshold, mcdc_report_t *rep)

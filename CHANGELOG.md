@@ -7,6 +7,18 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.37 — 2026-07-26
+
+### Fixed
+- **[P0] Engine cleanup in cmd_qualify** — added `cfusa_engine_reset()` at the end of
+  `cmd_qualify()` so the global rule table is cleared after the qualification exercise
+  suite. Without this, stale engine state referenced stack memory from helper functions
+  (`qt_run_safety_rules`, etc.) that had already returned, causing glibc heap corruption
+  detected as a `SIGABRT` in the test runner on Linux (ubuntu-22.04 CI).
+- **[P2] CodeQL "Commented-out code" in cmd_coverage.c** — replaced the inline JSON
+  format example in the `parse_mcdc_json()` block comment with an equivalent prose
+  description, eliminating the false-positive CodeQL CWE alert.
+
 ## v0.5.36 — 2026-07-26
 
 ### Fixed
