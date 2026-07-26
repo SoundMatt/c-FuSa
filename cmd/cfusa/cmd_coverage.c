@@ -210,6 +210,8 @@ int cmd_coverage(int argc, char **argv)
     optind = 1;
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
     { extern int optreset; optreset = 1; }
+#elif defined(__linux__)
+    optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
 #endif
     while ((c = getopt_long(argc, argv, "d:L:f:o:D:t:mC:T:MS:h", long_opts, NULL)) != -1) {
         switch (c) {
