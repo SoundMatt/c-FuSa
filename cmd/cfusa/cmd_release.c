@@ -182,6 +182,9 @@ int cmd_release(int argc, char **argv)
             if (fgets(commit, sizeof(commit), gp)) {
                 char *nl = strchr(commit, '\n');
                 if (nl) *nl = '\0';
+                /* Drain any remaining output so the child does not
+                 * receive SIGPIPE when the read end is closed.        */
+                while (fgetc(gp) != EOF) {}
             }
             pclose(gp);
         }
@@ -193,6 +196,8 @@ int cmd_release(int argc, char **argv)
             if (fgets(branch, sizeof(branch), gp)) {
                 char *nl = strchr(branch, '\n');
                 if (nl) *nl = '\0';
+                /* Drain any remaining output before closing. */
+                while (fgetc(gp) != EOF) {}
             }
             pclose(gp);
         }
