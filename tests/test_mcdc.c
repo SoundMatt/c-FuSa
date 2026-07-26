@@ -2,6 +2,7 @@
  * Tests for MC/DC coverage analysis (Feature 3).
  * Exercises cmd_coverage --mcdc-file and --mcdc-threshold.
  */
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>

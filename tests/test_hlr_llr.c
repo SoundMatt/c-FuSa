@@ -2,6 +2,7 @@
  * Tests for HLR/LLR hierarchical traceability (Feature 1).
  * Exercises cmd_trace --strict-hlr-llr and HLR/LLR validation.
  */
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
