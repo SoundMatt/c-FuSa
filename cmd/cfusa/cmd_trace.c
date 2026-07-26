@@ -31,13 +31,22 @@
 #define KIND_SEC_TEST 2
 
 typedef struct { char id[MAX_ID]; char title[MAX_TITLE];
-                 char standard[64]; char level[32]; } req_t;
+                 char standard[64]; char level[32];
+                 char parent_id[MAX_ID]; } req_t; /* parent_id: LLR→HLR link (REQ-HLR001) */
 typedef struct { char req_id[MAX_ID]; char file[256];
                  int line; int kind; } tag_t;
 
 static req_t g_reqs[MAX_REQS];  static int g_req_count;
 static tag_t g_tags[MAX_TAGS];  static int g_tag_count;
 static char  g_dir_abs[512];    /* resolved absolute project root for path relativization */
+
+/* ---- HLR/LLR decomposition state (REQ-HLR001) ---- */
+#define MAX_HLR_LLR 512
+static char g_hlr_ids[MAX_HLR_LLR][MAX_ID]; static int g_hlr_count;
+static char g_llr_ids[MAX_HLR_LLR][MAX_ID];
+static char g_llr_parents[MAX_HLR_LLR][MAX_ID]; static int g_llr_count;
+static char g_orphaned[MAX_HLR_LLR][MAX_ID];    static int g_orphaned_count;
+static char g_uncovered[MAX_HLR_LLR][MAX_ID];   static int g_uncovered_count;
 
 /* ---- minimal JSON field extractor for { ... } objects ---- */
 static void jfield(const char *obj, const char *key, char *out, size_t sz)
@@ -86,10 +95,11 @@ static void load_reqs(const char *dir)
         size_t ol = (size_t)(be - bs + 1);
         if (ol > sizeof(obj) - 1) ol = sizeof(obj) - 1;
         memcpy(obj, bs, ol);
-        jfield(obj, "id",       g_reqs[g_req_count].id,       MAX_ID);
-        jfield(obj, "title",    g_reqs[g_req_count].title,    MAX_TITLE);
-        jfield(obj, "standard", g_reqs[g_req_count].standard, 64);
-        jfield(obj, "level",    g_reqs[g_req_count].level,    32);
+        jfield(obj, "id",       g_reqs[g_req_count].id,        MAX_ID);
+        jfield(obj, "title",    g_reqs[g_req_count].title,     MAX_TITLE);
+        jfield(obj, "standard", g_reqs[g_req_count].standard,  64);
+        jfield(obj, "level",    g_reqs[g_req_count].level,     32);
+        jfield(obj, "parentId", g_reqs[g_req_count].parent_id, MAX_ID); /*REQ-HLR001*/
         if (g_reqs[g_req_count].id[0]) g_req_count++;
         p = be + 1;
     }
@@ -277,6 +287,51 @@ static void do_scan_funcs(const char *root)
     cfusa_walk_sources(root, fexts, 1, funcfile_cb, NULL);
 }
 
+/* ---- HLR/LLR decomposition analysis (REQ-HLR001, REQ-HLR002, REQ-HLR003) ---- */
+//cfusa:req REQ-HLR001
+static void compute_hlr_llr(void)
+{
+    g_hlr_count = g_llr_count = g_orphaned_count = g_uncovered_count = 0;
+
+    /* Classify requirements by level field (case-insensitive HLR / LLR) */
+    for (int i = 0; i < g_req_count; i++) {
+        char lvl[33];
+        strncpy(lvl, g_reqs[i].level, sizeof(lvl) - 1);
+        lvl[sizeof(lvl)-1] = '\0';
+        for (char *p = lvl; *p; p++) *p = (char)toupper((unsigned char)*p);
+
+        if (!strcmp(lvl, "HLR") && g_hlr_count < MAX_HLR_LLR) {
+            strncpy(g_hlr_ids[g_hlr_count++], g_reqs[i].id, MAX_ID - 1);
+        } else if (!strcmp(lvl, "LLR") && g_llr_count < MAX_HLR_LLR) {
+            strncpy(g_llr_ids[g_llr_count],    g_reqs[i].id,        MAX_ID - 1);
+            strncpy(g_llr_parents[g_llr_count], g_reqs[i].parent_id, MAX_ID - 1);
+            g_llr_count++;
+        }
+    }
+
+    /* REQ-HLR002: every LLR must reference an existing HLR */
+    for (int i = 0; i < g_llr_count; i++) {
+        int valid = 0;
+        if (g_llr_parents[i][0]) {
+            for (int j = 0; j < g_hlr_count; j++) {
+                if (!strcmp(g_llr_parents[i], g_hlr_ids[j])) { valid = 1; break; }
+            }
+        }
+        if (!valid && g_orphaned_count < MAX_HLR_LLR)
+            strncpy(g_orphaned[g_orphaned_count++], g_llr_ids[i], MAX_ID - 1);
+    }
+
+    /* REQ-HLR003: every HLR must have at least one LLR child */
+    for (int j = 0; j < g_hlr_count; j++) {
+        int covered = 0;
+        for (int i = 0; i < g_llr_count; i++) {
+            if (!strcmp(g_llr_parents[i], g_hlr_ids[j])) { covered = 1; break; }
+        }
+        if (!covered && g_uncovered_count < MAX_HLR_LLR)
+            strncpy(g_uncovered[g_uncovered_count++], g_hlr_ids[j], MAX_ID - 1);
+    }
+}
+
 int cmd_trace(int argc, char **argv)
 {
     const char *dir  = ".";
@@ -286,21 +341,28 @@ int cmd_trace(int argc, char **argv)
     int req_coverage = 0;
     int sec_tested   = 0;
     int legacy       = 1;
+    int strict_hlr_llr = 0; /* REQ-HLR001 */
 
     static const struct option lo[] = {
-        {"dir",          required_argument, NULL, 'd'},
-        {"output",       required_argument, NULL, 'o'},
-        {"format",       required_argument, NULL, 'f'},
-        {"gaps",         no_argument,       NULL, 'g'},
-        {"req-coverage", required_argument, NULL, 'r'},
-        {"sec-tested",   required_argument, NULL, 's'},
-        {"no-legacy",    no_argument,       NULL, 'L'},
-        {"help",         no_argument,       NULL, 'h'},
+        {"dir",            required_argument, NULL, 'd'},
+        {"output",         required_argument, NULL, 'o'},
+        {"format",         required_argument, NULL, 'f'},
+        {"gaps",           no_argument,       NULL, 'g'},
+        {"req-coverage",   required_argument, NULL, 'r'},
+        {"sec-tested",     required_argument, NULL, 's'},
+        {"no-legacy",      no_argument,       NULL, 'L'},
+        {"strict-hlr-llr", no_argument,       NULL, 'H'}, /* REQ-HLR001 */
+        {"help",           no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c; optind = 1;
-    while ((c = getopt_long(argc, argv, "d:o:f:gr:s:Lh", lo, NULL)) != -1) {
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    { extern int optreset; optreset = 1; }
+#elif defined(__linux__)
+    optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
+#endif
+    while ((c = getopt_long(argc, argv, "d:o:f:gr:s:LHh", lo, NULL)) != -1) {
         switch (c) {
         case 'd': dir          = optarg;        break;
         case 'o': out_path     = optarg;        break;
@@ -309,18 +371,21 @@ int cmd_trace(int argc, char **argv)
         case 'r': req_coverage = atoi(optarg);  break;
         case 's': sec_tested   = atoi(optarg);  break;
         case 'L': legacy       = 0;             break;
+        case 'H': strict_hlr_llr = 1;          break; /* REQ-HLR001 */
         case 'h':
             printf("Usage: cfusa trace [--dir <path>] [--format text|json|md]\n"
                    "                   [--output <file>] [--gaps]\n"
-                   "                   [--req-coverage <N%%>] [--sec-tested <N%%>]\n\n"
+                   "                   [--req-coverage <N%%>] [--sec-tested <N%%>]\n"
+                   "                   [--strict-hlr-llr]\n\n"
                    "Builds a requirements traceability matrix from .cfusa-reqs.json\n"
                    "and source annotations:\n"
                    "  //cfusa:req REQ-ID       — implementation reference\n"
                    "  //cfusa:test REQ-ID      — test reference\n"
                    "  //cfusa:sec-test REQ-ID  — security-test reference\n\n"
-                   "  --gaps           list requirements with no //cfusa:test tag\n"
-                   "  --req-coverage N exit 1 if <N%% of requirements have impl traces\n"
-                   "  --sec-tested N   exit 1 if <N%% of requirements have test traces\n");
+                   "  --gaps             list requirements with no //cfusa:test tag\n"
+                   "  --req-coverage N   exit 1 if <N%% of requirements have impl traces\n"
+                   "  --sec-tested N     exit 1 if <N%% of requirements have test traces\n"
+                   "  --strict-hlr-llr   exit 1 if any HLR/LLR decomposition violations\n");
             return 0;
         default: return 2;
         }
@@ -328,6 +393,7 @@ int cmd_trace(int argc, char **argv)
 
     g_req_count = g_tag_count = 0;
     g_dir_abs[0] = '\0';
+    g_hlr_count = g_llr_count = g_orphaned_count = g_uncovered_count = 0;
     {
         char *tmp = realpath(dir, NULL);
         if (tmp) { strncpy(g_dir_abs, tmp, sizeof(g_dir_abs) - 1); free(tmp); }
@@ -339,9 +405,36 @@ int cmd_trace(int argc, char **argv)
     static const char * const exts[] = {".c", ".h"};
     cfusa_walk_sources(dir, exts, 2, trace_file_cb, &sctx);
 
+    compute_hlr_llr(); /* REQ-HLR001 */
+
     int total = g_req_count;
     int traced, tested, sec_tested_count;
     compute_coverage(&traced, &tested, &sec_tested_count);
+
+    /* REQ-HLR001: --strict-hlr-llr gate */
+    if (strict_hlr_llr) {
+        if (g_hlr_count == 0 && g_llr_count == 0) {
+            printf("HLR/LLR: no hierarchical requirements defined"
+                   " (no level HLR or LLR in requirements)\n");
+            return 0;
+        }
+        printf("HLR/LLR Decomposition\n");
+        printf("HLRs: %d  LLRs: %d  Orphaned: %d  Uncovered: %d\n",
+               g_hlr_count, g_llr_count, g_orphaned_count, g_uncovered_count);
+        for (int i = 0; i < g_orphaned_count; i++)
+            printf("  ORPHANED LLR  %s  (parentId missing or invalid)\n",
+                   g_orphaned[i]);
+        for (int i = 0; i < g_uncovered_count; i++)
+            printf("  UNCOVERED HLR %s  (no LLR children)\n", g_uncovered[i]);
+        if (g_orphaned_count > 0 || g_uncovered_count > 0) {
+            fprintf(stderr,
+                    "cfusa trace: --strict-hlr-llr gate failed: "
+                    "%d orphaned LLR(s), %d uncovered HLR(s)\n",
+                    g_orphaned_count, g_uncovered_count);
+            return 1;
+        }
+        return 0;
+    }
 
     /* --- req-coverage gate (metric 1 + metric 2) --- */
     if (req_coverage > 0) {
@@ -436,21 +529,24 @@ int cmd_trace(int argc, char **argv)
             "  \"generatedAt\": \"%s\",\n"
             "  \"projectRoot\": \"%s\",\n", ts, g_dir_abs);
 
-        /* requirements[] */
+        /* requirements[] — include parentId for LLR entries (REQ-HLR001) */
         fprintf(out, "  \"requirements\": [\n");
         for (int i = 0; i < g_req_count; i++) {
             char esc_id[MAX_ID*2], esc_title[MAX_TITLE*2],
-                 esc_std[128], esc_lvl[64];
-            cfusa_str_escape_json(g_reqs[i].id,       esc_id,    sizeof(esc_id));
-            cfusa_str_escape_json(g_reqs[i].title,    esc_title, sizeof(esc_title));
-            cfusa_str_escape_json(g_reqs[i].standard, esc_std,   sizeof(esc_std));
-            cfusa_str_escape_json(g_reqs[i].level,    esc_lvl,   sizeof(esc_lvl));
+                 esc_std[128], esc_lvl[64], esc_pid[MAX_ID*2];
+            cfusa_str_escape_json(g_reqs[i].id,        esc_id,    sizeof(esc_id));
+            cfusa_str_escape_json(g_reqs[i].title,     esc_title, sizeof(esc_title));
+            cfusa_str_escape_json(g_reqs[i].standard,  esc_std,   sizeof(esc_std));
+            cfusa_str_escape_json(g_reqs[i].level,     esc_lvl,   sizeof(esc_lvl));
+            cfusa_str_escape_json(g_reqs[i].parent_id, esc_pid,   sizeof(esc_pid));
             fprintf(out, "    {\"id\": \"%s\", \"title\": \"%s\"",
                     esc_id, esc_title);
             if (esc_std[0])
                 fprintf(out, ", \"standard\": \"%s\"", esc_std);
             if (esc_lvl[0])
                 fprintf(out, ", \"level\": \"%s\"",    esc_lvl);
+            if (esc_pid[0])
+                fprintf(out, ", \"parentId\": \"%s\"", esc_pid);
             fprintf(out, "}%s\n", (i < g_req_count - 1) ? "," : "");
         }
         fprintf(out, "  ],\n");
@@ -479,9 +575,43 @@ int cmd_trace(int argc, char **argv)
             "    \"tracedRequirements\": %d,\n"
             "    \"testedRequirements\": %d,\n"
             "    \"secTestedRequirements\": %d\n"
-            "  }\n"
-            "}\n",
+            "  }",
             total, traced, tested, sec_tested_count);
+
+        /* hlrllrSummary{} — only when HLR/LLR levels are in use (REQ-HLR001) */
+        if (g_hlr_count > 0 || g_llr_count > 0) {
+            fprintf(out,
+                ",\n"
+                "  \"hlrllrSummary\": {\n"
+                "    \"hlrCount\": %d,\n"
+                "    \"llrCount\": %d,\n"
+                "    \"orphanedCount\": %d,\n"
+                "    \"uncoveredCount\": %d",
+                g_hlr_count, g_llr_count,
+                g_orphaned_count, g_uncovered_count);
+            if (g_orphaned_count > 0) {
+                fprintf(out, ",\n    \"orphaned\": [");
+                for (int i = 0; i < g_orphaned_count; i++) {
+                    char esc[MAX_ID*2];
+                    cfusa_str_escape_json(g_orphaned[i], esc, sizeof(esc));
+                    fprintf(out, "\"%s\"%s", esc,
+                            (i < g_orphaned_count - 1) ? ", " : "");
+                }
+                fprintf(out, "]");
+            }
+            if (g_uncovered_count > 0) {
+                fprintf(out, ",\n    \"uncovered\": [");
+                for (int i = 0; i < g_uncovered_count; i++) {
+                    char esc[MAX_ID*2];
+                    cfusa_str_escape_json(g_uncovered[i], esc, sizeof(esc));
+                    fprintf(out, "\"%s\"%s", esc,
+                            (i < g_uncovered_count - 1) ? ", " : "");
+                }
+                fprintf(out, "]");
+            }
+            fprintf(out, "\n  }");
+        }
+        fprintf(out, "\n}\n");
     } else if (fmt == FMT_MD) {
         fprintf(out, "# Requirements Traceability Matrix\n\n");
         if (g_req_count > 0) {
@@ -518,6 +648,12 @@ int cmd_trace(int argc, char **argv)
         }
         fprintf(out, "\n**Coverage:** %d/%d traced, %d/%d tested\n",
                 traced, total, tested, total);
+        if (g_hlr_count > 0 || g_llr_count > 0)
+            fprintf(out,
+                    "\n| HLRs | %d |\n| LLRs | %d |\n"
+                    "| Orphaned LLRs | %d |\n| Uncovered HLRs | %d |\n",
+                    g_hlr_count, g_llr_count,
+                    g_orphaned_count, g_uncovered_count);
     } else {
         /* text */
         if (show_gaps) {
@@ -568,6 +704,9 @@ int cmd_trace(int argc, char **argv)
             }
             fprintf(out, "\nCoverage: %d/%d requirements traced, %d/%d tested\n",
                     traced, total, tested, total);
+            if (g_hlr_count > 0 || g_llr_count > 0)
+                fprintf(out, "HLR/LLR: %d HLRs  %d LLRs  %d orphaned  %d uncovered\n",
+                        g_hlr_count, g_llr_count, g_orphaned_count, g_uncovered_count);
         } else if (g_tag_count > 0) {
             fprintf(out, "\n%-24s  %-40s  %s\n", "ANNOTATION", "FILE", "LINE");
             fprintf(out, "%-24s  %-40s  %s\n",

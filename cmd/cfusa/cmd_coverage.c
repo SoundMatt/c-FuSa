@@ -1,3 +1,6 @@
+#if defined(__linux__) || defined(__unix__)
+#  define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +10,93 @@
 #include "cfusa/version.h"
 
 /* Parses lcov .info files for line, function, and branch coverage */
+
+/* ── MC/DC analysis (REQ-COV015) ──────────────────────────────────────────── */
+
+typedef struct {
+    long total_conditions;
+    long covered_conditions;
+    double coverage_pct;
+    int   passed;
+    char  note[256];
+} mcdc_report_t;
+
+/*
+ * Parse LLVM MC/DC coverage JSON export.
+ * Format: {"data":[{"functions":[{"name":"...","mcdc_records":[{"conditions":[
+ *            {"covered_true_count":N,"covered_false_count":M},...]},...]},...]},...]}
+ * A condition is MC/DC covered iff covered_true_count > 0 AND covered_false_count > 0.
+ */
+//cfusa:req REQ-COV015
+static void parse_mcdc_json(const char *path, int threshold, mcdc_report_t *rep)
+{
+    rep->total_conditions = rep->covered_conditions = 0;
+    rep->coverage_pct = 100.0;
+    rep->passed = 1;
+    rep->note[0] = '\0';
+
+    size_t len;
+    char *json = cfusa_read_file(path, &len);
+    if (!json) {
+        snprintf(rep->note, sizeof(rep->note),
+                 "cannot read MC/DC file: %s", path);
+        rep->passed = 0;
+        return;
+    }
+
+    /*
+     * Walk all {"covered_true_count":N,"covered_false_count":M} objects.
+     * We scan for the key "covered_true_count" and then "covered_false_count"
+     * within the same braced object.
+     */
+    const char *p = json;
+    while ((p = strstr(p, "\"covered_true_count\"")) != NULL) {
+        /* Extract the enclosing condition object — scan back to { */
+        const char *obj_start = p;
+        /* Find the next closing brace for this condition object */
+        const char *obj_end = strchr(p, '}');
+        if (!obj_end) { p++; continue; }
+
+        /* Extract covered_true_count */
+        const char *tp = strchr(p, ':');
+        long true_count = 0, false_count = 0;
+        if (tp && tp < obj_end) true_count = atol(tp + 1);
+
+        /* Extract covered_false_count within the same object */
+        const char *fp = strstr(p, "\"covered_false_count\"");
+        if (fp && fp < obj_end) {
+            fp = strchr(fp, ':');
+            if (fp) false_count = atol(fp + 1);
+        }
+
+        rep->total_conditions++;
+        if (true_count > 0 && false_count > 0)
+            rep->covered_conditions++;
+
+        p = obj_end + 1;
+        (void)obj_start;
+    }
+
+    free(json);
+
+    if (rep->total_conditions == 0) {
+        snprintf(rep->note, sizeof(rep->note),
+                 "no MC/DC records found in coverage export");
+        rep->passed = 1;
+        return;
+    }
+
+    rep->coverage_pct = (double)rep->covered_conditions
+                        * 100.0 / (double)rep->total_conditions;
+
+    int thr = (threshold <= 0) ? 100 : threshold;
+    rep->passed = (rep->coverage_pct >= (double)thr);
+    if (!rep->passed) {
+        snprintf(rep->note, sizeof(rep->note),
+                 "MC/DC gate failed: %.1f%% covered (threshold %d%%)",
+                 rep->coverage_pct, thr);
+    }
+}
 
 typedef struct {
     long   lines_found;
@@ -95,24 +185,35 @@ int cmd_coverage(int argc, char **argv)
     int    mcdc              = 0;
     int    mutate            = 0;
     double mutate_score      = -1.0;  /* <0 = not provided */
+    /* Feature 3 — MC/DC LLVM JSON (REQ-COV015) */
+    //cfusa:req REQ-COV015
+    const char *mcdc_file    = NULL;
+    int    mcdc_threshold    = 100;
 
     static const struct option long_opts[] = {
-        {"dir",          required_argument, NULL, 'd'},
-        {"lcov",         required_argument, NULL, 'L'},
-        {"format",       required_argument, NULL, 'f'},
-        {"output",       required_argument, NULL, 'o'},
-        {"dal",          required_argument, NULL, 'D'},
-        {"threshold",    required_argument, NULL, 't'},
-        {"mcdc",         no_argument,       NULL, 'm'},
-        {"mutate",       no_argument,       NULL, 'M'},
-        {"mutate-score", required_argument, NULL, 'S'},
-        {"help",         no_argument,       NULL, 'h'},
+        {"dir",            required_argument, NULL, 'd'},
+        {"lcov",           required_argument, NULL, 'L'},
+        {"format",         required_argument, NULL, 'f'},
+        {"output",         required_argument, NULL, 'o'},
+        {"dal",            required_argument, NULL, 'D'},
+        {"threshold",      required_argument, NULL, 't'},
+        {"mcdc",           no_argument,       NULL, 'm'},
+        {"mcdc-file",      required_argument, NULL, 'C'}, /* REQ-COV015 */
+        {"mcdc-threshold", required_argument, NULL, 'T'}, /* REQ-COV015 */
+        {"mutate",         no_argument,       NULL, 'M'},
+        {"mutate-score",   required_argument, NULL, 'S'},
+        {"help",           no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:L:f:o:D:t:mMS:h", long_opts, NULL)) != -1) {
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    { extern int optreset; optreset = 1; }
+#elif defined(__linux__)
+    optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
+#endif
+    while ((c = getopt_long(argc, argv, "d:L:f:o:D:t:mC:T:MS:h", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir          = optarg;          break;
         case 'L': lcov_in      = optarg;          break;
@@ -122,6 +223,9 @@ int cmd_coverage(int argc, char **argv)
                   dal_explicit = 1;               break;
         case 't': threshold    = atof(optarg);    break;
         case 'm': mcdc         = 1;               break;
+        case 'C': mcdc_file    = optarg;
+                  mcdc         = 1;               break; /* --mcdc-file implies --mcdc */
+        case 'T': mcdc_threshold = atoi(optarg); break;
         case 'M': mutate       = 1;               break;
         case 'S': mutate_score = atof(optarg);
                   mutate       = 1;               break;
@@ -130,6 +234,7 @@ int cmd_coverage(int argc, char **argv)
                    "                      [--format text|json] [--output <file>]\n"
                    "                      [--dal DAL-A|DAL-B|DAL-C|DAL-D]\n"
                    "                      [--threshold <pct>] [--mcdc]\n"
+                   "                      [--mcdc-file <llvm.json>] [--mcdc-threshold <pct>]\n"
                    "                      [--mutate] [--mutate-score <pct>]\n\n"
                    "Parses gcov/lcov output and reports statement, function, and\n"
                    "branch coverage. --dal sets DO-178C level requirements:\n"
@@ -138,6 +243,8 @@ int cmd_coverage(int argc, char **argv)
                    "  DAL-C: 100%% line (statement)\n"
                    "  DAL-D: no coverage threshold\n"
                    "--mcdc flags decision coverage <100%%.\n"
+                   "--mcdc-file parses an LLVM coverage JSON export for MC/DC analysis.\n"
+                   "--mcdc-threshold N sets the minimum %% of conditions covered (default 100).\n"
                    "--mutate reads mutation-report.json (or --mutate-score N) as\n"
                    "MC/DC mutation-testing evidence for DO-178C DAL A/B.\n"
                    "Generate lcov data with: lcov --capture --directory . -o coverage.info\n");
@@ -156,9 +263,11 @@ int cmd_coverage(int argc, char **argv)
         apply_dal(dal, &threshold, &threshold_branch, &mcdc);
     }
 
-    /* Locate lcov file if not specified */
+    /* Locate lcov file if not specified.
+     * Skip auto-detection in MC/DC-file-only mode (REQ-COV015): when
+     * --mcdc-file is the sole input, lcov is not required. */
     char auto_path[512];
-    if (!lcov_in) {
+    if (!lcov_in && !mcdc_file) {
         cfusa_path_join(auto_path, sizeof(auto_path), dir, "coverage.info");
         if (!cfusa_file_exists(auto_path)) {
             cfusa_path_join(auto_path, sizeof(auto_path), dir, "lcov.info");
@@ -195,6 +304,8 @@ int cmd_coverage(int argc, char **argv)
     if (!lcov_in || !cfusa_file_exists(lcov_in)) {
         if (mutate && mutate_score >= 0.0) {
             /* mutation-only mode: no lcov required */
+        } else if (mcdc_file) {
+            /* REQ-COV015: MC/DC-file-only mode: no lcov required */
         } else {
             fprintf(stderr, "cfusa coverage: no lcov .info file found.\n"
                     "  Generate with: lcov --capture --directory %s -o coverage.info\n"
@@ -217,9 +328,18 @@ int cmd_coverage(int argc, char **argv)
 
     char ts[32]; cfusa_timestamp_now(ts);
 
+    /* Parse LLVM MC/DC JSON if --mcdc-file given (REQ-COV015) */
+    mcdc_report_t mcdc_rep = {0, 0, 100.0, 1, ""};
+    int have_mcdc_rep = 0;
+    if (mcdc_file) {
+        parse_mcdc_json(mcdc_file, mcdc_threshold, &mcdc_rep);
+        have_mcdc_rep = 1;
+    }
+
     int line_pass   = !lcov_in || line_pct   >= threshold;
     int branch_pass = !lcov_in || threshold_branch <= 0.0 || branch_pct >= threshold_branch;
     int mcdc_pass   = !mcdc    || !lcov_in   || branch_pct >= 100.0;
+    if (have_mcdc_rep) mcdc_pass = mcdc_rep.passed; /* LLVM MC/DC overrides branch proxy */
     int mut_pass    = !mutate  || mutate_score < 0.0 || mutate_score >= 100.0;
     int overall_pass = line_pass && branch_pass && mcdc_pass && mut_pass;
 
@@ -256,6 +376,27 @@ int cmd_coverage(int argc, char **argv)
                 mutate_score,
                 mutate_score >= 100.0 ? "true" : "false");
         }
+        /* REQ-COV015: structured MC/DC report */
+        if (have_mcdc_rep) {
+            fprintf(out_f,
+                ",\n"
+                "  \"mcdcReport\": {\n"
+                "    \"sourceFile\": \"%s\",\n"
+                "    \"threshold\": %d,\n"
+                "    \"totalConditions\": %ld,\n"
+                "    \"coveredConditions\": %ld,\n"
+                "    \"coveragePct\": %.2f,\n"
+                "    \"passed\": %s",
+                mcdc_file ? mcdc_file : "",
+                mcdc_threshold,
+                mcdc_rep.total_conditions,
+                mcdc_rep.covered_conditions,
+                mcdc_rep.coverage_pct,
+                mcdc_rep.passed ? "true" : "false");
+            if (mcdc_rep.note[0])
+                fprintf(out_f, ",\n    \"note\": \"%s\"", mcdc_rep.note);
+            fprintf(out_f, "\n  }");
+        }
         fprintf(out_f, "\n}\n");
     } else {
         if (lcov_in)
@@ -274,11 +415,22 @@ int cmd_coverage(int argc, char **argv)
                     branch_pct, state.branches_hit, state.branches_found,
                     branch_pass ? "PASS" : "FAIL");
         }
-        if (mcdc && lcov_in) {
+        if (mcdc && lcov_in && !have_mcdc_rep) {
             fprintf(out_f, "\n  MC/DC analysis: branch coverage %.2f%%", branch_pct);
             if (!mcdc_pass)
                 fprintf(out_f, "  [FAIL — DO-178C requires 100%%]");
             fprintf(out_f, "\n");
+        }
+        /* REQ-COV015: LLVM MC/DC structured report */
+        if (have_mcdc_rep) {
+            fprintf(out_f, "\n  MC/DC coverage (LLVM): %.2f%%"
+                    "  (%ld/%ld conditions)  [%s]  (threshold: %d%%)\n",
+                    mcdc_rep.coverage_pct,
+                    mcdc_rep.covered_conditions, mcdc_rep.total_conditions,
+                    mcdc_rep.passed ? "PASS" : "FAIL",
+                    mcdc_threshold);
+            if (mcdc_rep.note[0])
+                fprintf(out_f, "  Note: %s\n", mcdc_rep.note);
         }
         if (mutate && mutate_score >= 0.0) {
             fprintf(out_f, "\n  Mutation score: %.2f%%", mutate_score);

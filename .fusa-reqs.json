@@ -110,6 +110,15 @@
     {"id":"REQ-COMP-TEXT001","title":"cfusa comp text output shows 'Total functions: N  Exceeding threshold: N' summary; parity with go-FuSa TestRunComp_Text_NoExceedances","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-CLI-REQ002","title":"cfusa req import exits 2 for empty CSV or bad header, exits 3 for file not found; parity with go-FuSa TestRunReqImport_CSVEmptyFile/CSVBadHeader/CSVReadError","standard":"go-FuSa parity","level":"ASIL-A"},
     {"id":"REQ-CLI-FIX001","title":"cfusa fix accepts --report <file> flag and writes JSON findings report; parity with go-FuSa TestRunFix_WithFindingsAndOutput","standard":"go-FuSa parity","level":"ASIL-A"},
-    {"id":"REQ-IEC62443-HEADER001","title":"cfusa iec62443 text header is 'IEC 62443 Gap Report' (contains canonical substring); parity with go-FuSa TestRunIEC62443_TextDefault","standard":"go-FuSa parity","level":"ASIL-A"}
+    {"id":"REQ-IEC62443-HEADER001","title":"cfusa iec62443 text header is 'IEC 62443 Gap Report' (contains canonical substring); parity with go-FuSa TestRunIEC62443_TextDefault","standard":"go-FuSa parity","level":"ASIL-A"},
+    {"id":"REQ-HLR001","title":"cfusa trace --strict-hlr-llr flag exits 1 when any HLR/LLR decomposition violations are found; parent_id field in requirement struct links LLR to HLR","standard":"ISO 26262","level":"HLR"},
+    {"id":"REQ-HLR002","title":"cfusa trace validates every LLR references an existing HLR via parentId; orphaned LLRs (empty or invalid parentId) are reported","standard":"ISO 26262","level":"HLR"},
+    {"id":"REQ-HLR003","title":"cfusa trace validates every HLR has at least one LLR child; uncovered HLRs are reported","standard":"ISO 26262","level":"HLR"},
+    {"id":"REQ-HLR004","title":"cfusa trace JSON output includes hlrllrSummary and parentId field on LLR requirements; text output shows HLR/LLR summary line","standard":"ISO 26262","level":"LLR"},
+    {"id":"REQ-QUAL003","title":"cfusa qualify --qualification-method accepts self|independent; --qualifier sets qualifier identity; --record-uri sets qualification record URI","standard":"ISO 26262","level":"HLR"},
+    {"id":"REQ-QUAL006","title":"cfusa qualify shows qualification badge: independently-qualified, self-qualified, or unqualified based on --qualification-method","standard":"ISO 26262","level":"HLR"},
+    {"id":"REQ-VV001","title":"cfusa qualify --implementation-author, --independent-reviewer, --independent-test-executor, --achievable-asil flags store V&V independence metadata","standard":"ISO 26262","level":"HLR"},
+    {"id":"REQ-VV004","title":"cfusa qualify independence status is independent when reviewer differs from author; self-reviewed when same; unqualified when no reviewer","standard":"ISO 26262","level":"LLR"},
+    {"id":"REQ-COV015","title":"cfusa coverage --mcdc-file parses LLVM MC/DC JSON; condition covered iff covered_true_count>0 AND covered_false_count>0; gate fails when coverage below --mcdc-threshold","standard":"DO-178C","level":"HLR"}
   ]
 }

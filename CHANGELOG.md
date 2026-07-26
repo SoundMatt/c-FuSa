@@ -7,6 +7,42 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.35 — 2026-07-26
+
+### Added
+- **Feature 1 — HLR/LLR hierarchical traceability** (`cmd_trace.c`): `parent_id` field in
+  `req_t` struct; `compute_hlr_llr()` function detecting orphaned LLRs (missing/invalid
+  `parentId`) and uncovered HLRs (no LLR children). CLI `--strict-hlr-llr` flag gates on
+  any violation (exit 1). Text renderer shows `HLR/LLR: N HLRs  N LLRs` summary line.
+  JSON renderer adds `hlrllrSummary` object and emits `parentId` field on LLR requirements.
+  Markdown renderer adds HLR/LLR summary table rows. 8 new tests in `test_hlr_llr.c`.
+  (REQ-HLR001, REQ-HLR002, REQ-HLR003, REQ-HLR004; closes #48)
+- **Feature 2 — Tool qualification display** (`cmd_qualify.c`): `--qualification-method`
+  (self|independent), `--qualifier`, `--record-uri` CLI flags. `qualification_badge()`
+  helper returns "independently-qualified", "self-qualified", or "unqualified". Badge and
+  fields shown in text and JSON output. 9 new tests in `test_qualify_vv.c` covering
+  Features 2 and 4. (REQ-QUAL003, REQ-QUAL006; closes #49)
+- **Feature 3 — MC/DC coverage measurement** (`cmd_coverage.c`): `--mcdc-file` (path to
+  LLVM coverage JSON export) and `--mcdc-threshold` (0–100, default 100) CLI flags.
+  `parse_mcdc_json()` parses LLVM `mcdc_records`/`conditions` format. A condition is MC/DC
+  covered when `covered_true_count > 0 AND covered_false_count > 0`. Gate fails when overall
+  coverage falls below threshold. MC/DC-file-only mode skips lcov auto-detection. JSON output
+  adds `mcdcReport` object. 8 new tests in `test_mcdc.c`. (REQ-COV015; closes #50)
+- **Feature 4 — V&V independence declaration** (`cmd_qualify.c`): `--implementation-author`,
+  `--independent-reviewer`, `--independent-test-executor`, `--achievable-asil` CLI flags.
+  `independence_status()` helper returns "independent" when reviewer differs from author,
+  "self-reviewed" when they are the same, "unqualified" when no reviewer is set. Fields
+  included in JSON output. (REQ-VV001, REQ-VV004; closes #51)
+- 9 new requirements registered in `.fusa-reqs.json`:
+  REQ-HLR001–004, REQ-QUAL003, REQ-QUAL006, REQ-VV001, REQ-VV004, REQ-COV015.
+- 3 new test files: `tests/test_hlr_llr.c` (8 tests), `tests/test_qualify_vv.c` (9 tests),
+  `tests/test_mcdc.c` (8 tests). Total tests: 37 (was 34).
+
+### Fixed
+- `cmd_coverage`: Added macOS/BSD `optreset = 1` alongside `optind = 1` to ensure proper
+  getopt state reset between multiple calls in the same process.
+- `cmd_qualify`: Same `optreset` fix.
+
 ## v0.5.34 — 2026-07-25
 
 - Fix CFUSA_SCHEMA_VERSION and CFUSA_SPEC_VERSION from "1.9" to "1.10.4"
