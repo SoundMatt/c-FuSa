@@ -155,6 +155,7 @@ cfusa_test(test_runtime)
 cfusa_test(test_hlr_llr)
 cfusa_test(test_qualify_vv)
 cfusa_test(test_mcdc)
+cfusa_test(test_gap_coverage)
 
 # ---- Installation ----
 include(GNUInstallDirs)

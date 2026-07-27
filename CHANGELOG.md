@@ -7,6 +7,23 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.40 — 2026-07-27
+
+### Fixed
+- **Coverage gate raised from 68% to 80%** in `.github/workflows/ci.yml`.
+
+### Added
+- **38 gap-coverage tests** in `tests/test_gap_coverage.c` covering previously
+  untested code paths in nine low-coverage command modules:
+  `cmd_diff` (parse\_report, find\_key), `cmd_fmea` (fmea\_line, infer\_severity,
+  sev\_string, fmea\_file, all format/cyber variants), `cmd_badge` (badge
+  rendering with and without a JSON report), `cmd_pr` (new\_pr, close\_pr, list),
+  `cmd_impact` (load\_req\_ids), `cmd_vuln` (match\_word, vuln\_line, vuln\_file,
+  output-dir and file output), `cmd_boundary` (boundary\_line, boundary\_file,
+  mermaid/dot/text formats), `cmd_fix` (lookup\_fix, report output), and
+  `cmd_sci` (sci\_file, json/md/text formats).
+- Overall line coverage improved from 76.9% to **83.3%** (exceeds the 80% gate).
+
 ## v0.5.39 — 2026-07-27
 
 ### Fixed
