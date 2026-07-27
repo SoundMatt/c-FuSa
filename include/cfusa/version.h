@@ -3,8 +3,8 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  5
-#define CFUSA_VERSION_PATCH  43
-#define CFUSA_VERSION_STRING "0.5.43"
+#define CFUSA_VERSION_PATCH  44
+#define CFUSA_VERSION_STRING "0.5.44"
 #define CFUSA_SCHEMA_VERSION "1.11.0"
 /* Bumped from 1.10.12 to match the x-FuSa master spec's additive §1.4.1
  * "requirement annotation completeness" MINOR bump (issue #62 item 3). The

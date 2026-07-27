@@ -7,6 +7,23 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.44 — 2026-07-27
+
+### Fixed
+- **The v0.5.43 Docker license-label fix didn't actually reach the published
+  image.** `docker/metadata-action` auto-generates a set of OCI labels
+  (including `org.opencontainers.image.licenses`, defaulted to
+  `NOASSERTION` because it can't detect an SPDX license from the GitHub
+  API) and `docker-publish.yml` passed that full label set to
+  `build-push-action`, which overrides same-key `LABEL`s declared in the
+  Dockerfile. So the real `ghcr.io/soundmatt/c-fusa:0.5.43` image still
+  shipped `licenses=NOASSERTION`, silently undoing the Dockerfile fix from
+  v0.5.43 (#62 item 1). Fixed by passing `org.opencontainers.image.licenses:
+  MPL-2.0` as a custom label to `docker/metadata-action` itself, which
+  overrides its own auto-generated value before it ever reaches
+  `build-push-action`. Caught by manually inspecting the published v0.5.43
+  image's labels via the Docker Publish workflow logs after tagging.
+
 ## v0.5.43 — 2026-07-27
 
 Fixes from a 2026-07-27 cross-repo audit (issues #62, #63).
