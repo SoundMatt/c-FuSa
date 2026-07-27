@@ -6,6 +6,8 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-MET001 REQ-MET002 REQ-MET003 REQ-MET004 REQ-MET005 REQ-MET-SUBCMD001 REQ-MET-SUBCMD002 REQ-MET-REC001
+
 /*
  * Safety metrics tracking over time.
  * Records snapshots of cfusa findings counts in .fusa-metrics.jsonl

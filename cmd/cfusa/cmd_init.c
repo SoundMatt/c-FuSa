@@ -9,6 +9,7 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-CLI001 REQ-CLI002 REQ-INIT-DOCS001 REQ-INIT-EXISTS001 REQ-INIT-MODULE001
 extern int cfusa_template_generate_all(const char *docs_dir);
 
 int cmd_init(int argc, char **argv)

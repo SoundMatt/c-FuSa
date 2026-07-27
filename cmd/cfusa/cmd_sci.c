@@ -5,6 +5,8 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-CLI-SCI001 REQ-SCI001 REQ-SCI002
+
 /* Software Configuration Index — lists all source files with SHA-256 checksums */
 
 typedef struct {

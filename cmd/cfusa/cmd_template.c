@@ -4,6 +4,7 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-CLI-TEMPLATE001 REQ-TMPL001 REQ-TMPL002
 typedef struct {
     const char *name;
     const char *filename;

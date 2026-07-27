@@ -11,6 +11,7 @@
 #include "cfusa/version.h"
 
 /* §9.1: capabilities --format json — discovery handshake for FuSaOps */
+//cfusa:req REQ-CAP001 REQ-CAP002 REQ-SLSA001 REQ-SLSA002
 int cmd_capabilities(int argc, char **argv)
 {
     const char *fmt    = "text";

@@ -170,6 +170,7 @@ static void apply_dal(const char *dal, double *threshold_line,
     }
 }
 
+//cfusa:req REQ-COV001 REQ-COV002 REQ-COV003 REQ-COV004
 int cmd_coverage(int argc, char **argv)
 {
     const char *dir          = ".";

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "../vendor/unity/unity.h"
 
 extern int cmd_req(int argc, char **argv);
@@ -425,7 +426,9 @@ void test_req_import_jama_csv(void)
 }
 
 //cfusa:req REQ-REQ013
+//cfusa:req REQ-REQXML001
 //cfusa:test REQ-REQ013
+//cfusa:test REQ-REQXML001
 void test_req_import_reqif_xml(void)
 {
     char xmlpath[256];
@@ -448,11 +451,121 @@ void test_req_import_reqif_xml(void)
               "</REQ-IF>\n", f);
         fclose(f);
     }
+    /* DOORS ReqIF XML (REQ-REQXML001): --format doors parses <SPEC-OBJECT>
+     * elements, using LONG-NAME as title and <THE-VALUE> as text. */
     char *argv[] = {"cfusa", "import", "--dir", RTC_DIR,
                     "--format", "doors", xmlpath, NULL};
     int rc = cmd_req(7, argv);
-    /* May return 0 or non-zero depending on parse; must not crash */
-    (void)rc;
+    TEST_ASSERT_EQUAL_INT(0, rc);
+
+    char reqs_path[256];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    FILE *jf = fopen(reqs_path, "r");
+    if (jf) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Safety requirement"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Shall detect overflow"));
+    }
+    remove(xmlpath);
+}
+
+//cfusa:test REQ-REQXML002
+void test_req_import_codebeamer_xml(void)
+{
+    char xmlpath[256];
+    snprintf(xmlpath, sizeof(xmlpath), "%s/cb_import.xml", RTC_DIR);
+    FILE *f = fopen(xmlpath, "w");
+    if (f) {
+        fputs("<tracker>\n"
+              "  <item id=\"301\">\n"
+              "    <summary>CB XML summary</summary>\n"
+              "    <description>CB XML description</description>\n"
+              "  </item>\n"
+              "</tracker>\n", f);
+        fclose(f);
+    }
+    /* Codebeamer XML (REQ-REQXML002): --format codebeamer + .xml extension
+     * parses <item id=\"...\"><summary>/<description> elements. */
+    char *argv[] = {"cfusa", "import", "--dir", RTC_DIR,
+                    "--format", "codebeamer", xmlpath, NULL};
+    int rc = cmd_req(7, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+
+    char reqs_path[256];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    FILE *jf = fopen(reqs_path, "r");
+    if (jf) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "CB-301"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "CB XML summary"));
+    }
+    remove(xmlpath);
+}
+
+//cfusa:test REQ-REQXML003
+void test_req_import_jama_xml(void)
+{
+    char xmlpath[256];
+    snprintf(xmlpath, sizeof(xmlpath), "%s/jama_import.xml", RTC_DIR);
+    FILE *f = fopen(xmlpath, "w");
+    if (f) {
+        fputs("<items>\n"
+              "  <item id=\"402\" itemType=\"Requirement\">\n"
+              "    <name>Jama XML item</name>\n"
+              "    <description>Jama XML description</description>\n"
+              "  </item>\n"
+              "</items>\n", f);
+        fclose(f);
+    }
+    /* Jama XML (REQ-REQXML003): --format jama + .xml extension parses
+     * <item id=\"...\"><name>/<description> elements. */
+    char *argv[] = {"cfusa", "import", "--dir", RTC_DIR,
+                    "--format", "jama", xmlpath, NULL};
+    int rc = cmd_req(7, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+
+    char reqs_path[256];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    FILE *jf = fopen(reqs_path, "r");
+    if (jf) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "JAMA-402"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Jama XML item"));
+    }
+    remove(xmlpath);
+}
+
+//cfusa:test REQ-REQXML004
+void test_req_import_polarion_xml(void)
+{
+    char xmlpath[256];
+    snprintf(xmlpath, sizeof(xmlpath), "%s/polarion_import.xml", RTC_DIR);
+    FILE *f = fopen(xmlpath, "w");
+    if (f) {
+        fputs("<workitems>\n"
+              "  <workitem id=\"REQ-POL-501\">\n"
+              "    <title>Polarion item</title>\n"
+              "    <description>Polarion description</description>\n"
+              "  </workitem>\n"
+              "</workitems>\n", f);
+        fclose(f);
+    }
+    /* Polarion XML (REQ-REQXML004): --format polarion + .xml extension (no
+     * "reqif" substring in the format string) parses <workitem id=\"...\">
+     * <title>/<description> elements. */
+    char *argv[] = {"cfusa", "import", "--dir", RTC_DIR,
+                    "--format", "polarion", xmlpath, NULL};
+    int rc = cmd_req(7, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+
+    char reqs_path[256];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    FILE *jf = fopen(reqs_path, "r");
+    if (jf) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "REQ-POL-501"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Polarion item"));
+    }
     remove(xmlpath);
 }
 
@@ -566,6 +679,105 @@ void test_trace_req_coverage_truncated(void)
     rm_file("many.c");
 }
 
+/* ---- --func-coverage (REQ-FUNCCOV001, x-FuSa spec §1.4.1) ---- */
+
+//cfusa:req REQ-FUNCCOV001
+//cfusa:test REQ-FUNCCOV001
+void test_trace_func_coverage_gate_pass(void)
+{
+    /* impl.c has 2 functions, both in a file carrying //cfusa:req -> 100% */
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--func-coverage", "80", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+}
+
+//cfusa:req REQ-FUNCCOV001
+//cfusa:test REQ-FUNCCOV001
+void test_trace_func_coverage_gate_fail(void)
+{
+    /* extra.c has 5 unannotated functions -> 2/(2+5)=28% < 80% -> gate fails */
+    write_file("extra.c",
+        "void fn1(void) {}\nvoid fn2(void) {}\nvoid fn3(void) {}\n"
+        "void fn4(void) {}\nvoid fn5(void) {}\n");
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--func-coverage", "80", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(1, rc);
+    rm_file("extra.c");
+}
+
+//cfusa:req REQ-FUNCCOV001
+//cfusa:test REQ-FUNCCOV001
+void test_trace_func_coverage_zero_disabled(void)
+{
+    /* --func-coverage 0 disables the gate -> exit 0 even with poor coverage */
+    write_file("extra.c",
+        "void fn1(void) {}\nvoid fn2(void) {}\nvoid fn3(void) {}\n");
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--func-coverage", "0", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    rm_file("extra.c");
+}
+
+//cfusa:req REQ-FUNCCOV001
+//cfusa:test REQ-FUNCCOV001
+void test_trace_func_coverage_na_empty(void)
+{
+    /* no .c files at all -> N/A -> exit 0 */
+    rm_file("impl.c");
+    rm_file("test_impl.c");
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--func-coverage", "90", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    /* restore for subsequent tests */
+    write_file("impl.c",
+        "//cfusa:req REQ-A001\nvoid alpha(void) {}\n"
+        "//cfusa:req REQ-A002\nvoid beta(void) {}\n");
+    write_file("test_impl.c",
+        "//cfusa:test REQ-A001\nvoid test_alpha(void) {}\n"
+        "//cfusa:test REQ-A002\nvoid test_beta(void) {}\n");
+}
+
+/* ---- dangling test-tag reference (REQ-TESTDANGLE001, x-FuSa spec §1.4.1) ---- */
+
+//cfusa:req REQ-TESTDANGLE001
+//cfusa:test REQ-TESTDANGLE001
+void test_trace_dangling_test_tag_warning(void)
+{
+    /* //cfusa:test REQ-GHOST999 has no matching entry in .cfusa-reqs.json ->
+     * cmd_trace must emit a WARNING to stderr (never silently accepted),
+     * and must NOT crash or otherwise treat it as fatal. */
+    write_file("dangling.c",
+        "//cfusa:test REQ-GHOST999\nvoid test_ghost(void) {}\n");
+
+    char errpath[256];
+    snprintf(errpath, sizeof(errpath), "%s/stderr_capture.txt", RTC_DIR);
+    fflush(stderr);
+    int saved_fd = dup(STDERR_FILENO);
+    FILE *redirected = freopen(errpath, "w", stderr);
+    TEST_ASSERT_NOT_NULL(redirected);
+
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, NULL};
+    int rc = cmd_trace(3, argv);
+
+    fflush(stderr);
+    dup2(saved_fd, STDERR_FILENO);
+    close(saved_fd);
+
+    TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+
+    FILE *f = fopen(errpath, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "WARNING"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "dangling"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "REQ-GHOST999"));
+    }
+    remove(errpath);
+    rm_file("dangling.c");
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -595,11 +807,19 @@ int main(void)
     RUN_TEST(test_req_import_codebeamer_csv);
     RUN_TEST(test_req_import_jama_csv);
     RUN_TEST(test_req_import_reqif_xml);
+    RUN_TEST(test_req_import_codebeamer_xml);
+    RUN_TEST(test_req_import_jama_xml);
+    RUN_TEST(test_req_import_polarion_xml);
     RUN_TEST(test_coverage_mutate_score_flag);
     RUN_TEST(test_coverage_mutate_100_pass);
     RUN_TEST(test_trace_req_coverage_metric2_fail);
     RUN_TEST(test_trace_req_coverage_na_empty);
     RUN_TEST(test_trace_req_coverage_zero_disabled);
     RUN_TEST(test_trace_req_coverage_truncated);
+    RUN_TEST(test_trace_func_coverage_gate_pass);
+    RUN_TEST(test_trace_func_coverage_gate_fail);
+    RUN_TEST(test_trace_func_coverage_zero_disabled);
+    RUN_TEST(test_trace_func_coverage_na_empty);
+    RUN_TEST(test_trace_dangling_test_tag_warning);
     return UNITY_END();
 }

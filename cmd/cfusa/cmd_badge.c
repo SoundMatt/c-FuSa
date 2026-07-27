@@ -5,6 +5,7 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-BADGE REQ-BADGE-POS001
 int cmd_badge(int argc, char **argv)
 {
     const char *report = NULL;

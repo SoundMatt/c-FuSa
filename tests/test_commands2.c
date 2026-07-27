@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "../vendor/unity/unity.h"
 
 extern int cmd_vuln(int argc, char **argv);
@@ -250,8 +251,8 @@ void test_metrics_no_subcmd_returns_2(void)
     TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
-//cfusa:req REQ-MET-SUBCMD001
-//cfusa:test REQ-MET-SUBCMD001
+//cfusa:req REQ-MET-SUBCMD002
+//cfusa:test REQ-MET-SUBCMD002
 void test_metrics_unknown_subcmd_returns_2(void)
 {
     char *argv[] = {"cfusa", "frobber", "--dir", CMD2_DIR, NULL};
@@ -259,13 +260,34 @@ void test_metrics_unknown_subcmd_returns_2(void)
     TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
-//cfusa:req REQ-MET-SUBCMD001
-//cfusa:test REQ-MET-SUBCMD001
+//cfusa:req REQ-MET-REC001
+//cfusa:test REQ-MET-REC001
 void test_metrics_record_outputs_metrics_recorded(void)
 {
+    char capture_path[256];
+    snprintf(capture_path, sizeof(capture_path), "%s/metrics_record_stdout.txt", CMD2_DIR);
+    fflush(stdout);
+    int saved_fd = dup(STDOUT_FILENO);
+    FILE *redirected = freopen(capture_path, "w", stdout);
+    TEST_ASSERT_NOT_NULL(redirected);
+
     char *argv[] = {"cfusa", "record", "--dir", CMD2_DIR, NULL};
     int rc = cmd_metrics(4, argv);
+
+    fflush(stdout);
+    dup2(saved_fd, STDOUT_FILENO);
+    close(saved_fd);
+
     TEST_ASSERT_EQUAL_INT(0, rc);
+
+    FILE *f = fopen(capture_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Metrics recorded"));
+    }
+    remove(capture_path);
 }
 
 /* ---- hooks ---- */

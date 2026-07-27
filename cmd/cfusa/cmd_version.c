@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include "cfusa/version.h"
 
+//cfusa:req REQ-CLI-VERSION001 REQ-VER001
 int cmd_version(int argc, char **argv)
 {
     const char *fmt = "text";

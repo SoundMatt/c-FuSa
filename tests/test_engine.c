@@ -1,3 +1,5 @@
+//cfusa:req REQ-ENG001 REQ-ENG002 REQ-ENG003 REQ-ENG004 REQ-ENG005 REQ-RPTCORE001
+//cfusa:test REQ-ENG001 REQ-ENG002 REQ-ENG003 REQ-ENG004 REQ-ENG005 REQ-RPTCORE001
 #include "../vendor/unity/unity.h"
 #include "../include/cfusa/engine.h"
 #include "../include/cfusa/report.h"

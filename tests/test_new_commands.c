@@ -249,6 +249,7 @@ void test_disposition_add_requires_rule(void)
     TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
+//cfusa:test REQ-DISP-SUBCMD001
 void test_disposition_no_subcmd_returns_2(void)
 {
     char *argv[] = {"cfusa", "--dir", NC_DIR, NULL};
@@ -256,6 +257,7 @@ void test_disposition_no_subcmd_returns_2(void)
     TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
+//cfusa:test REQ-DISP-SUBCMD002
 void test_disposition_unknown_subcmd_returns_2(void)
 {
     char *argv[] = {"cfusa", "frobber", "--dir", NC_DIR, NULL};
@@ -263,6 +265,7 @@ void test_disposition_unknown_subcmd_returns_2(void)
     TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
+//cfusa:test REQ-DISP-ADD001
 void test_disposition_add_missing_reviewer_returns_2(void)
 {
     char *argv[] = {"cfusa", "add", "--rule", "LINT001", "--rationale", "ok", NULL};
@@ -270,6 +273,7 @@ void test_disposition_add_missing_reviewer_returns_2(void)
     TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
+//cfusa:test REQ-DISP-ADD001
 void test_disposition_add_missing_rationale_returns_2(void)
 {
     char *argv[] = {"cfusa", "add", "--rule", "LINT001", "--reviewer", "alice", NULL};
@@ -277,6 +281,7 @@ void test_disposition_add_missing_rationale_returns_2(void)
     TEST_ASSERT_EQUAL_INT(2, rc);
 }
 
+//cfusa:test REQ-DISP-ACTION001
 void test_disposition_invalid_action_returns_2(void)
 {
     char *argv[] = {"cfusa", "add",
@@ -361,6 +366,7 @@ void test_report_json_uses_camel_case(void)
 
 //cfusa:req REQ-SPEC22-001
 //cfusa:test REQ-SPEC22-001
+//cfusa:test REQ-UNECE-OUT001
 void test_spec22_unece_writes_file_not_stdout(void)
 {
     char out_path[256];

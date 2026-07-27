@@ -4,6 +4,7 @@
  * Scans C source for function definitions and emits a template FMEA table
  * in Markdown, JSON, or CSV format (IEC 60812 / ISO 26262 Part 5).
  */
+//cfusa:req REQ-CLI-FMEA001 REQ-FMEA001 REQ-FMEA002
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

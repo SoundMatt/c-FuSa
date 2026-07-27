@@ -341,6 +341,7 @@ int cmd_trace(int argc, char **argv)
     int show_gaps    = 0;
     int req_coverage = 0;
     int sec_tested   = 0;
+    int func_coverage = 0; /* REQ-FUNCCOV001 */
     int legacy       = 1;
     int strict_hlr_llr = 0; /* REQ-HLR001 */
 
@@ -351,6 +352,7 @@ int cmd_trace(int argc, char **argv)
         {"gaps",           no_argument,       NULL, 'g'},
         {"req-coverage",   required_argument, NULL, 'r'},
         {"sec-tested",     required_argument, NULL, 's'},
+        {"func-coverage",  required_argument, NULL, 'F'}, /* REQ-FUNCCOV001 */
         {"no-legacy",      no_argument,       NULL, 'L'},
         {"strict-hlr-llr", no_argument,       NULL, 'H'}, /* REQ-HLR001 */
         {"help",           no_argument,       NULL, 'h'},
@@ -363,7 +365,7 @@ int cmd_trace(int argc, char **argv)
 #elif defined(__linux__)
     optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
 #endif
-    while ((c = getopt_long(argc, argv, "d:o:f:gr:s:LHh", lo, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:o:f:gr:s:F:LHh", lo, NULL)) != -1) {
         switch (c) {
         case 'd': dir          = optarg;        break;
         case 'o': out_path     = optarg;        break;
@@ -371,13 +373,14 @@ int cmd_trace(int argc, char **argv)
         case 'g': show_gaps    = 1;             break;
         case 'r': req_coverage = atoi(optarg);  break;
         case 's': sec_tested   = atoi(optarg);  break;
+        case 'F': func_coverage = atoi(optarg); break; /* REQ-FUNCCOV001 */
         case 'L': legacy       = 0;             break;
         case 'H': strict_hlr_llr = 1;          break; /* REQ-HLR001 */
         case 'h':
             printf("Usage: cfusa trace [--dir <path>] [--format text|json|md]\n"
                    "                   [--output <file>] [--gaps]\n"
                    "                   [--req-coverage <N%%>] [--sec-tested <N%%>]\n"
-                   "                   [--strict-hlr-llr]\n\n"
+                   "                   [--func-coverage <N%%>] [--strict-hlr-llr]\n\n"
                    "Builds a requirements traceability matrix from .cfusa-reqs.json\n"
                    "and source annotations:\n"
                    "  //cfusa:req REQ-ID       — implementation reference\n"
@@ -386,6 +389,8 @@ int cmd_trace(int argc, char **argv)
                    "  --gaps             list requirements with no //cfusa:test tag\n"
                    "  --req-coverage N   exit 1 if <N%% of requirements have impl traces\n"
                    "  --sec-tested N     exit 1 if <N%% of requirements have test traces\n"
+                   "  --func-coverage N  exit 1 if <N%% of public functions are in a file\n"
+                   "                     carrying >=1 //cfusa:req tag (x-FuSa spec 1.4.1)\n"
                    "  --strict-hlr-llr   exit 1 if any HLR/LLR decomposition violations\n");
             return 0;
         default: return 2;
@@ -405,6 +410,28 @@ int cmd_trace(int argc, char **argv)
     scan_ctx_t sctx = {legacy};
     static const char * const exts[] = {".c", ".h"};
     cfusa_walk_sources(dir, exts, 2, trace_file_cb, &sctx);
+
+    //cfusa:req REQ-TESTDANGLE001
+    /* §1.4.1 item 3 (REQ-TESTDANGLE001): a //cfusa:test or //cfusa:sec-test
+     * tag whose ID is not registered in .fusa-reqs.json is a dangling
+     * reference — treat it the same as a malformed annotation (a WARNING,
+     * never silently accepted). Only checked when a requirements registry
+     * was actually loaded: with no registry at all there is nothing for a
+     * reference to dangle against. */
+    if (g_req_count > 0) {
+        for (int i = 0; i < g_tag_count; i++) {
+            if (g_tags[i].kind != KIND_TEST && g_tags[i].kind != KIND_SEC_TEST)
+                continue;
+            int found = 0;
+            for (int j = 0; j < g_req_count && !found; j++)
+                if (!strcmp(g_tags[i].req_id, g_reqs[j].id)) found = 1;
+            if (!found)
+                fprintf(stderr,
+                        "cfusa trace: WARNING: dangling test reference '%s' at %s:%d "
+                        "(no such requirement in %s)\n",
+                        g_tags[i].req_id, g_tags[i].file, g_tags[i].line, REQS_FILE);
+        }
+    }
 
     compute_hlr_llr(); /* REQ-HLR001 */
 
@@ -506,6 +533,46 @@ int cmd_trace(int argc, char **argv)
             fprintf(stderr,
                     "cfusa trace: sec-tested gate failed: %d%% < required %d%%\n",
                     pct, sec_tested);
+            return 1;
+        }
+        return 0;
+    }
+
+    //cfusa:req REQ-FUNCCOV001
+    /* --- func-coverage gate (REQ-FUNCCOV001, x-FuSa spec §1.4.1 / §5) ---
+     * Percentage of non-static public functions (in cmd/cfusa/*.c and
+     * src/*.c — test files are excluded by do_scan_funcs()) that live in a
+     * file carrying at least one //cfusa:req tag anywhere (this repo's
+     * file-level tagging convention: "covered" = the containing file is
+     * traced, not that the specific function is individually tagged).
+     * Mirrors --req-coverage: N=0 disables the gate; exit 1 when below N. */
+    if (func_coverage > 0) {
+        printf("Function Coverage Report\n\n");
+        do_scan_funcs(dir);
+        int m2na = (g_func_count == 0);
+        int func_pct = m2na ? 0 : g_func_covered_count * 100 / g_func_count;
+        if (m2na) {
+            printf("Function annotation density: N/A (no exported functions found)\n");
+            return 0;
+        }
+        printf("Function annotation density: %d%% (%d/%d functions in annotated files)\n",
+               func_pct, g_func_covered_count, g_func_count);
+        int shown = 0;
+        for (int i = 0; i < g_func_count; i++) {
+            if (g_func_covered[i]) continue;
+            if (shown >= 20) {
+                int rem = 0;
+                for (int k = i; k < g_func_count; k++) if (!g_func_covered[k]) rem++;
+                printf("  ... and %d more\n", rem);
+                break;
+            }
+            printf("  UNANNOTATED  %s\n", g_func_names[i]);
+            shown++;
+        }
+        if (func_pct < func_coverage) {
+            fprintf(stderr,
+                    "cfusa trace: func-coverage gate failed: %d%% < required %d%%\n",
+                    func_pct, func_coverage);
             return 1;
         }
         return 0;

@@ -10,6 +10,7 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-CLI003 REQ-NOSUMMARY001
 int cmd_check(int argc, char **argv)
 {
     const char *dir    = ".";

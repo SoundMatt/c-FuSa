@@ -5,6 +5,7 @@
 #include <getopt.h>
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-HOOK001 REQ-HOOK-INSTALL001 REQ-HOOK-REMOVE001
 #define HOOK_CONTENT \
     "#!/bin/sh\n" \
     "# cfusa pre-commit hook — installed by 'cfusa hooks --install'\n" \

@@ -10,7 +10,7 @@
  * Collects test evidence: scans for test result files, coverage data,
  * and bundles a verification summary.
  */
-
+//cfusa:req REQ-CLI-VERIFY001 REQ-VRFY001 REQ-VRFY002
 int cmd_verify(int argc, char **argv)
 {
     const char *dir    = ".";

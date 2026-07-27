@@ -5,6 +5,8 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-IEC61508
+
 /*
  * IEC 61508 Parts 1-3 compliance gap report.
  * Maps CFUSA rules to IEC 61508-3 software objectives by SIL level.

@@ -1,3 +1,5 @@
+//cfusa:req REQ-UTILCORE001
+//cfusa:test REQ-UTILCORE001
 #include "../vendor/unity/unity.h"
 #include "../include/cfusa/utils.h"
 #include <string.h>

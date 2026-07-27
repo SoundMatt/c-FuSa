@@ -5,6 +5,8 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-CLI-PR001 REQ-PR001 REQ-PR002
+
 /*
  * Problem Report CRUD log (DO-178C §11.17 / ISO 26262-8 §8).
  * Stores PRs in .fusa-prs.jsonl (newline-delimited JSON).

@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-SIGN001 REQ-SIGN-KEYGEN001
 static int sign_keygen(const char *path)
 {
     unsigned char buf[32];

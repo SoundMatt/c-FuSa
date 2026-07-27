@@ -10,6 +10,7 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-CLI-REPORT001
 int cmd_report(int argc, char **argv)
 {
     const char *dir    = ".";

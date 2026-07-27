@@ -1,6 +1,8 @@
 /*
  * Tests for FUSA001-005 project-structure engine rules.
  */
+//cfusa:req REQ-FUSA001 REQ-FUSA002 REQ-FUSA003 REQ-FUSA004 REQ-FUSA005
+//cfusa:test REQ-FUSA001 REQ-FUSA002 REQ-FUSA003 REQ-FUSA004 REQ-FUSA005
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

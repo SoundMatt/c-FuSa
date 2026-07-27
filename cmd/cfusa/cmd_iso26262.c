@@ -5,6 +5,8 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-ISO26262
+
 /*
  * ISO 26262 Parts 6–11 compliance gap report.
  * Maps CFUSA rules and evidence files to objectives by ASIL.

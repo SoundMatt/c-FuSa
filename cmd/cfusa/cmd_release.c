@@ -11,6 +11,8 @@
 #include "cfusa/commands.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-REL001 REQ-REL002
+
 /* Generates SPDX JSON SBOM (2.2, 2.3, or 3.0.1), SLSA provenance, and artifact manifest. */
 
 typedef struct {

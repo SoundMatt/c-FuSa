@@ -5,6 +5,8 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-DISP-SUBCMD001 REQ-DISP-SUBCMD002 REQ-DISP-ADD001 REQ-DISP-ACTION001
+
 /*
  * Finding disposition tracking.
  * Stores accepted/fixed findings in .fusa-dispositions.json.

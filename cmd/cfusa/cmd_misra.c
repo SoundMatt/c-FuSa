@@ -5,6 +5,8 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-MISRA
+
 /*
  * MISRA C:2012 rule coverage mapping.
  * Shows which MISRA-C:2012 rules cfusa covers, and which are gaps.

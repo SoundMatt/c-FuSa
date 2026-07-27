@@ -5,6 +5,8 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-CLI-BOUNDARY001 REQ-BND001 REQ-BND002
+
 /* Component dependency graph from #include directives */
 
 #define MAX_INCLUDES 4096

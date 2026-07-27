@@ -6,6 +6,8 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-DO178 REQ-DO178-DAL001
+
 /*
  * DO-178C Annex A objectives gap report.
  * Reports the 71 objectives across Software Planning, Development,

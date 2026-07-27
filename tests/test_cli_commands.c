@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "../vendor/unity/unity.h"
 
 extern int cmd_init(int argc, char **argv);
@@ -351,6 +352,7 @@ void test_do178_json_format(void)
     }
 }
 
+//cfusa:test REQ-ISO21434-001
 void test_iso21434_json_format(void)
 {
     char out[256];
@@ -372,6 +374,9 @@ void test_iso21434_json_format(void)
     }
 }
 
+//cfusa:test REQ-IEC62443-001
+//cfusa:test REQ-IEC62443-002
+//cfusa:test REQ-IEC62443-003
 void test_iec62443_json_format(void)
 {
     char out[256];
@@ -390,6 +395,21 @@ void test_iec62443_json_format(void)
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
+        /* REQ-IEC62443-002: canonical §9.3 objective shape (id/fr/title/
+         * findings/level/status) */
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"fr\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"findings\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"level\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"status\""));
+        /* REQ-IEC62443-003: covered ("satisfied") and mandatory-gap ("gap")
+         * statuses are both present at the default SL-2 target across the
+         * built-in CR table. (The third tri-state value, "partial" for a
+         * gap-recommended/non-mandatory CR, is a real status the engine can
+         * emit — see the req==2 branch in cmd_iec62443.c — but the built-in
+         * CR table never sets a sl1..sl4 column to 2, so it is not
+         * observable via any --sl value with today's static data.) */
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"status\": \"satisfied\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"status\": \"gap\""));
     }
 }
 
@@ -628,11 +648,29 @@ void test_iec62443_sl_format_accepted(void)
 
 //cfusa:req REQ-IEC62443-SL001
 //cfusa:test REQ-IEC62443-SL001
+//cfusa:test REQ-IEC62443-004
 void test_iec62443_bad_sl_returns_2(void)
 {
     char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--sl", "SL-5", NULL};
     int rc = cmd_iec62443(5, argv);
     TEST_ASSERT_EQUAL(2, rc);
+}
+
+//cfusa:test REQ-IEC62443-HEADER001
+void test_iec62443_text_header(void)
+{
+    char out[256];
+    snprintf(out, sizeof(out), "%s/iec62443.txt", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--output", out, NULL};
+    cmd_iec62443(5, argv);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "IEC 62443 Gap Report"));
+    }
+    remove(out);
 }
 
 /* ---- iec62443 --output writes file ---- */
@@ -807,12 +845,35 @@ void test_fix_report_creates_file(void)
 
 /* ---- cyber findings summary line ---- */
 
+//cfusa:req REQ-CYBER-SUMMARY001
+//cfusa:test REQ-CYBER-SUMMARY001
 void test_cyber_prints_findings_summary(void)
 {
     /* §v024e: cmd_cyber always prints "Cyber findings: N error N warning N info" */
+    char capture_path[256];
+    snprintf(capture_path, sizeof(capture_path), "%s/cyber_stdout.txt", CLI_TEST_DIR);
+    fflush(stdout);
+    int saved_fd = dup(STDOUT_FILENO);
+    FILE *redirected = freopen(capture_path, "w", stdout);
+    TEST_ASSERT_NOT_NULL(redirected);
+
     char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, NULL};
     int rc = cmd_cyber(3, argv);
+
+    fflush(stdout);
+    dup2(saved_fd, STDOUT_FILENO);
+    close(saved_fd);
+
     TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+
+    FILE *f = fopen(capture_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Cyber findings:"));
+    }
+    remove(capture_path);
 }
 
 int main(void)
@@ -862,6 +923,7 @@ int main(void)
     RUN_TEST(test_slsa_bad_output_returns_3);
     RUN_TEST(test_iec62443_sl_format_accepted);
     RUN_TEST(test_iec62443_bad_sl_returns_2);
+    RUN_TEST(test_iec62443_text_header);
     RUN_TEST(test_iec62443_output_writes_file);
     RUN_TEST(test_iec62443_bad_output_returns_3);
     RUN_TEST(test_init_already_exists_returns_2);

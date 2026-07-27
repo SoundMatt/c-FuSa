@@ -5,6 +5,8 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-SAS001 REQ-SAS002 REQ-SAS-PREP001 REQ-SAS-STDOUT001
+
 /* Software Accomplishment Summary (DO-178C §11.20) */
 
 typedef struct {

@@ -7,6 +7,69 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.41 — 2026-07-27
+
+### Added
+- **x-FuSa spec §1.4.1 "Tag placement & completeness"** implemented in
+  `cfusa trace`:
+  - `--func-coverage N` flag (mirrors `--req-coverage`): gates on the
+    percentage of non-static public functions (in `cmd/cfusa/*.c` and
+    `src/*.c`) that live in a file carrying at least one `//cfusa:req` tag
+    (this repo's file-level tagging convention). `N=0` disables the gate;
+    exit 1 when below `N`. Prints a "Function Coverage Report" listing
+    `UNANNOTATED` functions (truncated at 20, same as `--req-coverage`).
+  - Dangling-ID detection: a `//cfusa:test` or `//cfusa:sec-test` tag whose
+    ID is not registered in `.fusa-reqs.json` now emits a `WARNING` to
+    stderr (checked whenever a requirements registry was loaded), the same
+    treatment as a malformed annotation per §1.4.
+
+### Fixed (retrofit — issue #60)
+- **Requirement-annotation retrofit of the `cmd/cfusa/*.c` CLI layer**: all
+  29 previously-untagged command files (`cmd_badge.c`, `cmd_check.c`,
+  `cmd_init.c`, `cmd_report.c`, `cmd_version.c`, `main.c`, `cmd_pr.c`,
+  `cmd_fix.c`, `cmd_tara.c`, and 20 more) plus `cmd_capabilities.c` now carry
+  a file-level `//cfusa:req` tag block. 10 new `REQ-CLI-*` requirement ids
+  were minted for commands with no prior formal requirement
+  (boundary/fmea/pr/tara/report/verify/version/main/template/sci); the rest
+  were tagged with their existing matching requirement ids.
+- **5 previously-untagged test files** (`test_engine.c`, `test_fusa_rules.c`,
+  `test_config.c`, `test_report.c`, `test_utils.c`) now carry a file-level
+  `//cfusa:test` tag block against new (`REQ-FUSA001`..`005`, `REQ-RPTCORE001`,
+  `REQ-CFGCORE001`, `REQ-UTILCORE001`) or existing (`REQ-ENG001`..`005`)
+  requirement ids describing what each file's tests actually exercise.
+- **Closed all 18 requirement→test gaps** listed in issue #60 by adding or
+  correcting `//cfusa:test` tags: `REQ-ISO21434-001`, `REQ-IEC62443-001`,
+  `REQ-IEC62443-002`, `REQ-IEC62443-003`, `REQ-IEC62443-004`, `REQ-REQXML001`
+  (strengthened the existing DOORS-ReqIF test to assert on parsed content),
+  `REQ-REQXML002`/`003`/`004` (new Codebeamer/Jama/Polarion XML import
+  tests — only CSV variants existed before), `REQ-DISP-SUBCMD001`/`002`/
+  `REQ-DISP-ADD001`/`REQ-DISP-ACTION001` (existing `test_new_commands.c`
+  tests were already exercising this exactly but were untagged),
+  `REQ-MET-SUBCMD002`/`REQ-MET-REC001` (fixed two tests that were mistagged
+  `REQ-MET-SUBCMD001`), `REQ-UNECE-OUT001`, `REQ-CYBER-SUMMARY001`
+  (strengthened to actually capture and assert stdout), and
+  `REQ-IEC62443-HEADER001` (new test). Note: `REQ-IEC62443-003`'s
+  "recommended/partial" tri-state status is documented in the new test as
+  currently unreachable given the built-in CR table only ever sets
+  mandatory (1) or n/a (0) — a pre-existing, out-of-scope finding, not
+  something this pass changed.
+- **Registered 30 previously-dangling `//cfusa:test` requirement ids** that
+  already existed as tags in `tests/test_cli_commands.c`, `test_commands2.c`,
+  and `test_safety_commands.c` but were never added to `.fusa-reqs.json`
+  (`REQ-DO178`, `REQ-VULN001-003`, `REQ-SCI001-002`, `REQ-COV001-002`,
+  `REQ-SAS001-002`, `REQ-MET001-003`, `REQ-PR001-002`, `REQ-HOOK001`,
+  `REQ-TMPL001-002`, `REQ-FIX001-002`, `REQ-VER001`, `REQ-BND001-002`,
+  `REQ-VRFY001-002`, `REQ-TARA001-003`, `REQ-FMEA001-002`) — discovered by
+  running the new dangling-ID check against this repo. A much larger body of
+  pre-existing dangling test-tag ids remains across other test files
+  (`REQ-CYB*`, `REQ-LINT*`, `REQ-RPT001-008`, `REQ-BADGE*`, `REQ-TRA*`,
+  `REQ-UTIL*`, `REQ-CFG*`, and others) — out of scope for this pass; tracked
+  as a follow-up.
+- `.fusa-reqs.json` grows from 113 to 163 registered requirements; `cfusa
+  trace --req-coverage 0` now reports 163/163 traced (up from 113/113 traced
+  but with far less of the CLI surface actually covered by real
+  `//cfusa:req` evidence).
+
 ## v0.5.40 — 2026-07-27
 
 ### Fixed

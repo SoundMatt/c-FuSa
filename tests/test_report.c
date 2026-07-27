@@ -1,3 +1,5 @@
+//cfusa:req REQ-RPTCORE001
+//cfusa:test REQ-RPTCORE001
 #include "../vendor/unity/unity.h"
 #include "../include/cfusa/report.h"
 #include "../include/cfusa/utils.h"

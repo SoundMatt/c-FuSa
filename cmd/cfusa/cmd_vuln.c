@@ -1,3 +1,5 @@
+//cfusa:req REQ-VULN001 REQ-VULN002 REQ-VULN003 REQ-VULN-OUTDIR001
+
 /*
  * cfusa vuln — Known-vulnerable function pattern scan.
  *

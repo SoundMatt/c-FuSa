@@ -5,6 +5,8 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-CLI-TARA001 REQ-TARA001 REQ-TARA002 REQ-TARA003
+
 /* Generates a Threat Analysis & Risk Assessment skeleton (ISO 21434 Clause 9) */
 
 static const char *THREAT_TEMPLATE_MD =

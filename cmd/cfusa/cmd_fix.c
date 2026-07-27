@@ -1,3 +1,5 @@
+//cfusa:req REQ-FIX001 REQ-FIX002 REQ-CLI-FIX001
+
 /*
  * cfusa fix — Auto-fix guidance for known-remediable findings.
  *

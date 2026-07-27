@@ -1,3 +1,5 @@
+//cfusa:req REQ-CFGCORE001
+//cfusa:test REQ-CFGCORE001
 #include "../vendor/unity/unity.h"
 #include "../include/cfusa/config.h"
 #include <string.h>

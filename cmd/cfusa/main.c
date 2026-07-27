@@ -3,6 +3,7 @@
 #include "cfusa/commands.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-CLI-MAIN001
 const cfusa_command_t CFUSA_COMMANDS[] = {
     {"init",        "Initialise a .cfusa.json project config",          cmd_init},
     {"check",       "Run all safety checks (exits 1 on findings)",      cmd_check},

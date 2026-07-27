@@ -11,6 +11,8 @@
 #include "cfusa/version.h"
 #include <unistd.h>
 
+//cfusa:req REQ-AUDIT
+
 /*
  * Bundles all safety artifacts into a single ZIP audit package.
  * Produces <output> (default: audit-pack.zip) with manifest.json at ZIP root.

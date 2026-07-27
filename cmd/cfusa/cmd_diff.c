@@ -5,6 +5,8 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
+//cfusa:req REQ-DIFF
+
 /*
  * Compares two cfusa JSON reports and shows introduced/resolved/unchanged findings.
  * Reads the "findings" array from each file and diffs by rule_id+file+line.

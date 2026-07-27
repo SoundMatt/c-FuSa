@@ -4,6 +4,8 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
+//cfusa:req REQ-SC001
+
 /*
  * Generates a GSN (Goal Structuring Notation) safety case skeleton
  * and assembles available evidence into a safety case index.
