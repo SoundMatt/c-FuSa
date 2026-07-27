@@ -7,6 +7,33 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.39 — 2026-07-27
+
+### Fixed
+- **[P0] CFUSA-L004 "no recursion" false positive on every function (issue #59)**
+  The scanner ran the self-call check on the same line as the function's own
+  signature (`void foo(void) {` always contains `foo(`), causing every
+  multi-line function definition to be flagged as recursive.
+  Fix: `fn_just_detected` flag skips the self-call check on the definition line.
+- **[P1] CFUSA-L004 brace-depth mis-tracking inside comments and strings**
+  Braces inside `/* block comments */`, `// line comments`, and string/character
+  literals were counted, corrupting function-boundary tracking.
+  Fix: replaced the raw brace loop with a comment- and string-aware parser;
+  `in_block_comment` state persists across `fgets()` iterations.
+- **SpecVersion updated** from "1.10.4" to "1.10.12" in `version.h`.
+
+### Added
+- **`disabled_rules` config key** — list rule IDs in `.fusa.json` to suppress
+  them globally:
+  ```json
+  { "disabled_rules": ["CFUSA-L004"] }
+  ```
+  The engine skips disabled rules in both `run_all` and `run_category`.
+  Adds `cfusa_config_is_rule_disabled()` to the config API.
+- **5 regression tests** in `test_lint_rules2.c` covering the fixed cases:
+  definition-line false positive, block-comment brace, string brace,
+  real recursion still detected, and `disabled_rules` suppression.
+
 ## v0.5.38 — 2026-07-26
 
 ### Fixed

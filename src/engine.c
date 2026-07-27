@@ -50,7 +50,8 @@ int cfusa_engine_run_all(const char *dir, const cfusa_config_t *cfg,
 {
     int total = 0;
     for (int i = 0; i < g_rule_count; i++) {
-        total += g_rules[i]->run(dir, cfg, rpt);
+        if (!cfusa_config_is_rule_disabled(cfg, g_rules[i]->id))
+            total += g_rules[i]->run(dir, cfg, rpt);
     }
     return total;
 }
@@ -60,7 +61,8 @@ int cfusa_engine_run_category(const char *category, const char *dir,
 {
     int total = 0;
     for (int i = 0; i < g_rule_count; i++) {
-        if (strcmp(g_rules[i]->category, category) == 0)
+        if (strcmp(g_rules[i]->category, category) == 0
+            && !cfusa_config_is_rule_disabled(cfg, g_rules[i]->id))
             total += g_rules[i]->run(dir, cfg, rpt);
     }
     return total;

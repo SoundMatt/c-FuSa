@@ -362,6 +362,109 @@ void test_l010_errno_direct_fires(void)
     cfusa_report_free(&rpt);
 }
 
+/* ---- L004 regression: bug #59 — definition-line and brace mis-tracking ---- */
+
+/* Helper: run lint with a caller-supplied config (for disabled_rules test). */
+static void run_lint_on_cfg(const char *code, cfusa_config_t *cfg,
+                             cfusa_report_t *rpt)
+{
+    cfusa_engine_reset();
+    cfusa_lint_register_rules();
+    (void)mkdir(L2_DIR, 0700);
+    FILE *f = fopen(L2_FILE, "w");
+    if (!f) { TEST_FAIL_MESSAGE("could not create temp file"); return; }
+    fputs(code, f);
+    fclose(f);
+    cfusa_engine_run_category(CFUSA_CATEGORY_LINT, L2_DIR, cfg, rpt);
+}
+
+/* The reported false positive: a multi-line function whose signature line
+ * contains "fn_name(" — it should NOT be flagged as recursive.
+ * (c-FuSa issue #59)  */
+//cfusa:req REQ-LINT007
+//cfusa:test REQ-LINT007
+void test_l004_definition_line_not_recursive(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "void process(void) {\n"
+        "    int x = 1;\n"
+        "    (void)x;\n"
+        "}\n",
+        &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L004"));
+    cfusa_report_free(&rpt);
+}
+
+/* Braces inside a block comment must not corrupt depth tracking. */
+//cfusa:req REQ-LINT007
+//cfusa:test REQ-LINT007
+void test_l004_brace_in_block_comment_not_recursive(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "/* This comment has a { brace } that must be ignored */\n"
+        "void helper(void) {\n"
+        "    int v = 0;\n"
+        "    (void)v;\n"
+        "}\n",
+        &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L004"));
+    cfusa_report_free(&rpt);
+}
+
+/* Braces inside a string literal must not corrupt depth tracking. */
+//cfusa:req REQ-LINT007
+//cfusa:test REQ-LINT007
+void test_l004_brace_in_string_not_recursive(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "void printer(void) {\n"
+        "    const char *msg = \"open: { close: }\";\n"
+        "    (void)msg;\n"
+        "}\n",
+        &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L004"));
+    cfusa_report_free(&rpt);
+}
+
+/* Real self-call must still be detected after the fix. */
+//cfusa:req REQ-LINT007
+//cfusa:test REQ-LINT007
+void test_l004_real_recursion_still_fires(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "int fib(int n) {\n"
+        "    if (n < 2) return n;\n"
+        "    return fib(n - 1) + fib(n - 2);\n"
+        "}\n",
+        &rpt);
+    TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L004") > 0);
+    cfusa_report_free(&rpt);
+}
+
+/* disabled_rules in config must suppress L004 entirely. */
+//cfusa:req REQ-CFG007
+//cfusa:test REQ-CFG007
+void test_disabled_rules_suppresses_l004(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    cfusa_config_t cfg; cfusa_config_defaults(&cfg);
+    cfg.max_function_lines = 5;
+    strncpy(cfg.disabled_rules[0], "CFUSA-L004", 31);
+    cfg.disabled_rules_count = 1;
+    run_lint_on_cfg(
+        "int fact(int n) {\n"
+        "    if (n <= 1) return 1;\n"
+        "    return n * fact(n - 1);\n"
+        "}\n",
+        &cfg, &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L004"));
+    cfusa_report_free(&rpt);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -377,6 +480,11 @@ int main(void)
     RUN_TEST(test_l004_direct_recursion_fires);
     RUN_TEST(test_l004_no_recursion_silent);
     RUN_TEST(test_l004_forward_decl_silent);
+    RUN_TEST(test_l004_definition_line_not_recursive);
+    RUN_TEST(test_l004_brace_in_block_comment_not_recursive);
+    RUN_TEST(test_l004_brace_in_string_not_recursive);
+    RUN_TEST(test_l004_real_recursion_still_fires);
+    RUN_TEST(test_disabled_rules_suppresses_l004);
     RUN_TEST(test_l005_single_undef_fires);
     RUN_TEST(test_l005_no_undef_silent);
     RUN_TEST(test_l006_setjmp_fires);

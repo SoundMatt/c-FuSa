@@ -173,7 +173,20 @@ int cfusa_config_load(const char *dir, cfusa_config_t *cfg)
         }
     }
 
+    /* "disabled_rules": ["CFUSA-L004", ...] — rules silently skipped by engine */
+    extract_str_array_n(json, "disabled_rules", (char *)cfg->disabled_rules,
+                        (int)sizeof(cfg->disabled_rules[0]),
+                        CFUSA_MAX_DISABLED_RULES, &cfg->disabled_rules_count);
+
     free(json);
+    return 0;
+}
+
+//cfusa:req REQ-CFG007
+int cfusa_config_is_rule_disabled(const cfusa_config_t *cfg, const char *rule_id)
+{
+    for (int i = 0; i < cfg->disabled_rules_count; i++)
+        if (strcmp(cfg->disabled_rules[i], rule_id) == 0) return 1;
     return 0;
 }
 

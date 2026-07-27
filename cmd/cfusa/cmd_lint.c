@@ -166,11 +166,24 @@ static int rule_l003(const char *dir, const cfusa_config_t *cfg,
 }
 
 //cfusa:req REQ-LINT007
-/* L004 — recursive function (MISRA-C 2012 Rule 17.2) — simple self-call heuristic */
+/* L004 — recursive function (MISRA-C 2012 Rule 17.2) — self-call heuristic.
+ *
+ * Two fixes vs the original naive scanner:
+ *
+ * Fix 1 — definition-line false positive: the function's own name appears in
+ * its signature (e.g. "void foo(void) {" contains "foo(").  We set
+ * fn_just_detected on the line where the name is first recorded and skip the
+ * self-call check for that line only.
+ *
+ * Fix 2 — brace mis-tracking: braces inside block comments, line comments, or
+ * string/character literals are no longer counted.  in_block_comment persists
+ * across lines in the context struct.
+ */
 typedef struct {
     cfusa_report_t *rpt;
     char fn_name[128];
     int  in_fn;
+    int  in_block_comment; /* persists across fgets() iterations */
 } l004_ctx_t;
 
 static int l004_file(const char *path, void *vctx)
@@ -178,52 +191,105 @@ static int l004_file(const char *path, void *vctx)
     l004_ctx_t *ctx = vctx;
     FILE *f = fopen(path, "r");
     if (!f) return 0;
+
     char line[4096];
     int lineno = 0, brace = 0;
     ctx->fn_name[0] = '\0';
     ctx->in_fn = 0;
+    ctx->in_block_comment = 0;
 
     while (fgets(line, sizeof(line), f)) {
         lineno++;
         char trimmed[4096];
-        strncpy(trimmed, line, sizeof(trimmed)-1);
-        cfusa_str_trim(trimmed);
+        strncpy(trimmed, line, sizeof(trimmed) - 1);
+        trimmed[sizeof(trimmed) - 1] = '\0';
+        /* cfusa_str_trim returns pointer past leading whitespace and
+         * null-terminates trailing whitespace in the buffer. */
+        const char *tp = cfusa_str_trim(trimmed);
 
-        /* Only detect function definitions at file scope (brace == 0).
-         * Skip declarations ending with ';' (forward decls / extern). */
-        size_t tlen = strlen(trimmed);
-        int is_decl = (tlen > 0 && trimmed[tlen-1] == ';');
-        if (!ctx->in_fn && brace == 0 && !is_decl
-            && strstr(trimmed,"(") && strstr(trimmed,")")
-            && trimmed[0] != '#' && trimmed[0] != '/'
-            && !strstr(trimmed,"=") && !strstr(trimmed,"[]")) {
-            char *paren = strchr(trimmed,'(');
-            if (paren) {
-                char before[128]="";
-                size_t bl=(size_t)(paren-trimmed);
-                if(bl<128){
-                    strncpy(before,trimmed,bl);
-                    char *sp=strrchr(before,' ');
-                    strncpy(ctx->fn_name, sp?sp+1:before, 127);
-                    while(ctx->fn_name[0]=='*')
-                        memmove(ctx->fn_name,ctx->fn_name+1,strlen(ctx->fn_name));
+        /* Detect function definitions at file scope only.
+         * Skip: forward decls (ending ';'), preprocessor, comment lines
+         * ('/' or '*' start), lines with '=' (assignments/initialisers),
+         * array-subscript lines, and anything inside a block comment. */
+        int fn_just_detected = 0;
+        {
+            size_t tlen = strlen(tp);
+            int is_decl = (tlen > 0 && tp[tlen - 1] == ';');
+            if (!ctx->in_fn && brace == 0 && !is_decl
+                && !ctx->in_block_comment
+                && strstr(tp, "(") && strstr(tp, ")")
+                && tp[0] != '#' && tp[0] != '/' && tp[0] != '*'
+                && !strstr(tp, "=") && !strstr(tp, "[]")) {
+                const char *paren = strchr(tp, '(');
+                if (paren) {
+                    char before[128] = "";
+                    size_t bl = (size_t)(paren - tp);
+                    if (bl < 128) {
+                        strncpy(before, tp, bl);
+                        before[bl] = '\0';
+                        const char *sp = strrchr(before, ' ');
+                        strncpy(ctx->fn_name, sp ? sp + 1 : before, 127);
+                        ctx->fn_name[127] = '\0';
+                        while (ctx->fn_name[0] == '*')
+                            memmove(ctx->fn_name, ctx->fn_name + 1,
+                                    strlen(ctx->fn_name));
+                        ctx->in_fn = 1;
+                        fn_just_detected = 1;
+                    }
                 }
-                ctx->in_fn = 1;
             }
         }
 
-        for (char *p=line; *p; p++) {
-            if (*p=='{') brace++;
-            else if(*p=='}'){
-                brace--;
-                if(brace==0){ ctx->in_fn=0; ctx->fn_name[0]='\0'; }
+        /* Update brace depth, skipping block comments, line comments, and
+         * string/character literals so embedded braces don't corrupt depth. */
+        {
+            const char *p = line;
+            while (*p) {
+                if (ctx->in_block_comment) {
+                    if (p[0] == '*' && p[1] == '/') {
+                        ctx->in_block_comment = 0;
+                        p += 2;
+                    } else {
+                        p++;
+                    }
+                    continue;
+                }
+                if (p[0] == '/' && p[1] == '*') {
+                    ctx->in_block_comment = 1;
+                    p += 2;
+                    continue;
+                }
+                if (p[0] == '/' && p[1] == '/') break; /* rest is comment */
+                if (*p == '"') {
+                    p++;
+                    while (*p && !(*p == '"' && p[-1] != '\\')) p++;
+                    if (*p) p++;
+                    continue;
+                }
+                if (*p == '\'') {
+                    p++;
+                    while (*p && !(*p == '\'' && p[-1] != '\\')) p++;
+                    if (*p) p++;
+                    continue;
+                }
+                if (*p == '{') {
+                    brace++;
+                } else if (*p == '}') {
+                    brace--;
+                    if (brace == 0) {
+                        ctx->in_fn = 0;
+                        ctx->fn_name[0] = '\0';
+                    }
+                }
+                p++;
             }
         }
 
-        if (ctx->in_fn && ctx->fn_name[0] && brace>0) {
-            /* Check if the function calls itself */
+        /* Self-call check.  Skip the line where the function was first
+         * detected: the signature always contains "fn_name(" naturally. */
+        if (!fn_just_detected && ctx->in_fn && ctx->fn_name[0] && brace > 0) {
             char call[130];
-            snprintf(call,sizeof(call),"%s(",ctx->fn_name);
+            snprintf(call, sizeof(call), "%s(", ctx->fn_name);
             if (cfusa_match_outside_string(line, call)) {
                 cfusa_report_add(ctx->rpt,
                     "CFUSA-L004", CFUSA_CATEGORY_LINT, SEV_ERROR,
@@ -243,7 +309,7 @@ static int rule_l004(const char *dir, const cfusa_config_t *cfg,
 {
     (void)cfg;
     static const char * const exts[] = {".c"};
-    l004_ctx_t ctx = {rpt, "", 0};
+    l004_ctx_t ctx = {rpt, "", 0, 0};
     cfusa_walk_sources(dir, exts, 1, l004_file, &ctx);
     return 0;
 }
