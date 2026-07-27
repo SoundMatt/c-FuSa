@@ -21,6 +21,7 @@
 | MISRA-C:2012 | Lint rules (L001–L010) |
 | CERT-C | Static analysis and cybersecurity rules |
 | SLSA | Build provenance (SLSA v0.2), SPDX-3.0.1 SBOM |
+| IEC 62443-4-2 | Component Security Requirements (CR) gap report by Security Level |
 
 ---
 
@@ -129,6 +130,7 @@ cfusa fix --dir src/
 | `iso21434` | ISO 21434 cybersecurity compliance gap report (`--cal CAL-1|2|3|4`) |
 | `unece` | UN R.155 Annex 5 cybersecurity compliance gap report |
 | `slsa` | SLSA v1.0 provenance gap report (`--level 1\|2\|3\|4`) |
+| `iec62443` | IEC 62443-4-2 Component Security Requirements gap report (`--sl SL-1\|2\|3\|4`) |
 | `comp` | Cyclomatic complexity (McCabe V(G)) report → `comp-report.json` (`--dal-a\|b\|c\|d`, `--threshold`) |
 | `version` | Print version |
 

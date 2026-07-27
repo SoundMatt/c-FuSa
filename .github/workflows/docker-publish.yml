@@ -33,6 +33,12 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
 
+      - name: Read spec version from version.h
+        id: version
+        run: |
+          spec=$(grep -oP 'CFUSA_SPEC_VERSION\s+"\K[^"]+' include/cfusa/version.h)
+          echo "spec-version=$spec" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -40,3 +46,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CFUSA_VERSION=${{ steps.meta.outputs.version }}
+            CFUSA_SPEC_VERSION=${{ steps.version.outputs.spec-version }}

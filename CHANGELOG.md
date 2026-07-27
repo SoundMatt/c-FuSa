@@ -7,6 +7,39 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.43 — 2026-07-27
+
+Fixes from a 2026-07-27 cross-repo audit (issues #62, #63).
+
+### Fixed
+- **Dockerfile OCI license label was factually wrong**:
+  `org.opencontainers.image.licenses` said `"MIT"`; the project is
+  MPL-2.0 (matches `LICENSE` and the README badge). Every published image
+  misrepresented its license until now. (#62)
+- **Dockerfile version/spec-version labels were hardcoded and stale**:
+  `org.opencontainers.image.version="0.5.33"` (13 releases behind) and
+  `io.x-fusa.spec-version="1.9"` are now `ARG`s (`CFUSA_VERSION`,
+  `CFUSA_SPEC_VERSION`) injected by `.github/workflows/docker-publish.yml`
+  from the release tag and `include/cfusa/version.h`, so published images
+  track the real version going forward instead of drifting. (#62)
+- **CHANGELOG.md was missing the `v0.2.1` entry** — the log jumped
+  `[0.2.0] → [0.3.0]` even though tag `v0.2.1` exists in git history.
+  Added in its correct chronological slot. (#62)
+- **Release notes were boilerplate**: `.github/workflows/release.yml` now
+  extracts the matching version's section from `CHANGELOG.md` and leads the
+  release body with it, instead of only the generic install/verify
+  template (which is now appended after the real summary). (#62)
+- **README.md was missing `iec62443` entirely**: added a row to both the
+  Commands table and the Standards table for the fully-registered
+  `iec62443` command (IEC 62443-4-2 Component Security Requirements gap
+  report). (#63)
+
+### Changed
+- `CFUSA_SPEC_VERSION` bumped `1.10.12` → `1.11.0` to match the x-FuSa
+  master spec's additive §1.4.1 MINOR bump; c-FuSa v0.5.41 already
+  implements the corresponding `--func-coverage` gate and dangling-ID
+  detection, so this only makes the reported spec version accurate. (#62)
+
 ## v0.5.42 — 2026-07-27
 
 ### Added
@@ -548,6 +581,25 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - Spec version bumped to 1.9 (`CFUSA_SCHEMA_VERSION`, `CFUSA_SPEC_VERSION`)
 - `capabilities --format json` standards list updated to include `iec62443`
 
+## [0.2.1] — 2026-06-10
+
+### Added
+- `req import` — ALM formats DOORS/Polarion (ReqIF XML), Codebeamer, and Jama,
+  auto-detected from the `.reqif` extension or selected explicitly via
+  `--format`
+- `coverage --mutate` / `--mutate-score` — DO-178C MC/DC mutation-testing
+  evidence (mutation-only mode; reads the `score` field from
+  `mutation-report.json` automatically)
+- 3 new commands added in the v0.2.0 alignment pass: `coupling`, `iso21434`,
+  `unece`
+
+### Changed
+- JSON schema aligned to camelCase throughout (`generatedAt`, `ruleId`,
+  `infos`)
+- `disposition`: `--reviewer`, `--action`, `--ref` flags aligned with go-FuSa
+- Docker: `alpine:3.20`, Ninja, `/project` workdir
+- Test suite expanded to 28 suites
+
 ## [0.3.0] — 2026-06-10
 
 ### Added
@@ -649,6 +701,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 [0.5.1]: https://github.com/SoundMatt/c-FuSa/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.2.0...v0.3.0
+[0.3.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/SoundMatt/c-FuSa/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/SoundMatt/c-FuSa/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/SoundMatt/c-FuSa/releases/tag/v0.1.0
