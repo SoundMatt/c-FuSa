@@ -32,6 +32,14 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
+          # metadata-action can't detect an SPDX license from the GitHub API
+          # and defaults org.opencontainers.image.licenses to NOASSERTION,
+          # which silently overrides the correct value the Dockerfile's own
+          # LABEL sets (matching keys passed to build-push-action win over
+          # the Dockerfile). Override it explicitly so the published image
+          # actually carries "MPL-2.0" (see issue #62 item 1).
+          labels: |
+            org.opencontainers.image.licenses=MPL-2.0
 
       - name: Read spec version from version.h
         id: version
