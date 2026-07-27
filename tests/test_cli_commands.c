@@ -2,13 +2,12 @@
  * Smoke tests for remaining CLI commands: init, check, release, qualify,
  * safety_case, sign, iso26262, iec61508, misra, audit, diff, badge, pr.
  */
-/* popen/pclose are POSIX; needed on strict-C99 Linux toolchains (see
- * cmd/cfusa/cmd_audit_pack.c for the same requirement). */
-#if defined(__linux__) || defined(__unix__)
-#  define _POSIX_C_SOURCE 200809L
-#endif
+/* fdopen() is POSIX; needed on strict-C99 Linux toolchains (see
+ * tests/test_hlr_llr.c for the same requirement). */
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../vendor/unity/unity.h"
@@ -508,53 +507,72 @@ void test_audit_pack_runs_no_crash(void)
     (void)rc;
 }
 
+/* Naive byte-buffer substring search (buffer may contain non-ASCII bytes,
+ * so this does not rely on NUL-termination like strstr). */
+static int cli_bytes_contain(const char *hay, size_t hay_len, const char *needle)
+{
+    size_t needle_len = strlen(needle);
+    if (needle_len == 0 || needle_len > hay_len) return 0;
+    for (size_t i = 0; i + needle_len <= hay_len; i++) {
+        if (memcmp(hay + i, needle, needle_len) == 0) return 1;
+    }
+    return 0;
+}
+
 /*
  * Regression for issue #67: manifest.json claimed hashes for .fusa.json and
  * .fusa-reqs.json that were silently missing from the archive because the
  * zip step relied on a `*` shell glob, which does not match dotfiles.
  * Every artifact that manifest.json lists MUST actually be present in the
- * archive.
+ * archive. Verified by scanning the archive's raw bytes for each filename
+ * (ZIP local file headers store names as plain text) rather than shelling
+ * out to `unzip`, so the check needs no external process.
  */
 //cfusa:req REQ-AUDIT
 //cfusa:test REQ-AUDIT
-void test_audit_pack_includes_dotfile_artifacts(void)
+void test_audit_pack_bundles_dotfile_artifacts(void)
 {
     char reqs_path[256];
     snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", CLI_TEST_DIR);
-    FILE *rf = fopen(reqs_path, "w");
+    int reqs_fd = open(reqs_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    FILE *rf = (reqs_fd >= 0) ? fdopen(reqs_fd, "w") : NULL;
     TEST_ASSERT_NOT_NULL(rf);
-    fputs("{\"requirements\":[]}\n", rf);
-    fclose(rf);
+    if (rf) { fputs("{\"requirements\":[]}\n", rf); fclose(rf); }
 
     char cfg_path[256];
     snprintf(cfg_path, sizeof(cfg_path), "%s/.fusa.json", CLI_TEST_DIR);
-    char *init_argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--project", "audit-pack-test", NULL};
-    (void)cmd_init(5, init_argv);
-    TEST_ASSERT_EQUAL(0, access(cfg_path, F_OK));
+    char *init_argv[6];
+    init_argv[0] = "cfusa";
+    init_argv[1] = "--dir";
+    init_argv[2] = CLI_TEST_DIR;
+    init_argv[3] = "--project";
+    init_argv[4] = "audit-pack-test";
+    init_argv[5] = NULL;
+    int init_rc = cmd_init(5, init_argv);
+    TEST_ASSERT_EQUAL(0, init_rc);
 
     char zip_path[300];
     snprintf(zip_path, sizeof(zip_path), "%s/regression.zip", CLI_TEST_DIR);
     (void)remove(zip_path);
-    char *pack_argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--output", zip_path, NULL};
+    char *pack_argv[6];
+    pack_argv[0] = "cfusa";
+    pack_argv[1] = "--dir";
+    pack_argv[2] = CLI_TEST_DIR;
+    pack_argv[3] = "--output";
+    pack_argv[4] = zip_path;
+    pack_argv[5] = NULL;
     int rc = cmd_audit_pack(5, pack_argv);
     TEST_ASSERT_EQUAL(0, rc);
 
-    char list_cmd[512];
-    snprintf(list_cmd, sizeof(list_cmd), "unzip -l \"%s\"", zip_path);
-    FILE *lp = popen(list_cmd, "r");
-    TEST_ASSERT_NOT_NULL(lp);
+    FILE *zf = fopen(zip_path, "rb");
+    TEST_ASSERT_NOT_NULL(zf);
+    char archive[65536];
+    size_t archive_len = zf ? fread(archive, 1, sizeof(archive), zf) : 0;
+    if (zf) fclose(zf);
 
-    char listing[4096] = {0};
-    size_t total = 0;
-    if (lp) {
-        total = fread(listing, 1, sizeof(listing) - 1, lp);
-        pclose(lp);
-    }
-    listing[total] = '\0';
-
-    TEST_ASSERT_NOT_NULL(strstr(listing, ".fusa.json"));
-    TEST_ASSERT_NOT_NULL(strstr(listing, ".fusa-reqs.json"));
-    TEST_ASSERT_NOT_NULL(strstr(listing, "manifest.json"));
+    TEST_ASSERT_TRUE(cli_bytes_contain(archive, archive_len, ".fusa.json"));
+    TEST_ASSERT_TRUE(cli_bytes_contain(archive, archive_len, ".fusa-reqs.json"));
+    TEST_ASSERT_TRUE(cli_bytes_contain(archive, archive_len, "manifest.json"));
 
     (void)remove(zip_path);
     /* CLI_TEST_DIR is shared across the whole suite; leaving .fusa.json
@@ -963,7 +981,7 @@ int main(void)
     RUN_TEST(test_iso21434_json_format);
     RUN_TEST(test_iec62443_json_format);
     RUN_TEST(test_audit_pack_runs_no_crash);
-    RUN_TEST(test_audit_pack_includes_dotfile_artifacts);
+    RUN_TEST(test_audit_pack_bundles_dotfile_artifacts);
     RUN_TEST(test_diff_help_returns_zero);
     RUN_TEST(test_badge_runs_no_crash);
     RUN_TEST(test_badge_too_many_args_returns_3);
