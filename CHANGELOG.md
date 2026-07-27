@@ -7,6 +7,45 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.42 — 2026-07-27
+
+### Added
+- **Closed the 10 confirmed `REQ-CLI-*` requirement→test gaps** left by the
+  v0.5.41 CLI retrofit (`REQ-CLI-BOUNDARY001`, `REQ-CLI-FMEA001`,
+  `REQ-CLI-PR001`, `REQ-CLI-TARA001`, `REQ-CLI-VERIFY001`,
+  `REQ-CLI-VERSION001`, `REQ-CLI-TEMPLATE001`, `REQ-CLI-SCI001`): each
+  already had an exercising test in `test_commands2.c` or
+  `test_safety_commands.c` under its lower-level requirement id — added a
+  second `//cfusa:test REQ-CLI-*` tag to that same test function rather than
+  duplicating coverage.
+  - `REQ-CLI-REPORT001` and `REQ-CLI-MAIN001` had no exercising test at all:
+    added `test_report_help_returns_zero`, `test_report_runs_no_crash`,
+    `test_report_json_format_writes_output`, and
+    `test_report_strict_is_usage_error` (the last covers the §9.1 usage-error
+    path for `--strict` on `report`), plus `test_help_lists_known_commands`
+    for `cmd_help()`'s dispatch-table-driven usage output, all in
+    `test_commands2.c`.
+  - `main.c` previously defined `CFUSA_COMMANDS[]`, `CFUSA_COMMAND_COUNT`, and
+    `cmd_help()` alongside `main()`, so none of the three were linkable into
+    a unit-test binary (the `cfusa_cmds` library deliberately excludes
+    `main.c` to avoid a duplicate `main` symbol). Split the table and
+    `cmd_help()` out into a new `cmd/cfusa/cmd_dispatch.c` (added to the
+    `cfusa_cmds` library in `CMakeLists.txt`); `main.c` now only contains the
+    dispatch loop wired around them. No behavioural change.
+- **Function-tag coverage**: `cfusa trace --func-coverage 100` was reporting
+  82% (116/140), but investigation showed every one of the 24 "unannotated"
+  functions was a CMake compiler-ID probe (`CMakeCCompilerId.c:main`) inside
+  six stray, gitignored/untracked build directories left over in the working
+  tree (`build_asan/`, `build_fortify/`, `build-asan/`, `build-asan-test/`,
+  `build-cov2/`, `build-local/`, `build-release/`) — the source walker's
+  build-dir exclusion list only matches the literal names `build` and
+  `build-cov`, not these. Every file in `cmd/cfusa/*.c` and `src/*.c` already
+  carries a file-level `//cfusa:req` tag (real-source function coverage was
+  already 100%); removed the stray build directories so the metric reflects
+  that. Density now measures 97% (116/119) — the residual 3 are the same
+  compiler-probe `main()`, unavoidably present in the `build-test/` directory
+  this project's own build instructions require.
+
 ## v0.5.41 — 2026-07-27
 
 ### Added

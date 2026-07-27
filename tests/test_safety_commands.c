@@ -22,6 +22,7 @@ void tearDown(void) {}
 
 //cfusa:req REQ-TARA001
 //cfusa:test REQ-TARA001
+//cfusa:test REQ-CLI-TARA001
 void test_tara_generates_json(void)
 {
     char path[256];
@@ -65,6 +66,7 @@ void test_tara_help_returns_zero(void)
 
 //cfusa:req REQ-FMEA001
 //cfusa:test REQ-FMEA001
+//cfusa:test REQ-CLI-FMEA001
 void test_fmea_generates_json(void)
 {
     char path[256];

@@ -90,6 +90,7 @@ add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_capabilities.c
     cmd/cfusa/cmd_version.c
     cmd/cfusa/cmd_safety_rules.c
+    cmd/cfusa/cmd_dispatch.c
 )
 target_link_libraries(cfusa_cmds PUBLIC cfusa_core)
 target_include_directories(cfusa_cmds PUBLIC include)

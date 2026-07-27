@@ -20,6 +20,8 @@ extern int cmd_do178(int argc, char **argv);
 extern int cmd_version(int argc, char **argv);
 extern int cmd_boundary(int argc, char **argv);
 extern int cmd_verify(int argc, char **argv);
+extern int cmd_report(int argc, char **argv);
+extern int cmd_help(int argc, char **argv);
 
 #define CMD2_DIR "/tmp/cfusa_cmd2_testdir"
 
@@ -74,6 +76,7 @@ void test_vuln_output_dir(void)
 
 //cfusa:req REQ-SCI001
 //cfusa:test REQ-SCI001
+//cfusa:test REQ-CLI-SCI001
 void test_sci_help_returns_zero(void)
 {
     char *argv[] = {"cfusa", "--help", NULL};
@@ -224,6 +227,7 @@ void test_coverage_dal_d_no_threshold(void)
 
 //cfusa:req REQ-PR001
 //cfusa:test REQ-PR001
+//cfusa:test REQ-CLI-PR001
 void test_pr_help_returns_zero(void)
 {
     char *argv[] = {"cfusa", "--help", NULL};
@@ -338,6 +342,7 @@ void test_hooks_remove_not_found_returns_2(void)
 
 //cfusa:req REQ-TMPL001
 //cfusa:test REQ-TMPL001
+//cfusa:test REQ-CLI-TEMPLATE001
 void test_template_help_returns_zero(void)
 {
     char *argv[] = {"cfusa", "--help", NULL};
@@ -446,6 +451,7 @@ void test_do178_dal_prefix_format_accepted(void)
 
 //cfusa:req REQ-VER001
 //cfusa:test REQ-VER001
+//cfusa:test REQ-CLI-VERSION001
 void test_version_returns_zero(void)
 {
     char *argv[] = {"cfusa", NULL};
@@ -457,6 +463,7 @@ void test_version_returns_zero(void)
 
 //cfusa:req REQ-BND001
 //cfusa:test REQ-BND001
+//cfusa:test REQ-CLI-BOUNDARY001
 void test_boundary_help_returns_zero(void)
 {
     char *argv[] = {"cfusa", "--help", NULL};
@@ -477,6 +484,7 @@ void test_boundary_runs_no_crash(void)
 
 //cfusa:req REQ-VRFY001
 //cfusa:test REQ-VRFY001
+//cfusa:test REQ-CLI-VERIFY001
 void test_verify_help_returns_zero(void)
 {
     char *argv[] = {"cfusa", "--help", NULL};
@@ -491,6 +499,93 @@ void test_verify_runs_no_crash(void)
     char *argv[] = {"cfusa", "--dir", CMD2_DIR, NULL};
     int rc = cmd_verify(3, argv);
     (void)rc;
+}
+
+/* ---- report ---- */
+
+//cfusa:req REQ-CLI-REPORT001
+//cfusa:test REQ-CLI-REPORT001
+void test_report_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    int rc = cmd_report(2, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+//cfusa:req REQ-CLI-REPORT001
+//cfusa:test REQ-CLI-REPORT001
+void test_report_runs_no_crash(void)
+{
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, NULL};
+    int rc = cmd_report(3, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+//cfusa:req REQ-CLI-REPORT001
+//cfusa:test REQ-CLI-REPORT001
+void test_report_json_format_writes_output(void)
+{
+    char outpath[256];
+    snprintf(outpath, sizeof(outpath), "%s/report-out.json", CMD2_DIR);
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR,
+                    "--format", "json", "--output", outpath, NULL};
+    int rc = cmd_report(7, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen(outpath, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"generatedAt\""));
+    }
+    (void)remove(outpath);
+}
+
+//cfusa:req REQ-CLI-REPORT001
+//cfusa:test REQ-CLI-REPORT001
+void test_report_strict_is_usage_error(void)
+{
+    /* §9.1: --strict on report is a usage error (use 'check' for gating) */
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, "--strict", NULL};
+    int rc = cmd_report(4, argv);
+    TEST_ASSERT_EQUAL(2, rc);
+}
+
+/* ---- main dispatch / help ---- */
+
+//cfusa:req REQ-CLI-MAIN001
+//cfusa:test REQ-CLI-MAIN001
+void test_help_lists_known_commands(void)
+{
+    char capture_path[256];
+    snprintf(capture_path, sizeof(capture_path), "%s/help_stdout.txt", CMD2_DIR);
+    fflush(stdout);
+    int saved_fd = dup(STDOUT_FILENO);
+    FILE *redirected = freopen(capture_path, "w", stdout);
+    TEST_ASSERT_NOT_NULL(redirected);
+
+    char *argv[] = {"cfusa", NULL};
+    int rc = cmd_help(1, argv);
+
+    fflush(stdout);
+    dup2(saved_fd, STDOUT_FILENO);
+    int close_rc = close(saved_fd);
+    (void)close_rc;
+
+    TEST_ASSERT_EQUAL_INT(0, rc);
+
+    FILE *f = fopen(capture_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        /* Dispatch table (CFUSA_COMMANDS) must be reflected in help output */
+        TEST_ASSERT_NOT_NULL(strstr(buf, "report"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "version"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Usage: cfusa <command>"));
+    }
+    remove(capture_path);
 }
 
 int main(void)
@@ -536,5 +631,10 @@ int main(void)
     RUN_TEST(test_boundary_runs_no_crash);
     RUN_TEST(test_verify_help_returns_zero);
     RUN_TEST(test_verify_runs_no_crash);
+    RUN_TEST(test_report_help_returns_zero);
+    RUN_TEST(test_report_runs_no_crash);
+    RUN_TEST(test_report_json_format_writes_output);
+    RUN_TEST(test_report_strict_is_usage_error);
+    RUN_TEST(test_help_lists_known_commands);
     return UNITY_END();
 }
