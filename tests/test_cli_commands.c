@@ -2,6 +2,11 @@
  * Smoke tests for remaining CLI commands: init, check, release, qualify,
  * safety_case, sign, iso26262, iec61508, misra, audit, diff, badge, pr.
  */
+/* popen/pclose are POSIX; needed on strict-C99 Linux toolchains (see
+ * cmd/cfusa/cmd_audit_pack.c for the same requirement). */
+#if defined(__linux__) || defined(__unix__)
+#  define _POSIX_C_SOURCE 200809L
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
