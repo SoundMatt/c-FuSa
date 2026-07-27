@@ -39,16 +39,24 @@ RUN apk add --no-cache git zip ca-certificates
 
 COPY --from=builder /build/build/cfusa /usr/local/bin/cfusa
 
+# CFUSA_VERSION / CFUSA_SPEC_VERSION are injected by CI (see
+# .github/workflows/docker-publish.yml) from the release tag and
+# include/cfusa/version.h respectively, so the labels below always track the
+# real version instead of drifting from a hardcoded string. The defaults are
+# only a fallback for local `docker build` without --build-arg.
+ARG CFUSA_VERSION=0.0.0-dev
+ARG CFUSA_SPEC_VERSION=0.0.0-dev
+
 LABEL org.opencontainers.image.title="c-FuSa" \
       org.opencontainers.image.description="C functional safety toolkit (ISO 26262, IEC 61508, DO-178C, MISRA-C)" \
       org.opencontainers.image.source="https://github.com/SoundMatt/c-FuSa" \
-      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.licenses="MPL-2.0" \
       org.opencontainers.image.vendor="SoundMatt" \
-      org.opencontainers.image.version="0.5.33" \
+      org.opencontainers.image.version="${CFUSA_VERSION}" \
       io.x-fusa.tool="c-FuSa" \
       io.x-fusa.language="c" \
       io.x-fusa.binary="cfusa" \
-      io.x-fusa.spec-version="1.9"
+      io.x-fusa.spec-version="${CFUSA_SPEC_VERSION}"
 
 # Default working directory is /project; mount your C project here.
 WORKDIR /project

@@ -69,33 +69,58 @@ jobs:
         with:
           path: dist/
 
+      - name: Extract release notes from CHANGELOG.md
+        id: changelog
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Matches both "## vX.Y.Z — date" (current style) and the older
+          # "## [X.Y.Z] — date" bracketed style; stops at the next "## " heading.
+          awk -v ver="$version" '
+            /^## / {
+              if (found) exit
+              line = $0
+              gsub(/[][]/, "", line)
+              if (line ~ ("^## v?" ver "( |$)")) { found = 1 }
+              next
+            }
+            found { print }
+          ' CHANGELOG.md > changelog-section.md
+
+          if [ ! -s changelog-section.md ]; then
+            echo "::warning::No CHANGELOG.md section found for ${GITHUB_REF_NAME} — falling back to generic body."
+            echo "_No CHANGELOG.md entry found for this release — see commit history._" > changelog-section.md
+          fi
+
+          {
+            echo "## cfusa ${GITHUB_REF_NAME}"
+            echo
+            cat changelog-section.md
+            echo
+            echo "### Installation"
+            echo
+            echo '```bash'
+            echo "# Linux (amd64)"
+            echo "curl -Lo cfusa https://github.com/SoundMatt/c-FuSa/releases/download/${GITHUB_REF_NAME}/cfusa-linux-amd64"
+            echo "chmod +x cfusa && sudo mv cfusa /usr/local/bin/"
+            echo
+            echo "# macOS (arm64)"
+            echo "curl -Lo cfusa https://github.com/SoundMatt/c-FuSa/releases/download/${GITHUB_REF_NAME}/cfusa-darwin-arm64"
+            echo "chmod +x cfusa && sudo mv cfusa /usr/local/bin/"
+            echo
+            echo "# From source"
+            echo "cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --install build"
+            echo '```'
+            echo
+            echo "### Verify"
+            echo '```bash'
+            echo "cfusa version"
+            echo "cfusa qualify"
+            echo '```'
+          } > release-notes.md
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/**/*
           generate_release_notes: true
-          body: |
-            ## cfusa ${{ github.ref_name }}
-
-            C functional safety toolkit.
-
-            ### Installation
-
-            ```bash
-            # Linux (amd64)
-            curl -Lo cfusa https://github.com/SoundMatt/c-FuSa/releases/download/${{ github.ref_name }}/cfusa-linux-amd64
-            chmod +x cfusa && sudo mv cfusa /usr/local/bin/
-
-            # macOS (arm64)
-            curl -Lo cfusa https://github.com/SoundMatt/c-FuSa/releases/download/${{ github.ref_name }}/cfusa-darwin-arm64
-            chmod +x cfusa && sudo mv cfusa /usr/local/bin/
-
-            # From source
-            cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --install build
-            ```
-
-            ### Verify
-            ```bash
-            cfusa version
-            cfusa qualify
-            ```
+          body_path: release-notes.md
