@@ -7,6 +7,23 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.45 — 2026-07-27
+
+### Fixed
+- **`audit-pack.zip`'s `manifest.json` claimed hashes for files that were
+  silently missing from the archive.** `cmd_audit_pack` staged and hashed
+  `.fusa.json`/`.fusa-reqs.json` correctly, but the final ZIP was built with
+  `system("cd staging && zip -j out * ")` — a shell `*` glob, which does not
+  match dotfiles by default. So both dotfiles were listed in `manifest.json`
+  with valid hashes but were never actually written into the archive,
+  breaking the tamper-evidence guarantee the manifest exists to provide
+  (#67). Fixed by building an explicit, quoted list of the exact basenames
+  copied into staging during the artifact loop and passing that list to
+  `zip -j` directly, instead of relying on any glob expansion. Added a
+  regression test (`test_audit_pack_includes_dotfile_artifacts`) that runs
+  a real `audit-pack` and asserts every dotfile artifact is present in the
+  resulting archive, not just referenced in the manifest.
+
 ## v0.5.44 — 2026-07-27
 
 ### Fixed

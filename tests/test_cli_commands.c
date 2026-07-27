@@ -503,6 +503,61 @@ void test_audit_pack_runs_no_crash(void)
     (void)rc;
 }
 
+/*
+ * Regression for issue #67: manifest.json claimed hashes for .fusa.json and
+ * .fusa-reqs.json that were silently missing from the archive because the
+ * zip step relied on a `*` shell glob, which does not match dotfiles.
+ * Every artifact that manifest.json lists MUST actually be present in the
+ * archive.
+ */
+//cfusa:req REQ-AUDIT
+//cfusa:test REQ-AUDIT
+void test_audit_pack_includes_dotfile_artifacts(void)
+{
+    char reqs_path[256];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", CLI_TEST_DIR);
+    FILE *rf = fopen(reqs_path, "w");
+    TEST_ASSERT_NOT_NULL(rf);
+    fputs("{\"requirements\":[]}\n", rf);
+    fclose(rf);
+
+    char cfg_path[256];
+    snprintf(cfg_path, sizeof(cfg_path), "%s/.fusa.json", CLI_TEST_DIR);
+    char *init_argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--project", "audit-pack-test", NULL};
+    (void)cmd_init(5, init_argv);
+    TEST_ASSERT_EQUAL(0, access(cfg_path, F_OK));
+
+    char zip_path[300];
+    snprintf(zip_path, sizeof(zip_path), "%s/regression.zip", CLI_TEST_DIR);
+    (void)remove(zip_path);
+    char *pack_argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--output", zip_path, NULL};
+    int rc = cmd_audit_pack(5, pack_argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    char list_cmd[512];
+    snprintf(list_cmd, sizeof(list_cmd), "unzip -l \"%s\"", zip_path);
+    FILE *lp = popen(list_cmd, "r");
+    TEST_ASSERT_NOT_NULL(lp);
+
+    char listing[4096] = {0};
+    size_t total = 0;
+    if (lp) {
+        total = fread(listing, 1, sizeof(listing) - 1, lp);
+        pclose(lp);
+    }
+    listing[total] = '\0';
+
+    TEST_ASSERT_NOT_NULL(strstr(listing, ".fusa.json"));
+    TEST_ASSERT_NOT_NULL(strstr(listing, ".fusa-reqs.json"));
+    TEST_ASSERT_NOT_NULL(strstr(listing, "manifest.json"));
+
+    (void)remove(zip_path);
+    /* CLI_TEST_DIR is shared across the whole suite; leaving .fusa.json
+     * behind would make later tests see a pre-existing config. */
+    (void)remove(cfg_path);
+    (void)remove(reqs_path);
+}
+
 /* ---- diff ---- */
 
 //cfusa:req REQ-DIFF
@@ -903,6 +958,7 @@ int main(void)
     RUN_TEST(test_iso21434_json_format);
     RUN_TEST(test_iec62443_json_format);
     RUN_TEST(test_audit_pack_runs_no_crash);
+    RUN_TEST(test_audit_pack_includes_dotfile_artifacts);
     RUN_TEST(test_diff_help_returns_zero);
     RUN_TEST(test_badge_runs_no_crash);
     RUN_TEST(test_badge_too_many_args_returns_3);

@@ -94,6 +94,19 @@ int cmd_audit_pack(int argc, char **argv)
         "  \"files\": [\n",
         ts, module);
 
+    /*
+     * Explicit space-separated, single-quoted list of staged basenames to
+     * pass to `zip`, instead of a `*` shell glob. POSIX shell globs do not
+     * match dotfiles (leading '.') by default, so `zip -j out *` silently
+     * omitted .fusa.json/.fusa-reqs.json from the archive even though they
+     * were correctly staged and correctly hashed into manifest.json below
+     * -- a tamper-evidence-breaking mismatch between the manifest and the
+     * actual archive contents. See issue #67.
+     */
+    char file_list[4096];
+    size_t file_list_len = 0;
+    file_list[0] = '\0';
+
     int first = 1, found = 0;
     for (int i = 0; artifacts[i]; i++) {
         char ap[512];
@@ -131,15 +144,26 @@ int cmd_audit_pack(int argc, char **argv)
                 first ? "" : ",\n", cfusa_basename(ap), fsize, hex);
         first = 0;
         found++;
+
+        {
+            int n = snprintf(file_list + file_list_len, sizeof(file_list) - file_list_len,
+                              "%s'%s'", file_list_len > 0 ? " " : "", cfusa_basename(ap));
+            if (n > 0 && (size_t)n < sizeof(file_list) - file_list_len)
+                file_list_len += (size_t)n;
+        }
     }
     fprintf(mf, "\n  ]\n}\n");
     fclose(mf);
 
-    /* Create the ZIP using system zip command (flat, no subdirs) */
-    char zip_cmd[2048];
-    snprintf(zip_cmd, sizeof(zip_cmd),
-             "cd \"%s\" && zip -j \"%s\" * 2>/dev/null",
-             staging, output[0] == '/' ? output : "");
+    /* manifest.json itself has no leading dot, but include it explicitly
+     * too so the file list is authoritative rather than mixing a glob and
+     * an explicit list. */
+    {
+        int n = snprintf(file_list + file_list_len, sizeof(file_list) - file_list_len,
+                          "%s'manifest.json'", file_list_len > 0 ? " " : "");
+        if (n > 0 && (size_t)n < sizeof(file_list) - file_list_len)
+            file_list_len += (size_t)n;
+    }
 
     /* Build absolute output path */
     char abs_output[512];
@@ -156,9 +180,13 @@ int cmd_audit_pack(int argc, char **argv)
     /* Remove any pre-existing output so zip creates a fresh archive */
     remove(abs_output);
 
+    /* Create the ZIP using system zip command (flat, no subdirs), passing
+     * the explicit file list built above -- not a `*` glob (see comment
+     * above the file_list buffer declaration). */
+    char zip_cmd[4608];
     snprintf(zip_cmd, sizeof(zip_cmd),
-             "cd \"%s\" && zip -j \"%s\" * 2>/dev/null",
-             staging, abs_output);
+             "cd \"%s\" && zip -j \"%s\" %s 2>/dev/null",
+             staging, abs_output, file_list);
 
     int rc = system(zip_cmd);
 
