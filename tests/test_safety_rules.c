@@ -77,11 +77,14 @@ void test_hara001_fires_when_no_file(void)
 void test_hara001_passes_when_file_present(void)
 {
     make_file(".fusa-hara.json",
-        "{\"schemaVersion\":\"1.10.4\",\"kind\":\"hara\","
-        "\"hazards\":[{\"id\":\"H-1\",\"severity\":3,"
-        "\"exposure\":3,\"controllability\":2,\"asil\":\"ASIL-C\","
-        "\"safety_goal\":\"Prevent unintended acceleration\","
-        "\"safe_state\":\"Engine off\",\"ftti_ms\":100}]}");
+        "{\"schemaVersion\":\"1.14.0\",\"kind\":\"hara\",\"operationalSituations\":[],"
+        "\"hazards\":[{\"id\":\"H-1\",\"description\":\"Unintended acceleration\","
+        "\"situations\":[],\"risk\":{\"severity\":\"S3\",\"exposure\":\"E3\","
+        "\"controllability\":\"C2\",\"asil\":\"ASIL-C\"},"
+        "\"safetyGoals\":[\"SG-1\"]}],"
+        "\"safetyGoals\":[{\"id\":\"SG-1\",\"description\":\"Prevent unintended acceleration\","
+        "\"hazards\":[\"H-1\"],\"asil\":\"ASIL-C\",\"safeState\":\"Engine off\","
+        "\"fssrRefs\":[\"REQ-1\"]}]}");
 
     cfusa_engine_reset();
     cfusa_safety_register_rules();
@@ -104,9 +107,12 @@ void test_hara001_passes_when_file_present(void)
 void test_hara002_fires_on_incomplete_rating(void)
 {
     make_file(".fusa-hara.json",
-        "{\"hazards\":[{\"id\":\"H-1\",\"severity\":0,"
-        "\"exposure\":0,\"controllability\":0,\"asil\":\"QM\","
-        "\"safety_goal\":\"Goal\",\"safe_state\":\"Safe\"}]}");
+        "{\"operationalSituations\":[],"
+        "\"hazards\":[{\"id\":\"H-1\",\"description\":\"Test hazard\","
+        "\"risk\":{\"severity\":\"S1\",\"exposure\":\"E2\"},"
+        "\"safetyGoals\":[\"SG-1\"]}],"
+        "\"safetyGoals\":[{\"id\":\"SG-1\",\"description\":\"Goal\","
+        "\"asil\":\"QM\",\"safeState\":\"Safe\",\"fssrRefs\":[\"REQ-1\"]}]}");
 
     cfusa_engine_reset();
     cfusa_safety_register_rules();
@@ -129,11 +135,11 @@ void test_hara002_fires_on_incomplete_rating(void)
 void test_hara003_fires_when_no_safety_goal(void)
 {
     make_file(".fusa-hara.json",
-        "{\"hazards\":[{\"id\":\"H-2\",\"severity\":2,"
-        "\"exposure\":2,\"controllability\":2,"
-        "\"asil\":\"ASIL-A\","
-        "\"safety_goal\":\"[derive safety goal]\","
-        "\"safe_state\":\"Safe\"}]}");
+        "{\"operationalSituations\":[],"
+        "\"hazards\":[{\"id\":\"H-2\",\"description\":\"Test hazard\","
+        "\"risk\":{\"severity\":\"S2\",\"exposure\":\"E2\",\"controllability\":\"C2\","
+        "\"asil\":\"ASIL-A\"},\"safetyGoals\":[]}],"
+        "\"safetyGoals\":[]}");
 
     cfusa_engine_reset();
     cfusa_safety_register_rules();
@@ -156,11 +162,12 @@ void test_hara003_fires_when_no_safety_goal(void)
 void test_hara004_fires_on_tbd_asil(void)
 {
     make_file(".fusa-hara.json",
-        "{\"hazards\":[{\"id\":\"H-3\",\"severity\":2,"
-        "\"exposure\":3,\"controllability\":2,"
-        "\"asil\":\"TBD\","
-        "\"safety_goal\":\"Defined goal\","
-        "\"safe_state\":\"Safe\"}]}");
+        "{\"operationalSituations\":[],"
+        "\"hazards\":[{\"id\":\"H-3\",\"description\":\"Test hazard\","
+        "\"risk\":{\"severity\":\"S2\",\"exposure\":\"E3\",\"controllability\":\"C2\","
+        "\"asil\":\"TBD\"},\"safetyGoals\":[\"SG-1\"]}],"
+        "\"safetyGoals\":[{\"id\":\"SG-1\",\"description\":\"Defined goal\","
+        "\"asil\":\"ASIL-B\",\"safeState\":\"Safe\",\"fssrRefs\":[\"REQ-1\"]}]}");
 
     cfusa_engine_reset();
     cfusa_safety_register_rules();

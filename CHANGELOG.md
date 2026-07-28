@@ -7,12 +7,77 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.46 — 2026-07-28
+
+x-FuSa spec v1.13.0/v1.14.0 conformance sprint (issue #71): `hara`/`fmea`/
+`tara`/`safety-case`/`sas`/`sci` schemas, the §1.6 content-quality baseline
+(FUSA-STUB001/002 detection + §1.6.2 attestation), and `fmea`/`tara`
+coverage metrics.
+
 ### Added
-- `docker-publish.yml` now notifies `SoundMatt/FuSaOps` via `repository_dispatch`
-  (`xfusa-released`) after a successful image push, so FuSaOps rebuilds its
-  bundled image promptly instead of waiting for its weekly cron. Requires a
-  `FUSAOPS_DISPATCH_TOKEN` secret in this repo; falls back silently
-  (`continue-on-error`) to the weekly rebuild if it's not set.
+- **`.fusa-hara.json` three-collection schema (§1.2.5).** `operationalSituations[]`/
+  `hazards[]`/`safetyGoals[]` replace the old flat `hazards[]` shape (each with a
+  singular `safety_goal` string). `safetyGoals[].fssrRefs` is now **MUST, ≥1
+  entry**, cross-checked against `.fusa-reqs.json`. `hara init` scaffolds
+  empty collections (never dummy rows); `hara show`/`--format json` add a
+  `completeness` block (`safetyGoalsWithFssrRefs`, `danglingReferences`) and
+  the §1.6.1 content-quality scan.
+- **`fmea`/`tara`/`safety-case` real schemas (§9.2).** `fmea.json` gets
+  `ratingScale`, `failureMode`/`effect`/`cause` text that's heuristically
+  templated per function (name/file/category) instead of static/blank
+  fields, `actionPriority`, and `summary.componentsInProject`/`coveragePct`.
+  `tara.json` gets an SFOP `impact` object (safety/financial/operational/
+  privacy) per ISO 21434 Clause 15.7 instead of one generic severity, plus
+  `summary.assetsInProject`/`coveragePct`/`assetInventoryMethod`. `tara`'s
+  assets/threats are now discovered by scanning for functions that look
+  like they handle network/file/auth/memory input, instead of a static
+  placeholder-filled template. `safety-case --format json` is new:
+  `nodes[]`/`edges[]`/`completeness` using the six real GSN node types
+  (goal/strategy/solution/context/assumption/justification); `solution`
+  nodes only cite `evidence` for a file that actually exists.
+- **`sas`/`sci` real schemas (§9.3).** `sas --format json` emits
+  `checklist[]`/`summary` (`present` reflects a real evidence-file check,
+  not a hardcoded `false`) and always also writes the `sas.md` companion.
+  `sci --format json` renames `files`→`artifacts` and `sha256`→`hash`
+  (`sha256:`-prefixed, per §2.7 — a field *named* `hash` carries a
+  algorithm-prefixed value, unlike a field named for its algorithm).
+- **`--min-coverage N` on `fmea`/`tara`** (mirrors `trace --func-coverage`):
+  exits 1 when `summary.coveragePct < N`; `N=0` disables the gate.
+  `componentsInProject`/`assetsInProject` now exclude test files
+  (`test_*.c`/`*_test.c`), matching `trace --func-coverage`'s own
+  denominator, so the FMEA/TARA aren't diluted by test scaffolding.
+- **§1.6.1 content-quality baseline**: a new `qualitybar` module implements
+  Rule A / `FUSA-STUB001` (always `ERROR`, a placeholder/template-text
+  deny-list scan; suppressible only via `.fusa-dispositions.json`, never
+  attestation) and Rule B / `FUSA-STUB002` (`WARNING` by default; a
+  distinct-value-ratio check across ≥10 entries), wired into
+  `hara`/`fmea`/`tara`/`safety-case`/`sas`.
+- **§1.6.2 attestation**: any of the above commands accept
+  `--strict`/`--require-attestation` (escalates an unsuppressed Rule B to
+  exit 1) and `--attest <reviewer>` (stamps a `status: "reviewed"`
+  attestation with a canonical-content `sha256:` hash). A non-stale,
+  genuinely-independent attestation suppresses Rule B; a self-attestation
+  or one whose content hash no longer matches falls back to `"heuristic"`
+  (fail-safe).
+- Regenerated this repo's own `.fusa-hara.json` (migrated from the retired
+  `.cfusa-hara.json`), `fmea.json`/`fmea.csv`, `tara.json`/`tara.md`, and
+  added `safety-case.json` against the new schemas — c-FuSa dogfooding its
+  own spec conformance work, mirroring FuSaOps' own PR #84/PR2.
+
+### Fixed
+- **`fmea.json`/`fmea.csv` could contain invalid JSON/CSV.** The function-name
+  scanner's naive paren-based heuristic occasionally misdetects a quoted
+  string literal (e.g. a known-answer-test table entry) as a function name;
+  the `item`/`Function` field was written unescaped, so an embedded `"`
+  broke both the JSON and CSV output. Every free-text field is now escaped
+  for its target format (JSON string-escaping; CSV quote-doubling per RFC
+  4180).
+- `cmd_safety_rules.c`'s `HARA002`/`HARA003`/`HARA004` engine rules read the
+  old flat `.fusa-hara.json` shape; updated to the new nested
+  `risk.severity`/`.exposure`/`.controllability` and `safetyGoals[]`
+  reference-array fields, and scoped to the `hazards`/`safetyGoals` arrays
+  specifically so they don't cross-match a same-named nested key in a
+  sibling collection.
 
 ## v0.5.45 — 2026-07-27
 

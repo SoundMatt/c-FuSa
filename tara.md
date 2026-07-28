@@ -1,50 +1,25 @@
-# c-FuSa Threat Analysis and Risk Assessment (TARA)
+# Threat Analysis and Risk Assessment (TARA)
+## ISO/SAE 21434:2021 Clause 15 — c-FuSa v0.5.1
+Generated: 2026-07-28T19:41:08Z
 
-**Project:** c-FuSa v0.5.45  
-**Standard:** ISO 21434:2021 §9  
-**Generated:** 2026-06-11
+Assets and threats below were discovered by a keyword-based scan of public functions handling network, file, credential, or raw-memory input (see `assetInventoryMethod` in `tara.json`) — not a formal asset inventory.
 
 ---
 
-## 1. Item Definition
+| ID | Asset | Threat | Attack Vector | Feasibility | Safety | Financial | Operational | Privacy | Risk | Treatment |
+|---|---|---|---|---|---|---|---|---|---|---|
+| TARA-001 | Data handled by "strcpy (cmd_qualify.c) | An attacker supplies malformed/untrusted input to "strcpy, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | high | low | medium | low | high | mitigate |
+| TARA-002 | Data handled by import_reqif (cmd_req.c) | An attacker supplies malformed/untrusted input to import_reqif, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | low | low | medium | low | medium | mitigate |
+| TARA-003 | Data handled by import_polarion_xml (cmd_req.c) | An attacker supplies malformed/untrusted input to import_polarion_xml, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | low | low | medium | low | medium | mitigate |
+| TARA-004 | Data handled by import_reqif (cmd_req.c) | An attacker supplies malformed/untrusted input to import_reqif, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | low | low | medium | low | medium | mitigate |
+| TARA-005 | Data handled by import_codebeamer_xml (cmd_req.c) | An attacker supplies malformed/untrusted input to import_codebeamer_xml, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | low | low | medium | low | medium | mitigate |
+| TARA-006 | Data handled by import_jama_xml (cmd_req.c) | An attacker supplies malformed/untrusted input to import_jama_xml, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | low | low | medium | low | medium | mitigate |
+| TARA-007 | Data handled by malloc (cmd_fix.c) | An attacker supplies malformed/untrusted input to malloc, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | high | low | medium | low | high | mitigate |
+| TARA-008 | Data handled by malloc (cmd_fix.c) | An attacker supplies malformed/untrusted input to malloc, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | high | low | medium | low | high | mitigate |
+| TARA-009 | Data handled by "strcpy (cmd_vuln.c) | An attacker supplies malformed/untrusted input to "strcpy, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | high | low | medium | low | high | mitigate |
+| TARA-010 | Data handled by parse_sec_code (cmd_hara.c) | An attacker supplies malformed/untrusted input to parse_sec_code, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | low | low | medium | low | medium | mitigate |
+| TARA-011 | Data handled by cfusa_format_parse (report.c) | An attacker supplies malformed/untrusted input to cfusa_format_parse, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | low | low | medium | low | medium | mitigate |
+| TARA-012 | Data handled by cfusa_config_load (config.c) | An attacker supplies malformed/untrusted input to cfusa_config_load, potentially causing incorrect behaviour, a crash, or information disclosure | local | medium | low | low | medium | low | medium | mitigate |
 
-c-FuSa is a host-based static analysis and compliance reporting tool. It is not a vehicle-embedded component. It processes source code and configuration files and produces reports and JSON artifacts.
-
-## 2. Asset Identification
-
-| Asset ID | Asset | Security Property | Rationale |
-|----------|-------|-------------------|-----------|
-| A-01 | Source code under analysis | Integrity | Tampered source files could yield false-clean reports |
-| A-02 | `.fusa-reqs.json` requirements registry | Integrity | Modified requirements affect traceability coverage |
-| A-03 | `.fusa-hara.json` HARA document | Integrity | Tampered HARA affects ISO 26262 compliance evidence |
-| A-04 | `cfusa` binary | Integrity | Compromised binary produces incorrect findings |
-| A-05 | Check/qualify reports | Integrity | Falsified reports could support incorrect certification claims |
-| A-06 | CI/CD pipeline configuration | Integrity | Modified CI could suppress safety checks |
-
-## 3. Threat Scenarios
-
-| ID | Asset | Threat | Attack Vector | CAL |
-|----|-------|--------|---------------|-----|
-| T-01 | A-01 | Adversary modifies source to suppress genuine findings | Supply chain / insider | CAL-2 |
-| T-02 | A-02 | Requirements tampered to achieve false 100% coverage | Repository access | CAL-2 |
-| T-03 | A-03 | HARA file manipulated to lower ASIL ratings | Repository access | CAL-3 |
-| T-04 | A-04 | Binary replaced with version that skips checks | CI/CD compromise | CAL-3 |
-| T-05 | A-05 | Report file overwritten with falsified results | Build artifact compromise | CAL-2 |
-
-## 4. Risk Treatment Decisions
-
-| Threat | Decision | Mitigation |
-|--------|----------|------------|
-| T-01 | Reduce | Code review policy; `cfusa sign` SHA-256 signing of reports |
-| T-02 | Reduce | `cfusa qualify` binary hash verification; CI enforces qualification |
-| T-03 | Reduce | HARA file reviewed and signed; HARA001-005 engine rules flag inconsistencies |
-| T-04 | Reduce | `cfusa qualify --binary` verifies binary integrity; CI re-runs qualification |
-| T-05 | Reduce | `cfusa sign` signs report files; report integrity checked before use |
-
-## 5. Cybersecurity Goals
-
-| CG-ID | Goal | CAL | Links |
-|-------|------|-----|-------|
-| CG-01 | The cfusa binary integrity must be verifiable prior to use in a safety process | CAL-2 | T-04 |
-| CG-02 | Compliance reports must be authenticated before acceptance as certification evidence | CAL-2 | T-05 |
-| CG-03 | HARA documents must be protected against unauthorised modification | CAL-3 | T-03 |
+---
+_Total assets analysed: 12 (100% of 12 discovered by the scan)_

@@ -326,6 +326,36 @@
     {"id":"REQ-VULN005","title":"cfusa vuln --format json output contains the detected findings","standard":"c-FuSa CLI","level":"ASIL-A"},
     {"id":"REQ-VULN006","title":"cfusa vuln --output-dir writes the vulnerability report to the given directory","standard":"c-FuSa CLI","level":"ASIL-A"},
     {"id":"REQ-VULN007","title":"cfusa vuln --format text writes findings to an output file","standard":"c-FuSa CLI","level":"ASIL-A"},
-    {"id":"REQ-VULN008","title":"cfusa vuln word-boundary matching avoids false positives on substrings of vulnerable function names","standard":"c-FuSa CLI","level":"ASIL-A"}
+    {"id":"REQ-VULN008","title":"cfusa vuln word-boundary matching avoids false positives on substrings of vulnerable function names","standard":"c-FuSa CLI","level":"ASIL-A"},
+
+    {"id":"REQ-QB001","title":"qualitybar FUSA-STUB001 deny-list scan detects bracket placeholders and instructional substrings","standard":"x-FuSa spec §1.6.1","level":"ASIL-D"},
+    {"id":"REQ-QB002","title":"qualitybar FUSA-STUB002 distinct-value-ratio check flags <0.1 ratio across >=10 entries","standard":"x-FuSa spec §1.6.1","level":"ASIL-B"},
+    {"id":"REQ-QB003","title":"qualitybar content hash is deterministic and sha256:-prefixed","standard":"x-FuSa spec §1.6.2","level":"ASIL-B"},
+    {"id":"REQ-QB004","title":"qualitybar attestation validity requires independent reviewer and a non-stale content hash","standard":"x-FuSa spec §1.6.2","level":"ASIL-B"},
+    {"id":"REQ-QB005","title":"qualitybar attestation object extraction round-trips status/author/reviewer/reviewedAt/contentHash","standard":"x-FuSa spec §1.6.2","level":"ASIL-B"},
+    {"id":"REQ-QB006","title":"qualitybar rule-level disposition lookup suppresses FUSA-STUB001 via .fusa-dispositions.json","standard":"x-FuSa spec §1.6.1","level":"ASIL-B"},
+
+    {"id":"REQ-HARA-SCHEMA001","title":"cfusa hara init scaffolds empty operationalSituations/hazards/safetyGoals collections, never dummy rows","standard":"x-FuSa spec §1.2.5","level":"ASIL-D"},
+    {"id":"REQ-HARA-SCHEMA002","title":"cfusa hara show --format json reports completeness including safetyGoalsWithFssrRefs and danglingReferences","standard":"x-FuSa spec §1.2.5","level":"ASIL-B"},
+    {"id":"REQ-HARA-SCHEMA003","title":"cfusa hara show detects and gates on FUSA-STUB001 placeholder text in hazard/safety-goal descriptions","standard":"x-FuSa spec §1.6.1","level":"ASIL-D"},
+
+    {"id":"REQ-FMEA-SCHEMA001","title":"cfusa fmea --format json emits ratingScale, failureMode/effect/cause, actionPriority, and summary.componentsInProject/coveragePct","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
+    {"id":"REQ-FMEA-SCHEMA002","title":"cfusa fmea failureMode/effect/cause text varies per function rather than one fixed string for every entry","standard":"x-FuSa spec §1.6.1","level":"ASIL-B"},
+    {"id":"REQ-FMEA-COV001","title":"cfusa fmea --min-coverage N exits 1 when summary.coveragePct < N (N=0 disables the gate)","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
+    {"id":"REQ-FMEA-ATTEST001","title":"cfusa fmea --attest <reviewer> stamps a valid §1.6.2 attestation that suppresses FUSA-STUB002","standard":"x-FuSa spec §1.6.2","level":"ASIL-B"},
+
+    {"id":"REQ-TARA-SCHEMA001","title":"cfusa tara --format json emits threats[].impact as an SFOP object and summary.assetInventoryMethod","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
+    {"id":"REQ-TARA006","title":"cfusa tara summary rolls up assetsAnalyzed/assetsInProject/coveragePct/assetInventoryMethod","standard":"ISO 21434","level":"ASIL-B"},
+
+    {"id":"REQ-SC002","title":"cfusa safety-case --format json emits nodes[]/edges[]/completeness using the six GSN node types","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
+    {"id":"REQ-SC003","title":"cfusa safety-case solution nodes cite evidence only for files that actually exist in the project","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
+    {"id":"REQ-SC-SCHEMA001","title":"cfusa safety-case JSON node/edge types conform to the GSN Community Standard v3 vocabulary","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
+
+    {"id":"REQ-SAS-SCHEMA001","title":"cfusa sas --format json emits checklist[]/summary and always writes the sas.md companion","standard":"x-FuSa spec §9.3","level":"ASIL-A"},
+
+    {"id":"REQ-SCI-SCHEMA001","title":"cfusa sci --format json emits artifacts[].hash as sha256:-prefixed per x-FuSa spec §2.7","standard":"x-FuSa spec §2.7","level":"ASIL-A"},
+
+    {"id":"REQ-FSR-CHECK001","title":"cfusa check/lint shall not suppress or omit any finding for which the rule engine is configured to detect (functional safety requirement decomposing .fusa-hara.json SG-001)","standard":"ISO 26262-3","level":"ASIL-C"},
+    {"id":"REQ-FSR-CHECK002","title":"cfusa check shall keep its false-positive rate low enough, via the disposition system, that it does not cause systematic check-disabling (functional safety requirement decomposing .fusa-hara.json SG-002)","standard":"ISO 26262-3","level":"ASIL-C"}
   ]
 }

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.14.0",
+  "kind": "safety-case",
+  "tool": "c-FuSa",
+  "toolVersion": "0.5.46",
+  "language": "c",
+  "generatedAt": "2026-07-28T19:41:08Z",
+  "project": "c-FuSa",
+  "standard": "iso26262",
+  "nodes": [
+    {"id": "G1", "type": "goal", "text": "c-FuSa v0.5.1 has no unmitigated hazard from .fusa-hara.json and no unresolved ERROR finding from `cfusa check` at the iso26262 analysis boundary"},
+    {"id": "St1", "type": "strategy", "text": "Argue over hazard elimination and process confidence separately"},
+    {"id": "C1", "type": "context", "text": "Scope: c-FuSa source under \".\", analyzed against iso26262 by c-FuSa v0.5.46"},
+    {"id": "A1", "type": "assumption", "text": "The underlying hardware/platform on which c-FuSa runs meets its own safety requirements independently of this software safety case"},
+    {"id": "G1.1", "type": "goal", "text": "Every hazard recorded in .fusa-hara.json is eliminated or controlled to its assigned ASIL (ISO 26262-3 Clause 6)"},
+    {"id": "G1.2", "type": "goal", "text": "The c-FuSa development process gives justified confidence: static analysis, FMEA/TARA, and tool qualification evidence are current"},
+    {"id": "Sn2", "type": "solution", "text": "Static analysis / lint / cyber self-check results", "evidence": "cfusa-self-check.json"},
+    {"id": "Sn3", "type": "solution", "text": "Design FMEA", "evidence": "fmea.json"},
+    {"id": "Sn4", "type": "solution", "text": "Threat analysis and risk assessment", "evidence": "tara.json"},
+    {"id": "Sn5", "type": "solution", "text": "Tool qualification record", "evidence": "qualify-report.json"}
+  ],
+  "edges": [
+    {"from": "G1", "to": "St1", "type": "supportedBy"},
+    {"from": "G1", "to": "C1", "type": "inContextOf"},
+    {"from": "St1", "to": "A1", "type": "inContextOf"},
+    {"from": "St1", "to": "G1.1", "type": "supportedBy"},
+    {"from": "St1", "to": "G1.2", "type": "supportedBy"},
+    {"from": "G1.2", "to": "Sn2", "type": "supportedBy"},
+    {"from": "G1.2", "to": "Sn3", "type": "supportedBy"},
+    {"from": "G1.2", "to": "Sn4", "type": "supportedBy"},
+    {"from": "G1.2", "to": "Sn5", "type": "supportedBy"}
+  ],
+  "completeness": {
+    "totalGoals": 3, "goalsWithEvidence": 1, "undeveloped": 1
+  }
+}

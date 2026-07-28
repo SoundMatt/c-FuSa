@@ -106,7 +106,7 @@ cfusa fix --dir src/
 | `verify` | Collect and bundle test evidence |
 | `release` | SBOM (SPDX-3.0.1 JSON), SLSA v0.2 provenance, artifact manifest |
 | `qualify` | Tool self-test and qualification record |
-| `safety-case` | GSN safety case skeleton + evidence index |
+| `safety-case` | GSN safety case (`--format json` → `nodes`/`edges`/`completeness`) + evidence index |
 | `boundary` | Component dependency graph → `boundary.mermaid` + `boundary.dot` |
 | `vuln` | Known-vulnerable function pattern scan (CWE/CVE) |
 | `audit-pack` | Bundle all artifacts into audit package |

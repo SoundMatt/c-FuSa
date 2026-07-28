@@ -43,6 +43,72 @@ static char *read_file_at(const char *dir, const char *name, size_t *out_len)
     return cfusa_read_file(path, out_len);
 }
 
+/* Finds the balanced `open`...`close` substring for the first `"key"` at or
+ * after `from` (string-aware, so a literal delimiter inside a quoted value
+ * doesn't miscount depth). Sets *end_after to just past the closing
+ * delimiter and returns a pointer to the opening delimiter, or NULL. Used
+ * to scope a scan to (e.g.) .fusa-hara.json's "hazards": [...] array so it
+ * doesn't also match "id"/"asil" fields belonging to the sibling
+ * operationalSituations[]/safetyGoals[] collections (x-FuSa spec §1.2.5). */
+static const char *json_bracket(const char *from, const char *key,
+                                 char open, char close, const char **end_after)
+{
+    char pat[64];
+    snprintf(pat, sizeof(pat), "\"%s\"", key);
+    const char *p = strstr(from, pat);
+    if (!p) return NULL;
+    p = strchr(p + strlen(pat), open);
+    if (!p) return NULL;
+
+    int depth = 0, in_str = 0;
+    const char *start = p;
+    for (; *p; p++) {
+        if (in_str) {
+            if (*p == '\\') { p++; continue; }
+            if (*p == '"') in_str = 0;
+            continue;
+        }
+        if (*p == '"') { in_str = 1; continue; }
+        if (*p == open) depth++;
+        else if (*p == close) {
+            depth--;
+            if (depth == 0) { if (end_after) *end_after = p + 1; return start; }
+        }
+    }
+    return NULL;
+}
+
+/* Extracts a quoted string field's value from `block` (bounded at `blk_end`). */
+static void json_str_field(const char *block, const char *blk_end, const char *key,
+                            char *out, size_t out_sz)
+{
+    out[0] = '\0';
+    char pat[64];
+    snprintf(pat, sizeof(pat), "\"%s\":", key);
+    const char *fp = strstr(block, pat);
+    if (!fp || (blk_end && fp >= blk_end)) return;
+    fp += strlen(pat);
+    while (*fp == ' ' || *fp == '\t' || *fp == '\n') fp++;
+    if (*fp != '"') return;
+    fp++;
+    size_t k = 0;
+    while (*fp && *fp != '"' && k < out_sz - 1) {
+        if (*fp == '\\' && fp[1]) fp++;
+        out[k++] = *fp++;
+    }
+    out[k] = '\0';
+}
+
+/* Parses a "Sx"/"Ex"/"Cx" (or bare "x") risk code into an integer, -1 when
+ * absent/unparseable. Mirrors cmd_hara.c's parse_sec_code(). */
+static int json_sec_code(const char *v)
+{
+    if (!v || !*v) return -1;
+    if (isalpha((unsigned char)v[0])) v++;
+    if (!*v) return -1;
+    return atoi(v);
+}
+
 /* ── HARA001 — .fusa-hara.json must be present ───────────────────────── */
 
 static int rule_hara001(const char *dir, const cfusa_config_t *cfg,
@@ -70,33 +136,49 @@ static int rule_hara002(const char *dir, const cfusa_config_t *cfg,
     if (!json) json = read_file_at(dir, ".cfusa-hara.json", &len);
     if (!json) return 0; /* HARA001 already fired */
 
+    /* x-FuSa spec §1.2.5: risk ratings live in each hazard's nested "risk"
+     * object as "Sx"/"Ex"/"Cx" strings, not flat integer fields — and the
+     * scan MUST be scoped to the "hazards" array so it doesn't also walk
+     * the sibling operationalSituations[]/safetyGoals[] collections'
+     * unrelated "id" entries. */
+    const char *hz_end = NULL;
+    const char *hz_start = json_bracket(json, "hazards", '[', ']', &hz_end);
+
     int findings = 0;
-    const char *p = json;
-    while ((p = strstr(p, "\"id\"")) != NULL) {
-        char id[64] = ""; int sev = -1, exp = -1, ctl = -1;
-        const char *blk = p;
-        const char *end = strstr(blk + 1, "\"id\"");
-        if (!end) end = json + len;
+    if (hz_start) {
+        const char *p = hz_start;
+        while ((p = strstr(p, "\"id\"")) != NULL && p < hz_end) {
+            char id[64] = "";
+            const char *blk = p;
+            const char *blk_end = strstr(blk + 1, "\"id\"");
+            if (!blk_end || blk_end > hz_end) blk_end = hz_end;
 
-        { char *fp = strstr(blk, "\"id\":");
-          if (fp) { fp += 5; while (*fp==' ') fp++; if (*fp=='"') fp++;
-                    sscanf(fp, "%63[^\"]", id); } }
-        { char *fp = strstr(blk, "\"severity\":");
-          if (fp && fp < end) sscanf(fp, "\"severity\": %d", &sev); }
-        { char *fp = strstr(blk, "\"exposure\":");
-          if (fp && fp < end) sscanf(fp, "\"exposure\": %d", &exp); }
-        { char *fp = strstr(blk, "\"controllability\":");
-          if (fp && fp < end) sscanf(fp, "\"controllability\": %d", &ctl); }
+            json_str_field(blk, blk_end, "id", id, sizeof(id));
 
-        if (id[0] && (sev <= 0 || exp <= 0 || ctl <= 0)) {
-            cfusa_report_add(rpt, "HARA002", "safety", SEV_ERROR,
-                ".fusa-hara.json", 0,
-                "hazard '%s' has incomplete risk rating (S=%d E=%d C=%d); "
-                "all must be > 0 (ISO 26262-3 Clause 6.4)",
-                id, sev, exp, ctl);
-            findings++;
+            const char *risk_end = NULL;
+            const char *risk = json_bracket(blk, "risk", '{', '}', &risk_end);
+            int sev = -1, exp = -1, ctl = -1;
+            if (risk && risk < blk_end) {
+                char sevs[8] = "", exps[8] = "", ctls[8] = "";
+                json_str_field(risk, risk_end, "severity", sevs, sizeof(sevs));
+                json_str_field(risk, risk_end, "exposure", exps, sizeof(exps));
+                json_str_field(risk, risk_end, "controllability", ctls, sizeof(ctls));
+                sev = json_sec_code(sevs);
+                exp = json_sec_code(exps);
+                ctl = json_sec_code(ctls);
+            }
+
+            if (id[0] && (sev < 0 || exp < 0 || ctl < 0)) {
+                cfusa_report_add(rpt, "HARA002", "safety", SEV_ERROR,
+                    ".fusa-hara.json", 0,
+                    "hazard '%s' has an incomplete risk rating (missing/unparseable "
+                    "risk.severity/exposure/controllability); ISO 26262-3 Clause 6.4 "
+                    "requires all three (x-FuSa spec §1.2.5)",
+                    id);
+                findings++;
+            }
+            p = blk_end;
         }
-        p = end;
     }
     free(json);
     return findings;
@@ -112,38 +194,99 @@ static int rule_hara003(const char *dir, const cfusa_config_t *cfg,
     if (!json) json = read_file_at(dir, ".cfusa-hara.json", &len);
     if (!json) return 0;
 
+    /* x-FuSa spec §1.2.5: a hazard's safety goal(s) live in its
+     * "safetyGoals": [...] reference array (>=1 entry required), not a
+     * single "safety_goal" string field — scoped to "hazards" for the same
+     * reason as HARA002. */
+    const char *hz_end = NULL;
+    const char *hz_start = json_bracket(json, "hazards", '[', ']', &hz_end);
+
     int findings = 0;
-    const char *p = json;
-    while ((p = strstr(p, "\"id\"")) != NULL) {
-        char id[64] = "", goal[256] = "";
-        const char *blk = p;
-        const char *end = strstr(blk + 1, "\"id\"");
-        if (!end) end = json + len;
+    if (hz_start) {
+        const char *p = hz_start;
+        while ((p = strstr(p, "\"id\"")) != NULL && p < hz_end) {
+            char id[64] = "";
+            const char *blk = p;
+            const char *blk_end = strstr(blk + 1, "\"id\"");
+            if (!blk_end || blk_end > hz_end) blk_end = hz_end;
 
-        { char *fp = strstr(blk, "\"id\":");
-          if (fp) { fp += 5; while (*fp==' ') fp++; if (*fp=='"') fp++;
-                    sscanf(fp, "%63[^\"]", id); } }
-        { char *fp = strstr(blk, "\"safety_goal\":");
-          if (fp && fp < end) {
-              fp += 14; while (*fp==' ') fp++;
-              if (*fp=='"') fp++;
-              sscanf(fp, "%255[^\"]", goal); } }
+            json_str_field(blk, blk_end, "id", id, sizeof(id));
 
-        if (id[0] && (goal[0] == '\0' ||
-                      strncmp(goal, "[", 1) == 0 ||
-                      strstr(goal, "derive safety goal") != NULL)) {
-            cfusa_report_add(rpt, "HARA003", "safety", SEV_ERROR,
-                ".fusa-hara.json", 0,
-                "hazard '%s' has no safety goal — required by ISO 26262-3 §6.4.9", id);
-            findings++;
+            const char *sg_end = NULL;
+            const char *sg = json_bracket(blk, "safetyGoals", '[', ']', &sg_end);
+            int has_goal = 0;
+            if (sg && sg < blk_end) {
+                for (const char *q = sg; q < sg_end; q++)
+                    if (*q == '"') { has_goal = 1; break; }
+            }
+
+            if (id[0] && !has_goal) {
+                cfusa_report_add(rpt, "HARA003", "safety", SEV_ERROR,
+                    ".fusa-hara.json", 0,
+                    "hazard '%s' has no safetyGoals reference — ISO 26262-3 §6.4.9 "
+                    "requires every hazard to drive at least one safety goal "
+                    "(x-FuSa spec §1.2.5)", id);
+                findings++;
+            }
+            p = blk_end;
         }
-        p = end;
     }
     free(json);
     return findings;
 }
 
 /* ── HARA004 — safety goals must have ASIL assigned ─────────────────── */
+
+/* Shared by rule_hara004: scans one already-bracket-scoped collection
+ * ("hazards", where asil lives nested in "risk", or "safetyGoals", where
+ * it's a direct field) for entries with a missing/placeholder asil.
+ * `search_from` lets the caller scope the collection lookup itself — the
+ * top-level "safetyGoals" collection must be searched for *after* the
+ * "hazards" array ends, since each hazard also carries its own nested
+ * "safetyGoals": [...] reference array under the same key name (x-FuSa
+ * spec §1.2.5). When `end_after` is non-NULL it receives a pointer just
+ * past this collection's closing bracket, for exactly that chaining. */
+static int hara004_scan(const char *json, const char *search_from, const char *collection_key,
+                         int asil_is_nested, cfusa_report_t *rpt, const char **end_after)
+{
+    const char *end = NULL;
+    const char *start = json_bracket(search_from ? search_from : json, collection_key,
+                                      '[', ']', &end);
+    if (end_after) *end_after = end;
+    if (!start) return 0;
+
+    int findings = 0;
+    const char *p = start;
+    while ((p = strstr(p, "\"id\"")) != NULL && p < end) {
+        char id[64] = "", asil[32] = "";
+        const char *blk = p;
+        const char *blk_end = strstr(blk + 1, "\"id\"");
+        if (!blk_end || blk_end > end) blk_end = end;
+
+        json_str_field(blk, blk_end, "id", id, sizeof(id));
+
+        if (asil_is_nested) {
+            const char *risk_end = NULL;
+            const char *risk = json_bracket(blk, "risk", '{', '}', &risk_end);
+            if (risk && risk < blk_end)
+                json_str_field(risk, risk_end, "asil", asil, sizeof(asil));
+        } else {
+            json_str_field(blk, blk_end, "asil", asil, sizeof(asil));
+        }
+
+        if (id[0] && (asil[0] == '\0' || strcmp(asil, "TBD") == 0 ||
+                      strcmp(asil, "unknown") == 0)) {
+            cfusa_report_add(rpt, "HARA004", "safety", SEV_WARNING,
+                ".fusa-hara.json", 0,
+                "'%s' has undetermined ASIL '%s' — "
+                "must be QM, ASIL-A, B, C, or D (ISO 26262-3 §6.4.6)",
+                id, asil[0] ? asil : "(empty)");
+            findings++;
+        }
+        p = blk_end;
+    }
+    return findings;
+}
 
 static int rule_hara004(const char *dir, const cfusa_config_t *cfg,
                          cfusa_report_t *rpt)
@@ -153,34 +296,12 @@ static int rule_hara004(const char *dir, const cfusa_config_t *cfg,
     if (!json) json = read_file_at(dir, ".cfusa-hara.json", &len);
     if (!json) return 0;
 
-    int findings = 0;
-    const char *p = json;
-    while ((p = strstr(p, "\"id\"")) != NULL) {
-        char id[64] = "", asil[32] = "";
-        const char *blk = p;
-        const char *end = strstr(blk + 1, "\"id\"");
-        if (!end) end = json + len;
-
-        { char *fp = strstr(blk, "\"id\":");
-          if (fp) { fp += 5; while (*fp==' ') fp++; if (*fp=='"') fp++;
-                    sscanf(fp, "%63[^\"]", id); } }
-        { char *fp = strstr(blk, "\"asil\":");
-          if (fp && fp < end) {
-              fp += 7; while (*fp==' ') fp++;
-              if (*fp=='"') fp++;
-              sscanf(fp, "%31[^\"]", asil); } }
-
-        if (id[0] && (asil[0] == '\0' || strcmp(asil, "TBD") == 0 ||
-                      strcmp(asil, "unknown") == 0)) {
-            cfusa_report_add(rpt, "HARA004", "safety", SEV_WARNING,
-                ".fusa-hara.json", 0,
-                "hazard '%s' has undetermined ASIL '%s' — "
-                "must be QM, ASIL-A, B, C, or D (ISO 26262-3 §6.4.6)",
-                id, asil[0] ? asil : "(empty)");
-            findings++;
-        }
-        p = end;
-    }
+    /* x-FuSa spec §1.2.5: both hazards[].risk.asil and safetyGoals[].asil
+     * are MUST fields; operationalSituations[] carries no asil and is
+     * deliberately excluded from this scan. */
+    const char *hz_end = NULL;
+    int findings = hara004_scan(json, json, "hazards", 1, rpt, &hz_end);
+    findings += hara004_scan(json, hz_end ? hz_end : json, "safetyGoals", 0, rpt, NULL);
     free(json);
     return findings;
 }
