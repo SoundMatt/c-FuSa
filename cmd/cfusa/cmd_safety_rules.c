@@ -2,7 +2,7 @@
  * cmd_safety_rules.c — Project-level safety engine rules.
  *
  * Registers rules that run during `cfusa check`:
- *   HARA001-005   — HARA file and content validation (ISO 26262-3)
+ *   HARA001-006   — HARA file and content validation (ISO 26262-3)
  *   ISO26262001-3 — ISO 26262 evidence and qualification checks
  *   COUP001-003   — Data/control coupling (DO-178C §6.4.4.3)
  *   DISP001       — Undispositioned ERROR findings
@@ -16,12 +16,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "cfusa/asil.h"
 #include "cfusa/engine.h"
 #include "cfusa/report.h"
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
-//cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005
+//cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA010
 //cfusa:req REQ-COUPLING001 REQ-COUPLING002 REQ-COUPLING003
 //cfusa:req REQ-DISP001 REQ-COMP001
 
@@ -379,6 +380,69 @@ static int rule_hara005(const char *dir, const cfusa_config_t *cfg,
         return 1;
     }
     return 0;
+}
+
+/* ── HARA006 — stored ASIL must match the S×E×C table (x-FuSa spec §1.2.5) ── */
+
+/* `hara show` (text mode) has long printed a "stored ASIL differs from
+ * computed" warning line, but that never became a `Finding` and never
+ * gated `check`'s exit code — a hazard could carry a self-consistent-
+ * looking but wrong ASIL and pass every machine-readable gate. This rule
+ * recomputes ISO 26262-3 Table 4 from each hazard's own S/E/C and compares
+ * it to the stored risk.asil, the same way cmd_hara.c's do_show()/
+ * do_show_json() now do (via the shared cfusa_compute_asil()), so the
+ * mismatch also surfaces here where it can fail `check`. */
+static int rule_hara006(const char *dir, const cfusa_config_t *cfg,
+                         cfusa_report_t *rpt)
+{
+    (void)cfg;
+    size_t len; char *json = read_file_at(dir, ".fusa-hara.json", &len);
+    if (!json) json = read_file_at(dir, ".cfusa-hara.json", &len);
+    if (!json) return 0; /* HARA001 already fired */
+
+    const char *hz_end = NULL;
+    const char *hz_start = json_bracket(json, "hazards", '[', ']', &hz_end);
+
+    int findings = 0;
+    if (hz_start) {
+        const char *p = hz_start;
+        while ((p = strstr(p, "\"id\"")) != NULL && p < hz_end) {
+            char id[64] = "";
+            const char *blk = p;
+            const char *blk_end = strstr(blk + 1, "\"id\"");
+            if (!blk_end || blk_end > hz_end) blk_end = hz_end;
+
+            json_str_field(blk, blk_end, "id", id, sizeof(id));
+
+            const char *risk_end = NULL;
+            const char *risk = json_bracket(blk, "risk", '{', '}', &risk_end);
+            char sevs[8] = "", exps[8] = "", ctls[8] = "", asils[16] = "";
+            if (risk && risk < blk_end) {
+                json_str_field(risk, risk_end, "severity", sevs, sizeof(sevs));
+                json_str_field(risk, risk_end, "exposure", exps, sizeof(exps));
+                json_str_field(risk, risk_end, "controllability", ctls, sizeof(ctls));
+                json_str_field(risk, risk_end, "asil", asils, sizeof(asils));
+            }
+
+            if (id[0] && sevs[0] && exps[0] && ctls[0] && asils[0]) {
+                int sev = json_sec_code(sevs), exp = json_sec_code(exps),
+                    ctl = json_sec_code(ctls);
+                const char *computed = cfusa_compute_asil(sev, exp, ctl);
+                if (strcmp(computed, asils) != 0) {
+                    cfusa_report_add(rpt, "HARA006", "safety", SEV_ERROR,
+                        ".fusa-hara.json", 0,
+                        "hazard '%s' has stored ASIL %s but S%d/E%d/C%d derives to %s "
+                        "per ISO 26262-3 Table 4 (x-FuSa spec §1.2.5 — risk.asil MUST "
+                        "derive from severity x exposure x controllability)",
+                        id, asils, sev, exp, ctl, computed);
+                    findings++;
+                }
+            }
+            p = blk_end;
+        }
+    }
+    free(json);
+    return findings;
 }
 
 /* ── ISO26262001 — iso26262-gap-report.json should be present ─────────── */
@@ -886,6 +950,10 @@ static const cfusa_rule_t SAFETY_RULES[] = {
     {"HARA005", "safety", "HARA max ASIL within project ASIL",
      "Hazard ASIL must not exceed project ASIL in .fusa.json",
      "ISO 26262-3", rule_hara005},
+    {"HARA006", "safety", "HARA stored ASIL matches S x E x C table",
+     "risk.asil MUST derive from severity x exposure x controllability "
+     "(ISO 26262-3 Table 4, x-FuSa spec §1.2.5)",
+     "ISO 26262-3", rule_hara006},
     /* ISO 26262 */
     {"ISO26262001", "safety", "ISO 26262 gap report present",
      "iso26262-gap-report.json should be generated and committed",

@@ -25,31 +25,43 @@
 
 #define MAX_THREATS 512
 
+/* Resolved absolute --dir, for project-relative `location.file` fields
+ * (x-FuSa spec §4) regardless of whether --dir itself was given relative or
+ * absolute — same pattern as cmd_trace.c's g_dir_abs / cmd_fmea.c's. */
+static char g_dir_abs[512];
+
 typedef struct {
     const char *category;      /* "network" | "file" | "auth" | "memory" */
     const char *attack_vector; /* "network" | "local" | "physical" */
     const char *feasibility;   /* high|medium|low|very-low */
-    const char *safety, *financial, *operational, *privacy; /* SFOP: high|medium|low */
+    /* SFOP impact axes — x-FuSa spec §9.2 v1.14.1 closed enum:
+     * critical|major|moderate|negligible (NOT high|medium|low, which is a
+     * distinct scale used only for `feasibility` above). The four profiles
+     * below mechanically remap this heuristic's original 3-level
+     * high/medium/low scale onto the top three enum values
+     * (high->critical, medium->major, low->moderate), preserving each
+     * profile's relative severity ordering. */
+    const char *safety, *financial, *operational, *privacy;
     const char *mitigations[3];
 } category_profile_t;
 
 static const category_profile_t PROFILE_NETWORK = {
-    "network", "network", "medium", "medium", "low", "medium", "medium",
+    "network", "network", "medium", "major", "moderate", "major", "major",
     {"Validate and bound-check all network input before use",
      "Add fuzz/negative testing for this entry point", NULL}
 };
 static const category_profile_t PROFILE_FILE = {
-    "file", "local", "medium", "low", "low", "medium", "low",
+    "file", "local", "medium", "moderate", "moderate", "major", "moderate",
     {"Validate file contents against an expected schema before use",
      "Reject unexpected file sizes/paths", NULL}
 };
 static const category_profile_t PROFILE_AUTH = {
-    "auth", "local", "medium", "low", "medium", "medium", "high",
+    "auth", "local", "medium", "moderate", "major", "major", "critical",
     {"Store credentials/keys only in vetted secret storage",
      "Add independent review of authentication/authorization logic", NULL}
 };
 static const category_profile_t PROFILE_MEMORY = {
-    "memory", "local", "medium", "high", "low", "medium", "low",
+    "memory", "local", "medium", "critical", "moderate", "major", "moderate",
     {"Use bounds-checked copy/allocation APIs",
      "Add static analysis (cfusa analyze/lint) to the CI gate for this file", NULL}
 };
@@ -79,21 +91,17 @@ static const category_profile_t *classify(const char *name)
     return NULL;
 }
 
-/* ---- feasibility x max(SFOP) -> risk (documented heuristic, not a claim
- * of the full ISO 21434 risk-value table — see summary.assetInventoryMethod) ---- */
+/* ---- feasibility x max(SFOP) -> risk, via the x-FuSa spec §9.2 canonical
+ * risk combination table (v1.14.1) — the same table implemented (and
+ * tested) in FuSaOps' own `tara` package; not an ad hoc score. ---- */
 
-static int feasibility_rank(const char *f)
-{
-    if (!strcmp(f, "high")) return 4;
-    if (!strcmp(f, "medium")) return 3;
-    if (!strcmp(f, "low")) return 2;
-    return 1; /* very-low */
-}
+/* Highest-ranked first: critical > major > moderate > negligible. */
 static int impact_rank(const char *v)
 {
-    if (!strcmp(v, "high")) return 3;
-    if (!strcmp(v, "medium")) return 2;
-    return 1; /* low */
+    if (!strcmp(v, "critical")) return 3;
+    if (!strcmp(v, "major")) return 2;
+    if (!strcmp(v, "moderate")) return 1;
+    return 0; /* negligible */
 }
 static const char *max_sfop(const category_profile_t *p)
 {
@@ -105,13 +113,28 @@ static const char *max_sfop(const category_profile_t *p)
     }
     return best;
 }
+/* feasibility column: high | medium | low | very-low */
+static int feasibility_col(const char *f)
+{
+    if (!strcmp(f, "high")) return 0;
+    if (!strcmp(f, "medium")) return 1;
+    if (!strcmp(f, "low")) return 2;
+    return 3; /* very-low */
+}
 static const char *derive_risk(const category_profile_t *p)
 {
-    int score = feasibility_rank(p->feasibility) * impact_rank(max_sfop(p));
-    if (score <= 2) return "low";
-    if (score <= 6) return "medium";
-    if (score <= 9) return "high";
-    return "critical";
+    /* Row order matches impact_rank(): critical, major, moderate, negligible.
+     * Column order matches feasibility_col(): high, medium, low, very-low.
+     * Verbatim transcription of the x-FuSa spec §9.2 combination table. */
+    static const char * const table[4][4] = {
+        /* critical  */ {"critical", "critical", "high",   "medium"},
+        /* major     */ {"high",     "high",     "medium", "medium"},
+        /* moderate  */ {"medium",   "medium",   "low",    "low"},
+        /* negligible*/ {"low",      "low",      "low",    "low"},
+    };
+    int row = 3 - impact_rank(max_sfop(p));
+    int col = feasibility_col(p->feasibility);
+    return table[row][col];
 }
 static const char *derive_treatment(const char *risk)
 {
@@ -134,30 +157,15 @@ static void render_threat(char *out, size_t sz, const asset_entry_t *a)
 static void asset_line(const char *path, int lineno, const char *line, void *vctx)
 {
     (void)vctx;
-    const char *p = line;
-    while (*p == ' ' || *p == '\t') p++;
-    if (!*p || *p == '/' || *p == '#' || *p == '*' || *p == '}') return;
-    static const char * const skip_kw[] = {
-        "if ","for ","while ","switch ","return ","else ","case ",
-        "typedef ","struct ","enum ","union ","static ","extern ","inline ",NULL
-    };
-    for (int i = 0; skip_kw[i]; i++)
-        if (strncmp(p, skip_kw[i], strlen(skip_kw[i])) == 0) return;
-    if (!strstr(line,"(") || !strstr(line,")")) return;
-    const char *end = line + strlen(line);
-    while (end > line && (end[-1]==' '||end[-1]=='\t'||end[-1]=='\n'||end[-1]=='\r')) end--;
-    if (end > line && end[-1] == ';') return;
-
-    char *paren = strchr((char*)p, '(');
-    if (!paren) return;
-    char before[128] = "";
-    size_t bl = (size_t)(paren - p);
-    if (bl == 0 || bl >= 128) return;
-    strncpy(before, p, bl); before[bl] = '\0';
-    char *sp = strrchr(before, ' ');
-    char *fn_name = sp ? sp + 1 : before;
-    while (*fn_name == '*') fn_name++;
-    if (!*fn_name || strlen(fn_name) < 2) return;
+    /* cfusa_extract_call_name() (src/utils.c, shared with cmd_fmea.c)
+     * centralises the match heuristic: skip control-flow/storage-class
+     * keywords, require the "(" to be outside a string literal, and
+     * exclude standard-library calls outright — x-FuSa spec §1.6 rule 4
+     * ("real referents only"). A stdlib call like strcpy()/memcpy() is
+     * excluded here even though `classify()` below would otherwise treat
+     * its name as a memory-category asset keyword match. */
+    char fn_name[128];
+    if (!cfusa_extract_call_name(line, fn_name, sizeof(fn_name))) return;
 
     const category_profile_t *prof = classify(fn_name);
     if (!prof) return; /* not asset-relevant by this heuristic */
@@ -166,22 +174,22 @@ static void asset_line(const char *path, int lineno, const char *line, void *vct
     if (g_asset_count >= MAX_THREATS) return;
 
     strncpy(g_assets[g_asset_count].name, fn_name, 127);
-    strncpy(g_assets[g_asset_count].file, path, 255);
+    /* Project-relative (x-FuSa spec §4), regardless of whether --dir was
+     * given relative or absolute. */
+    cfusa_relativize_path(g_dir_abs, path, g_assets[g_asset_count].file,
+                           sizeof(g_assets[g_asset_count].file));
     g_assets[g_asset_count].line = lineno;
     g_assets[g_asset_count].profile = prof;
     g_asset_count++;
 }
 
-/* Mirrors cmd_trace.c's is_test_file() / cmd_fmea.c's fmea_is_test_file():
- * a TARA is over the project's own attack surface, not its test
- * scaffolding (a test helper calling e.g. strcpy() is not an asset). */
+/* Mirrors trace --func-coverage's is_test_file() / cmd_fmea.c's
+ * fmea_is_test_file(): a TARA is over the project's own attack surface, not
+ * its test scaffolding (a test helper calling e.g. strcpy() is not an
+ * asset). */
 static int tara_is_test_file(const char *path)
 {
-    const char *b = strrchr(path, '/');
-    b = b ? b + 1 : path;
-    if (strncmp(b, "test_", 5) == 0) return 1;
-    size_t n = strlen(b);
-    return n > 7 && strcmp(b + n - 7, "_test.c") == 0;
+    return cfusa_is_test_source_file(path);
 }
 
 static int asset_file(const char *path, void *v)
@@ -289,7 +297,7 @@ static void write_threat_json(FILE *f, const asset_entry_t *a, int idx, int last
     fprintf(f, "],\n"
               "      \"location\": {\"file\": \"%s\", \"line\": %d}\n"
               "    }%s\n",
-            cfusa_basename(a->file), a->line, last ? "" : ",");
+            a->file, a->line, last ? "" : ",");
 }
 
 static void render_markdown(FILE *f, const char *project, const char *version, const char *ts,
@@ -383,10 +391,17 @@ int cmd_tara(int argc, char **argv)
 
     g_asset_count = 0;
     g_total_found = 0;
+    /* Deliberately the literal --dir value, not realpath(dir) — see
+     * cfusa_relativize_path()'s doc comment for why. */
+    strncpy(g_dir_abs, dir, sizeof(g_dir_abs) - 1);
+    g_dir_abs[sizeof(g_dir_abs) - 1] = '\0';
     static const char * const exts[] = {".c"};
     cfusa_walk_sources(dir, exts, 1, asset_file, NULL);
 
     int coverage_pct = (g_total_found == 0) ? 100 : (g_asset_count * 100 / g_total_found);
+    /* x-FuSa spec §9.2: coveragePct MUST NOT exceed 100 — see cmd_fmea.c's
+     * equivalent clamp for the rationale (defense-in-depth). */
+    if (coverage_pct > 100) coverage_pct = 100;
 
     const char *base = output_dir ? output_dir : dir;
     char existing_path[512];
@@ -432,7 +447,7 @@ int cmd_tara(int argc, char **argv)
         "  \"generatedAt\": \"%s\",\n" \
         "  \"project\": \"%s\",\n" \
         "  \"version\": \"%s\",\n" \
-        "  \"standard\": \"ISO/SAE 21434:2021 Clause 15\",\n" \
+        "  \"standard\": \"iso21434\",\n" \
         "  \"threats\": [\n", \
         ts, cfg.project, cfg.version); \
     for (int i = 0; i < g_asset_count; i++) \

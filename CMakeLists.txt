@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(cfusa
-    VERSION 0.5.46
+    VERSION 0.5.47
     DESCRIPTION "C functional safety toolkit"
     LANGUAGES C
 )
@@ -38,6 +38,7 @@ add_library(cfusa_core STATIC
     src/utils.c
     src/cfusa_runtime.c
     src/qualitybar.c
+    src/asil.c
 )
 target_include_directories(cfusa_core PUBLIC include)
 set_target_properties(cfusa_core PROPERTIES

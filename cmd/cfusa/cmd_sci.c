@@ -18,6 +18,7 @@ typedef struct {
     FILE       *out;
     const char *fmt;   /* "text" or "md" or "json" */
     const char *version;
+    char        dir_abs[512]; /* resolved --dir, for §4 project-relative paths */
     int         count;
     int         first;
 } sci_ctx_t;
@@ -28,14 +29,20 @@ static int sci_file(const char *path, void *vctx)
     char hex[65];
     cfusa_sha256_file(path, hex);
 
+    /* x-FuSa spec §4: location.file (here, artifacts[].file) MUST be
+     * project-relative, never absolute — even when --dir itself was given
+     * as an absolute path. */
+    char rel[512];
+    cfusa_relativize_path(ctx->dir_abs, path, rel, sizeof(rel));
+
     if (!strcmp(ctx->fmt,"json")) {
         fprintf(ctx->out, "%s\n    {\"file\": \"%s\", \"hash\": \"sha256:%s\", \"version\": \"%s\"}",
-                ctx->first ? "" : ",", path, hex, ctx->version);
+                ctx->first ? "" : ",", rel, hex, ctx->version);
         ctx->first = 0;
     } else if (!strcmp(ctx->fmt,"md")) {
-        fprintf(ctx->out, "| %s | `sha256:%s` |\n", path, hex);
+        fprintf(ctx->out, "| %s | `sha256:%s` |\n", rel, hex);
     } else {
-        fprintf(ctx->out, "%-60s  sha256:%s\n", path, hex);
+        fprintf(ctx->out, "%-60s  sha256:%s\n", rel, hex);
     }
     ctx->count++;
     return 0;
@@ -109,7 +116,12 @@ int cmd_sci(int argc, char **argv)
                 "----------------------------------------------------------------");
     }
 
-    sci_ctx_t ctx = {out, fmt_s, cfg.version, 0, 1};
+    sci_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.out = out; ctx.fmt = fmt_s; ctx.version = cfg.version; ctx.first = 1;
+    /* Deliberately the literal --dir value, not realpath(dir) — see
+     * cfusa_relativize_path()'s doc comment for why. */
+    strncpy(ctx.dir_abs, dir, sizeof(ctx.dir_abs) - 1);
     static const char * const exts[] = {".c",".h"};
     cfusa_walk_sources(dir, exts, 2, sci_file, &ctx);
 

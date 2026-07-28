@@ -23,6 +23,11 @@
 #define MAX_FUNS      1024
 #define FMEA_RATING_SCALE "cfusa-heuristic-1-10"
 
+/* Resolved absolute --dir, for project-relative `file` fields (x-FuSa spec
+ * §4) regardless of whether --dir itself was given relative or absolute —
+ * same pattern as cmd_trace.c's g_dir_abs. */
+static char g_dir_abs[512];
+
 typedef struct {
     char name[128];
     char file[256];
@@ -104,30 +109,14 @@ static void render_cause(char *out, size_t sz, const fn_entry_t *fn)
 static void fmea_line(const char *path, int lineno, const char *line, void *vctx)
 {
     (void)vctx;
-    const char *p = line;
-    while (*p == ' ' || *p == '\t') p++;
-    if (!*p || *p == '/' || *p == '#' || *p == '*' || *p == '}') return;
-    static const char * const skip_kw[] = {
-        "if ","for ","while ","switch ","return ","else ","case ",
-        "typedef ","struct ","enum ","union ","static ","extern ","inline ",NULL
-    };
-    for (int i = 0; skip_kw[i]; i++)
-        if (strncmp(p, skip_kw[i], strlen(skip_kw[i])) == 0) return;
-    if (!strstr(line,"(") || !strstr(line,")")) return;
-    const char *end = line + strlen(line);
-    while (end > line && (end[-1]==' '||end[-1]=='\t'||end[-1]=='\n'||end[-1]=='\r')) end--;
-    if (end > line && end[-1] == ';') return;
-
-    char *paren = strchr((char*)p, '(');
-    if (!paren) return;
-    char before[128] = "";
-    size_t bl = (size_t)(paren - p);
-    if (bl == 0 || bl >= 128) return;
-    strncpy(before, p, bl); before[bl] = '\0';
-    char *sp = strrchr(before, ' ');
-    char *fn_name = sp ? sp + 1 : before;
-    while (*fn_name == '*') fn_name++;
-    if (!*fn_name || strlen(fn_name) < 2) return;
+    /* cfusa_extract_call_name() (src/utils.c) centralises the match
+     * heuristic that used to live here: skip control-flow/storage-class
+     * keywords (word-boundary aware, so "if(" and "if " are both caught),
+     * require the "(" to be outside a string literal (a test-fixture
+     * description string is not a call site), and exclude standard-library
+     * calls outright — x-FuSa spec §1.6 rule 4 ("real referents only"). */
+    char fn_name[128];
+    if (!cfusa_extract_call_name(line, fn_name, sizeof(fn_name))) return;
 
     /* Counted for componentsInProject regardless of the per-run table cap,
      * so coveragePct honestly reflects truncation on very large projects
@@ -136,24 +125,23 @@ static void fmea_line(const char *path, int lineno, const char *line, void *vctx
     if (g_fn_count >= MAX_FUNS) return;
 
     strncpy(g_fns[g_fn_count].name, fn_name, 127);
-    strncpy(g_fns[g_fn_count].file, path,    255);
+    /* Project-relative (x-FuSa spec §4), regardless of whether --dir was
+     * given relative or absolute. */
+    cfusa_relativize_path(g_dir_abs, path, g_fns[g_fn_count].file,
+                           sizeof(g_fns[g_fn_count].file));
     g_fns[g_fn_count].line     = lineno;
     infer_profile(fn_name, &g_fns[g_fn_count]);
     g_fn_count++;
 }
 
-/* Mirrors cmd_trace.c's is_test_file(): a design FMEA is over the
+/* Mirrors trace --func-coverage's is_test_file(): a design FMEA is over the
  * project's own safety-relevant public functions, not its test scaffolding
  * — same exclusion used by trace --func-coverage's componentsInProject-
  * equivalent denominator (x-FuSa spec §1.4.1/§5), which this command's
  * summary.componentsInProject is intentionally aligned with. */
 static int fmea_is_test_file(const char *path)
 {
-    const char *b = strrchr(path, '/');
-    b = b ? b + 1 : path;
-    if (strncmp(b, "test_", 5) == 0) return 1;
-    size_t n = strlen(b);
-    return n > 7 && strcmp(b + n - 7, "_test.c") == 0;
+    return cfusa_is_test_source_file(path);
 }
 
 static int fmea_file(const char *path, void *v)
@@ -184,7 +172,7 @@ static size_t fmea_canonical_content(char *buf, size_t bufsz)
             "\"effect\":\"%s\",\"failureMode\":\"%s\",\"file\":\"%s\",\"id\":\"FM-%03d\","
             "\"item\":\"%s\",\"occurrence\":%d,\"severity\":%d}",
             i ? "," : "", g_fns[i].action_priority, esc_ca, g_fns[i].detection, esc_ef, esc_fm,
-            cfusa_basename(g_fns[i].file), i + 1, esc_item, g_fns[i].occurrence,
+            g_fns[i].file, i + 1, esc_item, g_fns[i].occurrence,
             g_fns[i].severity);
     }
     off += (size_t)snprintf(buf + off, off < bufsz ? bufsz - off : 0, "]}");
@@ -264,7 +252,7 @@ static void write_entry_json(FILE *f, const fn_entry_t *fn, int idx, int last, i
         "      \"mitigations\": [],\n"
         "      \"requirementIds\": []%s\n"
         "    }%s\n",
-        idx + 1, esc_item, cfusa_basename(fn->file), fn->line,
+        idx + 1, esc_item, fn->file, fn->line,
         esc_fm, esc_ef, esc_ca, fn->severity, fn->occurrence, fn->detection,
         fn->action_priority,
         with_cyber ? ",\n      \"cyberFailureMode\": \"\"" : "",
@@ -275,6 +263,7 @@ int cmd_fmea(int argc, char **argv)
 {
     const char *dir      = ".";
     const char *out_dir  = NULL;   /* --output-dir (go-FuSa style) */
+    const char *output   = NULL;   /* --output <file> — exact path, distinct from --output-dir */
     const char *fmt_s    = NULL;   /* NULL → both json+csv; "md"/"json"/"csv" → single */
     const char *attest   = NULL;   /* --attest <reviewer> convenience flag */
     int with_cyber       = 0;
@@ -285,6 +274,7 @@ int cmd_fmea(int argc, char **argv)
     static const struct option lo[] = {
         {"dir",                required_argument, NULL, 'd'},
         {"output-dir",         required_argument, NULL, 'D'},
+        {"output",             required_argument, NULL, 'o'},
         {"format",             required_argument, NULL, 'f'},
         {"cyber",              no_argument,       NULL, 'c'},
         {"strict",             no_argument,       NULL, 'S'},
@@ -296,10 +286,11 @@ int cmd_fmea(int argc, char **argv)
     };
 
     int ch; optind = 1;
-    while ((ch = getopt_long(argc, argv, "d:D:f:cSAT:m:h", lo, NULL)) != -1) {
+    while ((ch = getopt_long(argc, argv, "d:D:o:f:cSAT:m:h", lo, NULL)) != -1) {
         switch (ch) {
         case 'd': dir      = optarg; break;
         case 'D': out_dir  = optarg; break;
+        case 'o': output   = optarg; break;
         case 'f': fmt_s    = optarg; break;
         case 'c': with_cyber = 1;    break;
         case 'S': strict = 1;        break;
@@ -307,14 +298,16 @@ int cmd_fmea(int argc, char **argv)
         case 'T': attest = optarg;   break;
         case 'm': min_coverage = atoi(optarg); break;
         case 'h':
-            printf("Usage: cfusa fmea [--dir <path>] [--output-dir <dir>]\n"
+            printf("Usage: cfusa fmea [--dir <path>] [--output-dir <dir>] [--output <file>]\n"
                    "                  [--format md|json|csv] [--cyber]\n"
                    "                  [--strict] [--require-attestation] [--attest <reviewer>]\n"
                    "                  [--min-coverage N]\n\n"
                    "Generates a design FMEA from public function signatures\n"
                    "(IEC 60812 / ISO 26262-5 / AIAG-VDA FMEA Handbook).\n"
                    "Default: generates both fmea.json and fmea.csv.\n"
-                   "--format md          generates fmea.md instead.\n"
+                   "--format md|json|csv  generates a single file of that format instead.\n"
+                   "--output <file>       writes exactly that path (implies --format json\n"
+                   "                      unless --format is also given).\n"
                    "--cyber              enriches entries with cybersecurity failure modes.\n"
                    "--strict             implies --require-attestation.\n"
                    "--require-attestation escalates an unsuppressed FUSA-STUB002 to exit 1.\n"
@@ -330,6 +323,10 @@ int cmd_fmea(int argc, char **argv)
     cfusa_config_load(dir, &cfg);
     g_fn_count = 0;
     g_total_found = 0;
+    /* Deliberately the literal --dir value, not realpath(dir) — see
+     * cfusa_relativize_path()'s doc comment for why. */
+    strncpy(g_dir_abs, dir, sizeof(g_dir_abs) - 1);
+    g_dir_abs[sizeof(g_dir_abs) - 1] = '\0';
 
     static const char * const exts[] = {".c"};
     cfusa_walk_sources(dir, exts, 1, fmea_file, NULL);
@@ -338,6 +335,13 @@ int cmd_fmea(int argc, char **argv)
     char ts[32]; cfusa_timestamp_now(ts);
 
     int coverage_pct = (g_total_found == 0) ? 100 : (g_fn_count * 100 / g_total_found);
+    /* x-FuSa spec §9.2: coveragePct MUST NOT exceed 100. Structurally
+     * g_fn_count <= g_total_found already (every match increments
+     * g_total_found; g_fn_count only when under the MAX_FUNS cap), so this
+     * is defense-in-depth against a future accounting change rather than a
+     * currently-reachable path — the spec's rollout audit found this
+     * exceeded in other tools precisely when that invariant silently broke. */
+    if (coverage_pct > 100) coverage_pct = 100;
     int high = 0;
     for (int i = 0; i < g_fn_count; i++)
         if (strcmp(g_fns[i].action_priority, "high") == 0) high++;
@@ -402,7 +406,7 @@ int cmd_fmea(int argc, char **argv)
     printf("FMEA written to %s  (%d functions)\n", _p, g_fn_count); \
 } while(0)
 
-    if (!fmt_s) {
+    if (!fmt_s && !output) {
         /* Default: generate both fmea.json and fmea.csv (go-FuSa style) */
         FILE *jf, *cf;
         OPEN_OUT("fmea.json", jf);
@@ -418,7 +422,7 @@ int cmd_fmea(int argc, char **argv)
             "  \"generatedAt\": \"%s\",\n"
             "  \"project\": \"%s\",\n"
             "  \"version\": \"%s\",\n"
-            "  \"standard\": \"IEC 60812:2018 / ISO 26262-5\",\n"
+            "  \"standard\": \"iso26262\",\n"
             "  \"ratingScale\": \"" FMEA_RATING_SCALE "\",\n"
             "  \"entries\": [\n",
             ts, cfg.project, cfg.version);
@@ -457,11 +461,20 @@ int cmd_fmea(int argc, char **argv)
         return qb_gate || cov_gate;
     }
 
-    cfusa_format_t fmt = cfusa_format_parse(fmt_s);
-    const char *def_name = (fmt == FMT_JSON) ? "fmea.json" :
-                           (fmt == FMT_CSV)  ? "fmea.csv"  : "fmea.md";
+    /* --output <file> with no --format defaults to JSON — the canonical,
+     * schema-formalized shape (x-FuSa spec §9.2) and the format anyone
+     * scripting a specific --output path is most likely after. */
+    cfusa_format_t fmt = cfusa_format_parse(fmt_s ? fmt_s : "json");
     FILE *f;
-    OPEN_OUT(def_name, f);
+    if (output) {
+        f = cfusa_fopen_write(output);
+        if (!f) { perror(output); return 3; }
+        printf("FMEA written to %s  (%d functions)\n", output, g_fn_count);
+    } else {
+        const char *def_name = (fmt == FMT_JSON) ? "fmea.json" :
+                               (fmt == FMT_CSV)  ? "fmea.csv"  : "fmea.md";
+        OPEN_OUT(def_name, f);
+    }
 
     if (fmt == FMT_JSON) {
         fprintf(f,
@@ -474,7 +487,7 @@ int cmd_fmea(int argc, char **argv)
             "  \"generatedAt\": \"%s\",\n"
             "  \"project\": \"%s\",\n"
             "  \"version\": \"%s\",\n"
-            "  \"standard\": \"IEC 60812:2018 / ISO 26262-5\",\n"
+            "  \"standard\": \"iso26262\",\n"
             "  \"ratingScale\": \"" FMEA_RATING_SCALE "\",\n"
             "  \"entries\": [\n",
             ts, cfg.project, cfg.version);

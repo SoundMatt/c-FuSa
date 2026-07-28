@@ -7,6 +7,91 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## v0.5.47 — 2026-07-28
+
+x-FuSa spec v1.15.0 adoption + deep-audit bug-fix sprint (issues #73-80):
+`hara`/`fmea`/`tara`/`sci` schema-conformance fixes found by running the
+tool against its own codebase and diffing real output against the spec.
+
+### Added
+- **HARA006 `check` engine rule.** `risk.asil` is now cross-checked against
+  the ISO 26262-3 Table 4 S x E x C derivation both as a `check`-gating
+  `Finding` (HARA006) and in `hara --format json`'s new
+  `completeness.asilMismatches` count — previously the mismatch only
+  surfaced as a `hara show` (text) warning line that never affected any
+  exit code or machine-readable output (#74). The S x E x C table itself is
+  now `src/asil.c`'s shared `cfusa_compute_asil()`, used by both call sites
+  instead of a copy local to `cmd_hara.c`.
+- **`hara --format json` verbatim passthrough.** `hazards[].source`/
+  `situations`/`safetyGoals` and `safetyGoals[].hazards`/`safeState` are no
+  longer silently dropped, and a document-level `attestation` (when present
+  in `.fusa-hara.json`) is now passed through — closing the gap between
+  what `hara show` (text) already displayed and what a consumer of the
+  JSON contract could actually see (#73).
+- **`cfusa fmea --output <file>`.** `fmea` previously defined only
+  `--output-dir <dir>`, so GNU `getopt_long`'s unambiguous-prefix matching
+  silently treated `--output <path>` (the exact form the CLI synopsis in
+  §9.2 documents) as an abbreviation of `--output-dir`, writing a bogus
+  `<path>/fmea.json` and failing with a confusing error instead of either
+  working or rejecting cleanly (#79).
+- Shared `src/utils.c` helpers: `cfusa_relativize_path()` (the one
+  canonical project-relative-path implementation, replacing ad hoc copies
+  in `cfusa_report_add()`/`cmd_trace.c`), `cfusa_is_test_source_file()`,
+  `cfusa_is_stdlib_call()`, and `cfusa_extract_call_name()` — the last two
+  centralise the "does this line look like a real call/definition site"
+  heuristic previously duplicated (and independently under-guarded) in
+  `cmd_fmea.c`'s `fmea_line()` and `cmd_tara.c`'s `asset_line()`, per the
+  x-FuSa spec §1.6 rule 4 implementation note.
+- Regenerated this repo's own `fmea.json`/`fmea.csv`, `tara.json`/`tara.md`,
+  and `safety-case.json`/`safety-case.md` against the fixes below —
+  dogfooding, same convention as v0.5.46.
+
+### Fixed
+- **`fmea.json`/`tara.json` picked up standard-library calls and
+  string-literal text as project components/assets (#78).** The scanner's
+  naive paren-based heuristic found the first `(` on a line without regard
+  to whether it sat inside a quoted string (misreading a qualification
+  test-case description like `"strcpy() triggers CY001"` as a call to a
+  function named `"strcpy`, leading-quote included), and never excluded
+  well-known libc calls (`fprintf`/`snprintf`/`printf`/`malloc`/`memcpy`/...
+  — 67 of 370 entries, 18%, in this repo's own previously-committed
+  `fmea.json`). `cfusa_extract_call_name()` now requires the `(` to be
+  outside a string literal and excludes standard-library identifiers
+  outright. `cfusa_walk_sources()` also skipped only a fixed directory-name
+  enum (`build`/`vendor`/`build-cov`/`node_modules`); a local working tree
+  with other build-type variants side by side (`build-asan`,
+  `build_fortify`, ...) had every one of them scanned as project source
+  too, picking up CMake's own generated `CompilerIdC` probe. Both are §1.6
+  rule 4 "real referents only" violations; `cfusa_walk_sources()` now skips
+  any `build`/`build-*`/`build_*` directory, matching this project's own
+  `.gitignore` convention.
+- **`fmea.json`/`tara.json` truncated `file` to a bare basename; `sci.json`
+  emitted an absolute path when `--dir` was given absolute (#77).**
+  `cfusa_relativize_path()` now relativizes against the literal `--dir`
+  value used to build each scanned path (deliberately *not*
+  `realpath(dir)` — see its doc comment: `path` is always built by
+  concatenating the literal `--dir`, and resolving symlinks first can
+  silently break the prefix match, e.g. macOS aliases `/tmp` to
+  `/private/tmp`), applied to `fmea`/`tara`'s entry `file` and `sci`'s
+  `artifacts[].file`.
+- **`fmea.json`/`tara.json` `standard` was a citation string, not the
+  canonical id (#75).** `"IEC 60812:2018 / ISO 26262-5"` -> `"iso26262"`;
+  `"ISO/SAE 21434:2021 Clause 15"` -> `"iso21434"`, matching
+  `safety-case.json`'s existing (correct) convention and x-FuSa spec
+  §2.4.1's "never a display string" rule.
+- **`tara.json` `impact.*` used `high|medium|low`, and `risk` was an ad hoc
+  score (#76).** The four category profiles now emit the v1.14.1 closed
+  enum (`critical|major|moderate|negligible`), and `risk` is a literal
+  lookup against the x-FuSa spec §9.2 combination table (highest-ranked
+  SFOP impact x `attackFeasibility`) instead of an independently-invented
+  `feasibility_rank x impact_rank` numeric threshold that didn't correspond
+  to the table's cells.
+- **`summary.coveragePct` defensive clamp (fmea/tara, #80).** Added
+  `if (coveragePct > 100) coveragePct = 100;` to both commands per the
+  x-FuSa spec §9.2 MUST, plus a regression test with a non-trivial
+  test-source tree on each (a fixture with no `test_*.c`-equivalent
+  directory can't exercise the bug this clamp guards against).
+
 ## v0.5.46 — 2026-07-28
 
 x-FuSa spec v1.13.0/v1.14.0 conformance sprint (issue #71): `hara`/`fmea`/
