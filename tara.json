@@ -1,173 +1,137 @@
 {
-  "schemaVersion": "1.14.0",
+  "schemaVersion": "1.15.0",
   "kind": "tara-report",
   "tool": "c-FuSa",
-  "toolVersion": "0.5.46",
+  "toolVersion": "0.5.47",
   "language": "c",
-  "generatedAt": "2026-07-28T19:47:38Z",
+  "generatedAt": "2026-07-28T21:51:15Z",
   "project": "c-FuSa",
   "version": "0.5.1",
-  "standard": "ISO/SAE 21434:2021 Clause 15",
+  "standard": "iso21434",
   "threats": [
     {
       "id": "TARA-001",
-      "asset": "Data handled by \"strcpy (cmd_qualify.c)",
-      "threat": "An attacker supplies malformed/untrusted input to \"strcpy, potentially causing incorrect behaviour, a crash, or information disclosure",
-      "attackVector": "local",
-      "attackFeasibility": "medium",
-      "impact": {"safety": "high", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "high",
-      "treatment": "mitigate",
-      "mitigations": ["Use bounds-checked copy/allocation APIs", "Add static analysis (cfusa analyze/lint) to the CI gate for this file"],
-      "location": {"file": "cmd_qualify.c", "line": 427}
-    },
-    {
-      "id": "TARA-002",
       "asset": "Data handled by import_reqif (cmd_req.c)",
       "threat": "An attacker supplies malformed/untrusted input to import_reqif, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
       "attackFeasibility": "medium",
-      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
       "treatment": "mitigate",
       "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
-      "location": {"file": "cmd_req.c", "line": 646}
+      "location": {"file": "cmd/cfusa/cmd_req.c", "line": 646}
     },
     {
-      "id": "TARA-003",
+      "id": "TARA-002",
       "asset": "Data handled by import_polarion_xml (cmd_req.c)",
       "threat": "An attacker supplies malformed/untrusted input to import_polarion_xml, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
       "attackFeasibility": "medium",
-      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
       "treatment": "mitigate",
       "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
-      "location": {"file": "cmd_req.c", "line": 652}
+      "location": {"file": "cmd/cfusa/cmd_req.c", "line": 652}
     },
     {
-      "id": "TARA-004",
+      "id": "TARA-003",
       "asset": "Data handled by import_reqif (cmd_req.c)",
       "threat": "An attacker supplies malformed/untrusted input to import_reqif, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
       "attackFeasibility": "medium",
-      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
       "treatment": "mitigate",
       "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
-      "location": {"file": "cmd_req.c", "line": 655}
+      "location": {"file": "cmd/cfusa/cmd_req.c", "line": 655}
     },
     {
-      "id": "TARA-005",
+      "id": "TARA-004",
       "asset": "Data handled by import_codebeamer_xml (cmd_req.c)",
       "threat": "An attacker supplies malformed/untrusted input to import_codebeamer_xml, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
       "attackFeasibility": "medium",
-      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
       "treatment": "mitigate",
       "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
-      "location": {"file": "cmd_req.c", "line": 660}
+      "location": {"file": "cmd/cfusa/cmd_req.c", "line": 660}
     },
     {
-      "id": "TARA-006",
+      "id": "TARA-005",
       "asset": "Data handled by import_jama_xml (cmd_req.c)",
       "threat": "An attacker supplies malformed/untrusted input to import_jama_xml, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
       "attackFeasibility": "medium",
-      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
       "treatment": "mitigate",
       "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
-      "location": {"file": "cmd_req.c", "line": 671}
+      "location": {"file": "cmd/cfusa/cmd_req.c", "line": 671}
     },
     {
-      "id": "TARA-007",
-      "asset": "Data handled by malloc (cmd_fix.c)",
-      "threat": "An attacker supplies malformed/untrusted input to malloc, potentially causing incorrect behaviour, a crash, or information disclosure",
-      "attackVector": "local",
-      "attackFeasibility": "medium",
-      "impact": {"safety": "high", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "high",
-      "treatment": "mitigate",
-      "mitigations": ["Use bounds-checked copy/allocation APIs", "Add static analysis (cfusa analyze/lint) to the CI gate for this file"],
-      "location": {"file": "cmd_fix.c", "line": 63}
-    },
-    {
-      "id": "TARA-008",
-      "asset": "Data handled by malloc (cmd_fix.c)",
-      "threat": "An attacker supplies malformed/untrusted input to malloc, potentially causing incorrect behaviour, a crash, or information disclosure",
-      "attackVector": "local",
-      "attackFeasibility": "medium",
-      "impact": {"safety": "high", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "high",
-      "treatment": "mitigate",
-      "mitigations": ["Use bounds-checked copy/allocation APIs", "Add static analysis (cfusa analyze/lint) to the CI gate for this file"],
-      "location": {"file": "cmd_fix.c", "line": 99}
-    },
-    {
-      "id": "TARA-009",
-      "asset": "Data handled by \"strcpy (cmd_vuln.c)",
-      "threat": "An attacker supplies malformed/untrusted input to \"strcpy, potentially causing incorrect behaviour, a crash, or information disclosure",
-      "attackVector": "local",
-      "attackFeasibility": "medium",
-      "impact": {"safety": "high", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "high",
-      "treatment": "mitigate",
-      "mitigations": ["Use bounds-checked copy/allocation APIs", "Add static analysis (cfusa analyze/lint) to the CI gate for this file"],
-      "location": {"file": "cmd_vuln.c", "line": 32}
-    },
-    {
-      "id": "TARA-010",
+      "id": "TARA-006",
       "asset": "Data handled by parse_sec_code (cmd_hara.c)",
       "threat": "An attacker supplies malformed/untrusted input to parse_sec_code, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
       "attackFeasibility": "medium",
-      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
       "treatment": "mitigate",
       "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
-      "location": {"file": "cmd_hara.c", "line": 650}
+      "location": {"file": "cmd/cfusa/cmd_hara.c", "line": 622}
     },
     {
-      "id": "TARA-011",
+      "id": "TARA-007",
+      "asset": "Data handled by parse_sec_code (cmd_hara.c)",
+      "threat": "An attacker supplies malformed/untrusted input to parse_sec_code, potentially causing incorrect behaviour, a crash, or information disclosure",
+      "attackVector": "local",
+      "attackFeasibility": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
+      "treatment": "mitigate",
+      "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
+      "location": {"file": "cmd/cfusa/cmd_hara.c", "line": 677}
+    },
+    {
+      "id": "TARA-008",
       "asset": "Data handled by cfusa_format_parse (report.c)",
       "threat": "An attacker supplies malformed/untrusted input to cfusa_format_parse, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
       "attackFeasibility": "medium",
-      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
       "treatment": "mitigate",
       "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
-      "location": {"file": "report.c", "line": 137}
+      "location": {"file": "src/report.c", "line": 137}
     },
     {
-      "id": "TARA-012",
+      "id": "TARA-009",
       "asset": "Data handled by cfusa_fopen_write (utils.c)",
       "threat": "An attacker supplies malformed/untrusted input to cfusa_fopen_write, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
       "attackFeasibility": "medium",
-      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
       "treatment": "mitigate",
       "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
-      "location": {"file": "utils.c", "line": 78}
+      "location": {"file": "src/utils.c", "line": 99}
     },
     {
-      "id": "TARA-013",
+      "id": "TARA-010",
       "asset": "Data handled by cfusa_config_load (config.c)",
       "threat": "An attacker supplies malformed/untrusted input to cfusa_config_load, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
       "attackFeasibility": "medium",
-      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
-      "risk": "medium",
+      "impact": {"safety": "moderate", "financial": "moderate", "operational": "major", "privacy": "moderate"},
+      "risk": "high",
       "treatment": "mitigate",
       "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
-      "location": {"file": "config.c", "line": 92}
+      "location": {"file": "src/config.c", "line": 92}
     }
   ],
   "summary": {
-    "assetsAnalyzed": 13, "assetsInProject": 13, "coveragePct": 100,
+    "assetsAnalyzed": 10, "assetsInProject": 10, "coveragePct": 100,
     "assetInventoryMethod": "Keyword-based scan of public C function names against a network/file/auth/memory-input vocabulary; not a formal asset inventory."
   }
 }

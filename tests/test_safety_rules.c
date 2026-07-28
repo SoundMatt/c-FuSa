@@ -13,10 +13,10 @@
 #include "cfusa/report.h"
 #include "cfusa/config.h"
 
-//cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005
+//cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA010
 //cfusa:req REQ-COUPLING001 REQ-COUPLING002 REQ-COUPLING003
 //cfusa:req REQ-DISP001 REQ-COMP001
-//cfusa:test REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005
+//cfusa:test REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA010
 //cfusa:test REQ-COUPLING001 REQ-COUPLING002 REQ-COUPLING003
 //cfusa:test REQ-DISP001 REQ-COMP001
 
@@ -181,6 +181,64 @@ void test_hara004_fires_on_tbd_asil(void)
         if (strcmp(r->id, "HARA004") == 0) r->run(SR_DIR, &cfg, &rpt);
     }
     TEST_ASSERT_TRUE(rpt.warning_count > 0);
+    cfusa_report_free(&rpt);
+    rm_file(".fusa-hara.json");
+}
+
+/* ── HARA006 ────────────────────────────────────────────────────────── */
+
+void test_hara006_fires_on_asil_mismatch(void)
+{
+    /* S3/E4/C2 derives to ASIL-D per ISO 26262-3 Table 4 — stored ASIL-A
+     * is wrong and must be caught even though it's a well-formed value
+     * (not TBD/empty, so HARA004 alone would not catch it). */
+    make_file(".fusa-hara.json",
+        "{\"operationalSituations\":[],"
+        "\"hazards\":[{\"id\":\"H-9\",\"description\":\"Test hazard\","
+        "\"risk\":{\"severity\":\"S3\",\"exposure\":\"E4\",\"controllability\":\"C2\","
+        "\"asil\":\"ASIL-A\"},\"safetyGoals\":[\"SG-1\"]}],"
+        "\"safetyGoals\":[{\"id\":\"SG-1\",\"description\":\"Goal\","
+        "\"asil\":\"ASIL-A\",\"safeState\":\"Safe\",\"fssrRefs\":[\"REQ-1\"]}]}");
+
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "HARA006") == 0) r->run(SR_DIR, &cfg, &rpt);
+    }
+    TEST_ASSERT_TRUE(rpt.error_count > 0);
+    cfusa_report_free(&rpt);
+    rm_file(".fusa-hara.json");
+}
+
+void test_hara006_passes_when_asil_matches(void)
+{
+    /* S3/E4/C2 correctly stored as ASIL-D. */
+    make_file(".fusa-hara.json",
+        "{\"operationalSituations\":[],"
+        "\"hazards\":[{\"id\":\"H-10\",\"description\":\"Test hazard\","
+        "\"risk\":{\"severity\":\"S3\",\"exposure\":\"E4\",\"controllability\":\"C2\","
+        "\"asil\":\"ASIL-D\"},\"safetyGoals\":[\"SG-1\"]}],"
+        "\"safetyGoals\":[{\"id\":\"SG-1\",\"description\":\"Goal\","
+        "\"asil\":\"ASIL-D\",\"safeState\":\"Safe\",\"fssrRefs\":[\"REQ-1\"]}]}");
+
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "HARA006") == 0) r->run(SR_DIR, &cfg, &rpt);
+    }
+    TEST_ASSERT_EQUAL_INT(0, rpt.error_count);
     cfusa_report_free(&rpt);
     rm_file(".fusa-hara.json");
 }
@@ -375,6 +433,8 @@ int main(void)
     RUN_TEST(test_hara002_fires_on_incomplete_rating);
     RUN_TEST(test_hara003_fires_when_no_safety_goal);
     RUN_TEST(test_hara004_fires_on_tbd_asil);
+    RUN_TEST(test_hara006_fires_on_asil_mismatch);
+    RUN_TEST(test_hara006_passes_when_asil_matches);
     /* ISO 26262 rules */
     RUN_TEST(test_iso26262001_fires_when_no_report);
     RUN_TEST(test_iso26262001_passes_when_report_present);

@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
+#include <ctype.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
@@ -48,10 +49,22 @@ int cfusa_walk_sources(const char *dir, const char * const *exts, int n_exts,
         if (stat(path, &st) != 0) continue;
 
         if (S_ISDIR(st.st_mode)) {
-            /* Skip well-known non-source directories */
+            /* Skip well-known non-source directories. Matches this
+             * project's own .gitignore convention (a "build" directory, or
+             * anything named "build-something"/"build_something") rather
+             * than a fixed enum of names -- a local working tree commonly
+             * has several build-type variants side by side (build-asan,
+             * build-release, build_fortify, ...), and a generated file
+             * inside any of them (e.g. CMake's own CompilerIdC probe,
+             * which defines a real main function) is not project source.
+             * Scanning one in was a real x-FuSa spec section 1.6 rule 4
+             * violation found while dogfooding the fmea/tara scanners
+             * against this repo's own (gitignored, untracked) build
+             * directories. */
             const char *bn = ent->d_name;
             if (strcmp(bn,"build")==0 || strcmp(bn,"vendor")==0 ||
-                strcmp(bn,"build-cov")==0 || strcmp(bn,"node_modules")==0)
+                strcmp(bn,"node_modules")==0 ||
+                strncmp(bn,"build-",6)==0 || strncmp(bn,"build_",6)==0)
                 continue;
             ret += cfusa_walk_sources(path, exts, n_exts, cb, ctx);
         } else if (S_ISREG(st.st_mode)) {
@@ -200,6 +213,160 @@ void cfusa_path_join(char *out, size_t sz, const char *a, const char *b)
         snprintf(out, sz, "%s%s", a, b);
     else
         snprintf(out, sz, "%s/%s", a, b);
+}
+
+/* x-FuSa spec §4: location.file MUST be project-relative regardless of
+ * whether --dir was given as a relative or an absolute path. This is the
+ * single canonical implementation of the relativization logic previously
+ * duplicated ad hoc in cfusa_report_add() (src/report.c) and cmd_trace.c's
+ * add_tag()/funcfile_cb() — see the "deliberately does NOT resolve
+ * symlinks" note in the header. */
+void cfusa_relativize_path(const char *root, const char *path, char *out, size_t out_sz)
+{
+    const char *rel = path;
+    if (root && root[0]) {
+        size_t rlen = strlen(root);
+        while (rlen > 1 && root[rlen - 1] == '/') rlen--; /* tolerate a trailing slash on root */
+        if (strncmp(path, root, rlen) == 0 &&
+            (path[rlen] == '/' || path[rlen] == '\0'))
+            rel = path + rlen + (path[rlen] == '/');
+    }
+    while (rel[0] == '.' && rel[1] == '/') rel += 2;
+    if (!rel[0]) rel = ".";
+    strncpy(out, rel, out_sz - 1);
+    out[out_sz - 1] = '\0';
+}
+
+int cfusa_is_test_source_file(const char *path)
+{
+    const char *b = strrchr(path, '/');
+    b = b ? b + 1 : path;
+    if (strncmp(b, "test_", 5) == 0) return 1;
+    size_t n = strlen(b);
+    return n > 7 && strcmp(b + n - 7, "_test.c") == 0;
+}
+
+const char *cfusa_find_outside_string(const char *line, char ch)
+{
+    int in_str = 0;
+    const char *p = line;
+    while (*p) {
+        if (*p == '"' && (p == line || p[-1] != '\\')) {
+            in_str = !in_str;
+        } else if (!in_str && *p == ch) {
+            return p;
+        }
+        p++;
+    }
+    return NULL;
+}
+
+/* Non-exhaustive but broad deny-list of C standard-library / CRT function
+ * names, sorted for readability (linear scan — this list is short enough
+ * that a call-site table isn't worth the complexity). A call to any of
+ * these is never a project-defined "component"/"asset" for fmea/tara
+ * purposes (x-FuSa spec §1.6 rule 4). */
+int cfusa_is_stdlib_call(const char *name)
+{
+    static const char * const stdlib_fns[] = {
+        "abort", "abs", "access", "asctime", "assert", "atexit", "atof",
+        "atoi", "atol", "atoll",
+        "bsearch",
+        "calloc", "chdir", "chmod", "clock", "closedir", "close",
+        "ctime",
+        "difftime", "dup", "dup2",
+        "errno", "execve", "execvp", "exit",
+        "fclose", "fdopen", "feof", "ferror", "fflush", "fgetc", "fgets",
+        "fopen", "fork", "fprintf", "fputc", "fputs", "fread", "free",
+        "freopen", "fscanf", "fseek", "fstat", "ftell", "fwrite",
+        "getchar", "getcwd", "getc", "getenv", "getline",
+        "isalnum", "isalpha", "iscntrl", "isdigit", "isgraph", "islower",
+        "isprint", "ispunct", "isspace", "isupper", "isxdigit",
+        "labs", "llabs", "localtime", "lseek", "lstat",
+        "malloc", "memchr", "memcmp", "memcpy", "memmove", "memset",
+        "mkdir", "mkstemp", "mktime",
+        "open", "opendir",
+        "perror", "pipe", "printf", "putchar", "putc",
+        "qsort",
+        "rand", "random", "read", "readdir", "realloc", "realpath",
+        "remove", "rename", "rewind", "rmdir",
+        "scanf", "setenv", "snprintf", "sprintf", "srand", "sscanf",
+        "stat", "strcasecmp", "strcat", "strchr", "strcmp", "strcpy",
+        "strdup", "strerror", "strftime", "strlen", "strncasecmp",
+        "strncat", "strncmp", "strncpy", "strndup", "strrchr", "strstr",
+        "strtod", "strtof", "strtok_r", "strtok", "strtol", "strtoul",
+        "system",
+        "time", "tmpfile", "tmpnam", "tolower", "toupper",
+        "unlink",
+        "vfprintf", "vfscanf", "vprintf", "vscanf", "vsnprintf",
+        "vsprintf", "vsscanf",
+        "write",
+        NULL
+    };
+    for (int i = 0; stdlib_fns[i]; i++)
+        if (strcmp(name, stdlib_fns[i]) == 0) return 1;
+    return 0;
+}
+
+/* Word-boundary check: does `p` start with keyword `kw` followed by a
+ * non-identifier character (or end of string)? Handles both "if (" and
+ * "if(" (the previous per-caller skip-lists only matched the former, a
+ * separate bug this consolidation also fixes). */
+static int starts_with_kw(const char *p, const char *kw)
+{
+    size_t l = strlen(kw);
+    if (strncmp(p, kw, l) != 0) return 0;
+    unsigned char after = (unsigned char)p[l];
+    return !(isalnum(after) || after == '_');
+}
+
+static int starts_with_any_kw(const char *p)
+{
+    static const char * const kws[] = {
+        "if", "for", "while", "switch", "return", "else", "case",
+        "default", "typedef", "struct", "enum", "union", "static",
+        "extern", "inline", "sizeof", "defined", "do", "goto", "break",
+        "continue", "const", "volatile", "register", NULL
+    };
+    for (int i = 0; kws[i]; i++)
+        if (starts_with_kw(p, kws[i])) return 1;
+    return 0;
+}
+
+int cfusa_extract_call_name(const char *line, char *out, size_t out_sz)
+{
+    const char *p = line;
+    while (*p == ' ' || *p == '\t') p++;
+    if (!*p || *p == '/' || *p == '#' || *p == '*' || *p == '}') return 0;
+    if (starts_with_any_kw(p)) return 0;
+
+    const char *end = line + strlen(line);
+    while (end > line && (end[-1] == ' ' || end[-1] == '\t' ||
+                           end[-1] == '\n' || end[-1] == '\r')) end--;
+    if (end > line && end[-1] == ';') return 0;
+
+    /* The '(' (and a ')' somewhere on the line) must be real code, not text
+     * sitting inside a quoted string literal (x-FuSa spec §1.6 rule 4). */
+    const char *paren = cfusa_find_outside_string(p, '(');
+    if (!paren) return 0;
+    if (!cfusa_find_outside_string(p, ')')) return 0;
+
+    const char *ident_end = paren;
+    while (ident_end > p && (ident_end[-1] == ' ' || ident_end[-1] == '\t' ||
+                              ident_end[-1] == '*')) ident_end--;
+    const char *ident_start = ident_end;
+    while (ident_start > p && (isalnum((unsigned char)ident_start[-1]) ||
+                                ident_start[-1] == '_')) ident_start--;
+
+    size_t n = (size_t)(ident_end - ident_start);
+    if (n < 2 || n >= out_sz) return 0;
+    if (!isalpha((unsigned char)ident_start[0]) && ident_start[0] != '_') return 0;
+
+    memcpy(out, ident_start, n);
+    out[n] = '\0';
+
+    if (cfusa_is_stdlib_call(out)) return 0;
+    return 1;
 }
 
 /* ---- SHA-256 ---- */

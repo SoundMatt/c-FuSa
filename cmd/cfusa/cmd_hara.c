@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include "cfusa/asil.h"
 #include "cfusa/config.h"
 #include "cfusa/qualitybar.h"
 #include "cfusa/utils.h"
@@ -39,40 +40,11 @@
 #define REF_LEN      32
 
 /*
- * ISO 26262-3:2018 Table 4 ASIL determination with C0 extension.
- * Indices: [S1-S3][E1-E4][C0-C3]  — parity with go-FuSa DetermineASIL.
+ * ISO 26262-3:2018 Table 4 ASIL determination with C0 extension is now the
+ * shared cfusa_compute_asil() (src/asil.c) — also used by check's HARA006
+ * rule (cmd_safety_rules.c) so both call sites are provably consistent.
  */
 //cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA006 REQ-HARA007 REQ-HARA008 REQ-HARA009
-static const char *asil_table[3][4][4] = {
-    /* S1: slight to moderate injuries */
-    {
-        {"QM","QM","QM","QM"},         /* E1: C0,C1,C2,C3 */
-        {"QM","QM","QM","QM"},         /* E2 */
-        {"QM","QM","QM","ASIL-A"},     /* E3 */
-        {"QM","QM","ASIL-A","ASIL-B"}  /* E4 */
-    },
-    /* S2: severe/life-threatening injuries, survival probable */
-    {
-        {"QM","QM","QM","QM"},              /* E1 */
-        {"QM","QM","ASIL-A","ASIL-B"},      /* E2 */
-        {"QM","ASIL-A","ASIL-B","ASIL-C"},  /* E3 */
-        {"ASIL-A","ASIL-B","ASIL-C","ASIL-D"}  /* E4 */
-    },
-    /* S3: life-threatening injuries, survival uncertain / fatal */
-    {
-        {"QM","ASIL-A","ASIL-B","ASIL-C"},     /* E1 */
-        {"ASIL-A","ASIL-B","ASIL-C","ASIL-D"}, /* E2 */
-        {"ASIL-B","ASIL-C","ASIL-D","ASIL-D"}, /* E3 */
-        {"ASIL-C","ASIL-D","ASIL-D","ASIL-D"}  /* E4 */
-    }
-};
-
-static const char *compute_asil(int s, int e, int c)
-{
-    /* s: 1-3 (S1-S3), e: 1-4 (E1-E4), c: 0-3 (C0-C3) */
-    if (s < 1 || s > 3 || e < 1 || e > 4 || c < 0 || c > 3) return "QM";
-    return asil_table[s - 1][e - 1][c];
-}
 
 static void do_asil(int s, int e, int c)
 {
@@ -80,7 +52,7 @@ static void do_asil(int s, int e, int c)
     printf("  Severity     S%d\n", s);
     printf("  Exposure     E%d\n", e);
     printf("  Controllability C%d\n", c);
-    printf("  Result       %s\n", compute_asil(s, e, c));
+    printf("  Result       %s\n", cfusa_compute_asil(s, e, c));
 }
 
 /* Parse a "Sx"/"Ex"/"Cx" (or bare "x") code into an integer. */
@@ -649,7 +621,7 @@ static int do_show(const char *dir, FILE *out, int require_attestation)
         hazard_entry_t *h = &doc.hazards[i];
         int s = parse_sec_code(h->severity), e = parse_sec_code(h->exposure),
             c = parse_sec_code(h->controllability);
-        const char *computed = compute_asil(s, e, c);
+        const char *computed = cfusa_compute_asil(s, e, c);
         fprintf(out, "\n%s  [%s]\n", h->id, h->asil[0] ? h->asil : "(no asil)");
         fprintf(out, "  Description: %s\n", h->description);
         fprintf(out, "  %s/%s/%s\n", h->severity, h->exposure, h->controllability);
@@ -691,10 +663,21 @@ static int do_show_json(const char *dir, FILE *out, int require_attestation)
     parse_hara_doc(content, len, &doc);
 
     int total_hazards = doc.hazards_count, hazards_with_asil = 0, hazards_with_sg = 0;
-    int goals_with_fssr = 0, dangling = 0;
+    int goals_with_fssr = 0, dangling = 0, asil_mismatches = 0;
     for (int i = 0; i < total_hazards; i++) {
-        if (doc.hazards[i].asil[0]) hazards_with_asil++;
-        if (doc.hazards[i].safety_goals_count > 0) hazards_with_sg++;
+        hazard_entry_t *h = &doc.hazards[i];
+        if (h->asil[0]) hazards_with_asil++;
+        if (h->safety_goals_count > 0) hazards_with_sg++;
+        /* x-FuSa spec §1.2.5: risk.asil MUST derive from S×E×C (ISO 26262-3
+         * Table 4) — cross-check the stored value the same way `hara show`
+         * (text) already warns about, but surface it in the JSON
+         * completeness block too so it's machine-checkable, not just a
+         * human-readable warning line. */
+        if (h->asil[0] && h->severity[0] && h->exposure[0] && h->controllability[0]) {
+            int s = parse_sec_code(h->severity), e = parse_sec_code(h->exposure),
+                c = parse_sec_code(h->controllability);
+            if (strcmp(cfusa_compute_asil(s, e, c), h->asil) != 0) asil_mismatches++;
+        }
     }
     char req_ids[MAX_REQ_IDS][REF_LEN];
     int req_count = load_req_ids(dir, req_ids);
@@ -726,15 +709,27 @@ static int do_show_json(const char *dir, FILE *out, int require_attestation)
     }
     fprintf(out, "  ],\n");
 
+    /* x-FuSa spec §9.2: `hara --format json` MUST be a verbatim passthrough
+     * of .fusa-hara.json's own §1.2.5 shape — source/situations/safetyGoals
+     * on each hazard, and hazards/safeState on each safety goal, not just
+     * the id/description/risk subset. */
     fprintf(out, "  \"hazards\": [\n");
     for (int i = 0; i < doc.hazards_count; i++) {
         hazard_entry_t *h = &doc.hazards[i];
         char esc[256]; cfusa_str_escape_json(h->description, esc, sizeof(esc));
-        fprintf(out, "    {\"id\": \"%s\", \"description\": \"%s\", \"risk\": "
+        char esc_src[128]; cfusa_str_escape_json(h->source, esc_src, sizeof(esc_src));
+        fprintf(out, "    {\"id\": \"%s\", \"description\": \"%s\", \"source\": \"%s\", "
+                     "\"situations\": [",
+                h->id, esc, esc_src);
+        for (int k = 0; k < h->situations_count; k++)
+            fprintf(out, "%s\"%s\"", k ? ", " : "", h->situations[k]);
+        fprintf(out, "], \"risk\": "
                      "{\"severity\": \"%s\", \"exposure\": \"%s\", \"controllability\": \"%s\", "
-                     "\"asil\": \"%s\"}}%s\n",
-                h->id, esc, h->severity, h->exposure, h->controllability, h->asil,
-                (i < doc.hazards_count - 1) ? "," : "");
+                     "\"asil\": \"%s\"}, \"safetyGoals\": [",
+                h->severity, h->exposure, h->controllability, h->asil);
+        for (int k = 0; k < h->safety_goals_count; k++)
+            fprintf(out, "%s\"%s\"", k ? ", " : "", h->safety_goals[k]);
+        fprintf(out, "]}%s\n", (i < doc.hazards_count - 1) ? "," : "");
     }
     fprintf(out, "  ],\n");
 
@@ -742,8 +737,13 @@ static int do_show_json(const char *dir, FILE *out, int require_attestation)
     for (int i = 0; i < doc.goals_count; i++) {
         safety_goal_entry_t *g = &doc.goals[i];
         char esc[256]; cfusa_str_escape_json(g->description, esc, sizeof(esc));
-        fprintf(out, "    {\"id\": \"%s\", \"description\": \"%s\", \"asil\": \"%s\", \"fssrRefs\": [",
-                g->id, esc, g->asil);
+        char esc_safe[128]; cfusa_str_escape_json(g->safe_state, esc_safe, sizeof(esc_safe));
+        fprintf(out, "    {\"id\": \"%s\", \"description\": \"%s\", \"hazards\": [",
+                g->id, esc);
+        for (int k = 0; k < g->hazards_count; k++)
+            fprintf(out, "%s\"%s\"", k ? ", " : "", g->hazards[k]);
+        fprintf(out, "], \"asil\": \"%s\", \"safeState\": \"%s\", \"fssrRefs\": [",
+                g->asil, esc_safe);
         for (int k = 0; k < g->fssr_refs_count; k++)
             fprintf(out, "%s\"%s\"", k ? ", " : "", g->fssr_refs[k]);
         fprintf(out, "]}%s\n", (i < doc.goals_count - 1) ? "," : "");
@@ -753,10 +753,32 @@ static int do_show_json(const char *dir, FILE *out, int require_attestation)
     fprintf(out,
         "  \"completeness\": {\n"
         "    \"totalHazards\": %d, \"hazardsWithAsil\": %d, \"hazardsWithSafetyGoal\": %d,\n"
-        "    \"safetyGoalsWithFssrRefs\": %d, \"danglingReferences\": %d\n"
-        "  }\n"
-        "}\n",
-        total_hazards, hazards_with_asil, hazards_with_sg, goals_with_fssr, dangling);
+        "    \"safetyGoalsWithFssrRefs\": %d, \"danglingReferences\": %d, "
+        "\"asilMismatches\": %d\n"
+        "  }",
+        total_hazards, hazards_with_asil, hazards_with_sg, goals_with_fssr, dangling,
+        asil_mismatches);
+
+    /* x-FuSa spec §1.6.2: an attestation on the input file is a passthrough
+     * into the report, not something `hara` re-derives (it has no --attest
+     * flag of its own — the attestation is authored alongside the rest of
+     * .fusa-hara.json). */
+    if (doc.attestation.present) {
+        fprintf(out,
+            ",\n  \"attestation\": {\n"
+            "    \"status\": \"%s\",\n"
+            "    \"implementationAuthor\": \"%s\",\n"
+            "    \"independentReviewer\": \"%s\",\n"
+            "    \"reviewedAt\": \"%s\",\n"
+            "    \"contentHash\": \"%s\"\n"
+            "  }\n",
+            doc.attestation.status[0] ? doc.attestation.status : "heuristic",
+            doc.attestation.implementation_author, doc.attestation.independent_reviewer,
+            doc.attestation.reviewed_at, doc.attestation.content_hash);
+    } else {
+        fprintf(out, "\n");
+    }
+    fprintf(out, "}\n");
 
     /* Quality-bar scan drives the exit code but is not re-printed as JSON
      * members here (this document mirrors the x-FuSa spec §9.2 shape
