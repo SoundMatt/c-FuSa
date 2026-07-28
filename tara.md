@@ -1,6 +1,6 @@
 # c-FuSa Threat Analysis and Risk Assessment (TARA)
 
-**Project:** c-FuSa v0.5.0  
+**Project:** c-FuSa v0.5.45  
 **Standard:** ISO 21434:2021 §9  
 **Generated:** 2026-06-11
 

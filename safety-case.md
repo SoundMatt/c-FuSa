@@ -1,6 +1,6 @@
 # c-FuSa Safety Case
 
-**Project:** c-FuSa v0.5.0  
+**Project:** c-FuSa v0.5.45  
 **Standard:** ISO 26262-8:2018 §11 (Tool Classification and Qualification)  
 **Tool Classification:** TCL-3 (software tool affecting development output)  
 **Generated:** 2026-06-11
