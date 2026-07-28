@@ -1,3 +1,11 @@
+/* open()/fdopen() are POSIX; required on Linux with -std=c99 (same fix as
+ * cmd_capabilities.c/cmd_qualify.c/cmd_impact.c/cmd_release.c/
+ * cmd_audit_pack.c) — without it, strict ISO C99 glibc headers hide
+ * fdopen()'s prototype, gcc implicitly declares it returning `int`, and the
+ * truncated 32-bit "pointer" assigned to a FILE* segfaults on first use. */
+#if defined(__linux__) || defined(__unix__)
+#  define _POSIX_C_SOURCE 200809L
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
