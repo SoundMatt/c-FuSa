@@ -369,7 +369,7 @@ void test_fmea_cyber_flag_adds_column(void)
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
         fclose(f);
-        TEST_ASSERT_NOT_NULL(strstr(buf, "cyber_failure_mode"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "cyberFailureMode"));
     }
     (void)remove(fmea_path);
 }
@@ -397,7 +397,9 @@ void test_fmea_output_dir_flag(void)
 //cfusa:test REQ-FMEA010
 void test_fmea_severity_keywords_detected(void)
 {
-    /* Functions with brake/init/normal should produce High/Medium/Low severity */
+    /* Functions with brake/init/normal should produce high/medium/low
+     * actionPriority (x-FuSa spec §9.2: severity is numeric 1-10;
+     * actionPriority carries the high/medium/low bucket, lowercase). */
     char fmea_path[512];
     snprintf(fmea_path, sizeof(fmea_path), "%s/fmea.json", GAP_DIR);
     (void)remove(fmea_path);
@@ -412,11 +414,11 @@ void test_fmea_severity_keywords_detected(void)
         buf[n] = '\0';
         fclose(f);
         /* High severity keywords: brake, watchdog */
-        TEST_ASSERT_NOT_NULL(strstr(buf, "High"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"actionPriority\": \"high\""));
         /* Medium severity keywords: init, validate */
-        TEST_ASSERT_NOT_NULL(strstr(buf, "Medium"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"actionPriority\": \"medium\""));
         /* Low severity: normal_func, process_data */
-        TEST_ASSERT_NOT_NULL(strstr(buf, "Low"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"actionPriority\": \"low\""));
     }
     (void)remove(fmea_path);
 }
@@ -1087,8 +1089,9 @@ void test_sci_json_format_writes_sha256(void)
         fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"kind\": \"sci\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"sha256\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"total_files\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"hash\": \"sha256:"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"artifacts\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"totalFiles\""));
     }
     (void)remove(out);
 }

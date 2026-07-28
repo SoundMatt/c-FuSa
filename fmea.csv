@@ -1,244 +1,371 @@
-ID,Function,File,Line,Failure Mode,Effect,Cause,Severity,O,D,RPN,Action
-FM-001,"cmd_pr","cmd_pr.c",133,,,,"Low",1,1,3,
-FM-002,"cmd_version","cmd_version.c",4,,,,"Low",1,1,3,
-FM-003,"cmd_qualify","cmd_qualify.c",60,,,,"Low",1,1,3,
-FM-004,"cmd_misra","cmd_misra.c",56,,,,"Low",1,1,3,
-FM-005,"cmd_iso26262","cmd_iso26262.c",59,,,,"Low",1,1,3,
-FM-006,"printf","cmd_iso26262.c",124,,,,"Low",1,1,3,
-FM-007,"cfusa_scan_lines","cmd_req.c",123,,,,"Low",1,1,3,
-FM-008,"snprintf","cmd_req.c",202,,,,"Low",1,1,3,
-FM-009,"printf","cmd_req.c",252,,,,"Low",1,1,3,
-FM-010,"cmd_req","cmd_req.c",256,,,,"Low",1,1,3,
-FM-011,"cmd_release","cmd_release.c",91,,,,"Low",1,1,3,
-FM-012,"snprintf","cmd_release.c",130,,,,"Low",1,1,3,
-FM-013,"cmd_check","cmd_check.c",9,,,,"Medium",1,1,5,
-FM-014,"cmd_template","cmd_template.c",83,,,,"Low",1,1,3,
-FM-015,"cmd_tara","cmd_tara.c",77,,,,"Low",1,1,3,
-FM-016,"cfusa_scan_lines","cmd_trace.c",130,,,,"Low",1,1,3,
-FM-017,"cmd_trace","cmd_trace.c",149,,,,"Low",1,1,3,
-FM-018,"printf","cmd_trace.c",212,,,,"Low",1,1,3,
-FM-019,"printf","cmd_trace.c",224,,,,"Low",1,1,3,
-FM-020,"snprintf","cmd_trace.c",288,,,,"Low",1,1,3,
-FM-021,"snprintf","cmd_trace.c",292,,,,"Low",1,1,3,
-FM-022,"cfusa_basename","cmd_trace.c",308,,,,"Low",1,1,3,
-FM-023,"snprintf","cmd_trace.c",330,,,,"Low",1,1,3,
-FM-024,"snprintf","cmd_trace.c",334,,,,"Low",1,1,3,
-FM-025,"fprintf","cmd_trace.c",354,,,,"Low",1,1,3,
-FM-026,"for","cmd_analyze.c",24,,,,"Low",1,1,3,
-FM-027,"if","cmd_analyze.c",65,,,,"Low",1,1,3,
-FM-028,"!strstr","cmd_analyze.c",66,,,,"Low",1,1,3,
-FM-029,"strstr","cmd_analyze.c",99,,,,"Low",1,1,3,
-FM-030,"strstr","cmd_analyze.c",100,,,,"Low",1,1,3,
-FM-031,"!strstr","cmd_analyze.c",101,,,,"Low",1,1,3,
-FM-032,"if","cmd_analyze.c",131,,,,"Low",1,1,3,
-FM-033,"!strstr","cmd_analyze.c",132,,,,"Low",1,1,3,
-FM-034,"if","cmd_analyze.c",162,,,,"Low",1,1,3,
-FM-035,""assert","cmd_analyze.c",166,,,,"Low",1,1,3,
-FM-036,"if","cmd_analyze.c",193,,,,"Low",1,1,3,
-FM-037,"strstr","cmd_analyze.c",194,,,,"Low",1,1,3,
-FM-038,"strstr","cmd_analyze.c",195,,,,"Low",1,1,3,
-FM-039,"for","cmd_analyze.c",231,,,,"Low",1,1,3,
-FM-040,""assert","cmd_analyze.c",277,,,,"Low",1,1,3,
-FM-041,"cfusa_analyze_register_rules","cmd_analyze.c",285,,,,"Low",1,1,3,
-FM-042,"cmd_analyze","cmd_analyze.c",291,,,,"Low",1,1,3,
-FM-043,"cmd_report","cmd_report.c",9,,,,"Low",1,1,3,
-FM-044,"cmd_init","cmd_init.c",8,,,,"Medium",1,1,5,
-FM-045,"fprintf","cmd_init.c",46,,,,"Low",1,1,3,
-FM-046,"cfusa_scan_lines","cmd_fmea.c",90,,,,"Low",1,1,3,
-FM-047,"cmd_fmea","cmd_fmea.c",92,,,,"Low",1,1,3,
-FM-048,"cfusa_path_join","cmd_fmea.c",139,,,,"Low",1,1,3,
-FM-049,"printf","cmd_fmea.c",142,,,,"Low",1,1,3,
-FM-050,"cfusa_basename","cmd_fmea.c",188,,,,"Low",1,1,3,
-FM-051,"cfusa_basename","cmd_fmea.c",238,,,,"Low",1,1,3,
-FM-052,"cfusa_basename","cmd_fmea.c",277,,,,"Low",1,1,3,
-FM-053,"strtol","cmd_fix.c",48,,,,"Low",1,1,3,
-FM-054,"fgets","cmd_fix.c",55,,,,"Low",1,1,3,
-FM-055,"strncpy","cmd_fix.c",56,,,,"Low",1,1,3,
-FM-056,"snprintf","cmd_fix.c",57,,,,"Low",1,1,3,
-FM-057,"malloc","cmd_fix.c",61,,,,"Low",1,1,3,
-FM-058,"assert","cmd_fix.c",71,,,,"Low",1,1,3,
-FM-059,"strncpy","cmd_fix.c",78,,,,"Low",1,1,3,
-FM-060,"dst[sizeof","cmd_fix.c",79,,,,"Low",1,1,3,
-FM-061,"printf","cmd_fix.c",83,,,,"Low",1,1,3,
-FM-062,"printf","cmd_fix.c",84,,,,"Low",1,1,3,
-FM-063,"execve","cmd_fix.c",88,,,,"Low",1,1,3,
-FM-064,"sizeof","cmd_fix.c",95,,,,"Low",1,1,3,
-FM-065,"malloc","cmd_fix.c",97,,,,"Low",1,1,3,
-FM-066,"free","cmd_fix.c",101,,,,"Low",1,1,3,
-FM-067,"cmd_fix","cmd_fix.c",123,,,,"Low",1,1,3,
-FM-068,"printf","cmd_fix.c",168,,,,"Low",1,1,3,
-FM-069,"printf","cmd_fix.c",188,,,,"Low",1,1,3,
-FM-070,"cmd_help","main.c",50,,,,"Low",1,1,3,
-FM-071,"main","main.c",64,,,,"Low",1,1,3,
-FM-072,"cmd_boundary","cmd_boundary.c",70,,,,"Low",1,1,3,
-FM-073,"cmd_impact","cmd_impact.c",101,,,,"Low",1,1,3,
-FM-074,"printf","cmd_impact.c",189,,,,"Low",1,1,3,
-FM-075,"cmd_sci","cmd_sci.c",35,,,,"Low",1,1,3,
-FM-076,"cmd_iec61508","cmd_iec61508.c",61,,,,"Low",1,1,3,
-FM-077,"printf","cmd_iec61508.c",127,,,,"Low",1,1,3,
-FM-078,"cmd_badge","cmd_badge.c",8,,,,"Low",1,1,3,
-FM-079,"fill=\"url","cmd_badge.c",77,,,,"Low",1,1,3,
-FM-080,"cmd_sign","cmd_sign.c",7,,,,"Low",1,1,3,
-FM-081,"cfusa_hmac_sha256","cmd_sign.c",76,,,,"Low",1,1,3,
-FM-082,""gets","cmd_vuln.c",23,,,,"Low",1,1,3,
-FM-083,"fgets","cmd_vuln.c",24,,,,"Low",1,1,3,
-FM-084,""sprintf","cmd_vuln.c",26,,,,"Low",1,1,3,
-FM-085,"snprintf","cmd_vuln.c",27,,,,"Low",1,1,3,
-FM-086,""strcpy","cmd_vuln.c",29,,,,"Low",1,1,3,
-FM-087,"strlcpy","cmd_vuln.c",30,,,,"Low",1,1,3,
-FM-088,""strcat","cmd_vuln.c",32,,,,"Low",1,1,3,
-FM-089,"strlcat","cmd_vuln.c",33,,,,"Low",1,1,3,
-FM-090,"scanf","cmd_vuln.c",36,,,,"Low",1,1,3,
-FM-091,""tmpnam","cmd_vuln.c",38,,,,"Low",1,1,3,
-FM-092,"mkstemp","cmd_vuln.c",39,,,,"Low",1,1,3,
-FM-093,""system","cmd_vuln.c",41,,,,"Low",1,1,3,
-FM-094,"system","cmd_vuln.c",42,,,,"Low",1,1,3,
-FM-095,""rand","cmd_vuln.c",44,,,,"Low",1,1,3,
-FM-096,""mktemp","cmd_vuln.c",47,,,,"Low",1,1,3,
-FM-097,"mkstemp","cmd_vuln.c",48,,,,"Low",1,1,3,
-FM-098,""popen","cmd_vuln.c",50,,,,"Low",1,1,3,
-FM-099,"execv","cmd_vuln.c",51,,,,"Low",1,1,3,
-FM-100,"cfusa_scan_lines","cmd_vuln.c",104,,,,"Low",1,1,3,
-FM-101,"cmd_vuln","cmd_vuln.c",106,,,,"Low",1,1,3,
-FM-102,"cmd_audit_pack","cmd_audit_pack.c",14,,,,"Low",1,1,3,
-FM-103,"cmd_hooks","cmd_hooks.c",19,,,,"Low",1,1,3,
-FM-104,"cmd_disposition","cmd_disposition.c",167,,,,"Low",1,1,3,
-FM-105,"cmd_coverage","cmd_coverage.c",61,,,,"Low",1,1,3,
-FM-106,"fprintf","cmd_coverage.c",150,,,,"Low",1,1,3,
-FM-107,"fprintf","cmd_coverage.c",152,,,,"Low",1,1,3,
-FM-108,"fprintf","cmd_coverage.c",154,,,,"Low",1,1,3,
-FM-109,"cmd_diff","cmd_diff.c",63,,,,"Low",1,1,3,
-FM-110,"cmd_hara","cmd_hara.c",195,,,,"Low",1,1,3,
-FM-111,"cmd_do178","cmd_do178.c",100,,,,"Low",1,1,3,
-FM-112,"cmd_verify","cmd_verify.c",13,,,,"Low",1,1,3,
-FM-113,"cmd_sas","cmd_sas.c",39,,,,"Low",1,1,3,
-FM-114,"fprintf","cmd_sas.c",93,,,,"Low",1,1,3,
-FM-115,"fprintf","cmd_sas.c",102,,,,"Low",1,1,3,
-FM-116,"for","cmd_cyber.c",18,,,,"Low",1,1,3,
-FM-117,"if","cmd_cyber.c",21,,,,"Low",1,1,3,
-FM-118,"||","cmd_cyber.c",22,,,,"Low",1,1,3,
-FM-119,"for","cmd_cyber.c",49,,,,"Low",1,1,3,
-FM-120,"if","cmd_cyber.c",53,,,,"Low",1,1,3,
-FM-121,"if","cmd_cyber.c",61,,,,"Low",1,1,3,
-FM-122,"if","cmd_cyber.c",69,,,,"Low",1,1,3,
-FM-123,"strncmp","cmd_cyber.c",70,,,,"Low",1,1,3,
-FM-124,"for","cmd_cyber.c",93,,,,"Low",1,1,3,
-FM-125,"if","cmd_cyber.c",100,,,,"Low",1,1,3,
-FM-126,"if","cmd_cyber.c",150,,,,"Low",1,1,3,
-FM-127,"strstr","cmd_cyber.c",151,,,,"Low",1,1,3,
-FM-128,"if","cmd_cyber.c",173,,,,"Low",1,1,3,
-FM-129,"free","cmd_cyber.c",176,,,,"Low",1,1,3,
-FM-130,"if","cmd_cyber.c",197,,,,"Low",1,1,3,
-FM-131,"if","cmd_cyber.c",215,,,,"Low",1,1,3,
-FM-132,"cfusa_match_outside_string","cmd_cyber.c",216,,,,"Low",1,1,3,
-FM-133,"mkstemp","cmd_cyber.c",219,,,,"Low",1,1,3,
-FM-134,"for","cmd_cyber.c",237,,,,"Low",1,1,3,
-FM-135,"if","cmd_cyber.c",238,,,,"Low",1,1,3,
-FM-136,"for","cmd_cyber.c",260,,,,"Low",1,1,3,
-FM-137,"if","cmd_cyber.c",264,,,,"Low",1,1,3,
-FM-138,"cfusa_cyber_register_rules","cmd_cyber.c",300,,,,"Low",1,1,3,
-FM-139,"for","cmd_cyber.c",302,,,,"Low",1,1,3,
-FM-140,"cmd_cyber","cmd_cyber.c",306,,,,"Low",1,1,3,
-FM-141,"cmd_safety_case","cmd_safety_case.c",12,,,,"High",1,1,9,
-FM-142,"cmd_metrics","cmd_metrics.c",95,,,,"Low",1,1,3,
-FM-143,"E=$","cmd_metrics.c",136,,,,"Low",1,1,3,
-FM-144,"W=$","cmd_metrics.c",137,,,,"Low",1,1,3,
-FM-145,"!strstr","cmd_lint.c",191,,,,"Low",1,1,3,
-FM-146,"if","cmd_lint.c",196,,,,"Low",1,1,3,
-FM-147,"while","cmd_lint.c",200,,,,"Low",1,1,3,
-FM-148,"if","cmd_lint.c",211,,,,"Low",1,1,3,
-FM-149,"!strstr","cmd_lint.c",307,,,,"Low",1,1,3,
-FM-150,"cfusa_lint_register_rules","cmd_lint.c",447,,,,"Low",1,1,3,
-FM-151,"cmd_lint","cmd_lint.c",455,,,,"Low",1,1,3,
-FM-152,"setUp","test_engine.c",40,,,,"Low",1,1,3,
-FM-153,"tearDown","test_engine.c",41,,,,"Low",1,1,3,
-FM-154,"test_register_and_count","test_engine.c",43,,,,"Low",1,1,3,
-FM-155,"test_run_all_calls_rules","test_engine.c",52,,,,"Low",1,1,3,
-FM-156,"test_run_category_filters","test_engine.c",70,,,,"Low",1,1,3,
-FM-157,"cfusa_engine_register","test_engine.c",72,,,,"Low",1,1,3,
-FM-158,"cfusa_engine_register","test_engine.c",73,,,,"Low",1,1,3,
-FM-159,"test_reset_clears_rules","test_engine.c",87,,,,"Low",1,1,3,
-FM-160,"test_report_score_perfect","test_engine.c",95,,,,"Low",1,1,3,
-FM-161,"test_report_score_with_errors","test_engine.c",103,,,,"High",1,1,9,
-FM-162,"main","test_engine.c",112,,,,"Low",1,1,3,
-FM-163,"setUp","test_config.c",5,,,,"Low",1,1,3,
-FM-164,"tearDown","test_config.c",6,,,,"Low",1,1,3,
-FM-165,"test_config_defaults","test_config.c",8,,,,"High",1,1,9,
-FM-166,"test_config_defaults_extensions","test_config.c",22,,,,"High",1,1,9,
-FM-167,"test_config_save_and_load","test_config.c",36,,,,"Medium",1,1,5,
-FM-168,"test_config_is_excluded","test_config.c",58,,,,"Medium",1,1,5,
-FM-169,"test_config_missing_file_uses_defaults","test_config.c",68,,,,"High",1,1,9,
-FM-170,"main","test_config.c",76,,,,"Low",1,1,3,
-FM-171,"setUp","test_utils.c",5,,,,"Low",1,1,3,
-FM-172,"tearDown","test_utils.c",6,,,,"Low",1,1,3,
-FM-173,"test_sha256_empty","test_utils.c",10,,,,"Low",1,1,3,
-FM-174,"test_sha256_abc","test_utils.c",21,,,,"Low",1,1,3,
-FM-175,"test_sha256_length","test_utils.c",31,,,,"Low",1,1,3,
-FM-176,"test_hmac_sha256_known","test_utils.c",40,,,,"Low",1,1,3,
-FM-177,"test_str_contains_found","test_utils.c",55,,,,"Low",1,1,3,
-FM-178,"test_str_contains_not_found","test_utils.c",60,,,,"Low",1,1,3,
-FM-179,"test_str_starts_with","test_utils.c",65,,,,"Low",1,1,3,
-FM-180,"test_basename","test_utils.c",71,,,,"Low",1,1,3,
-FM-181,"test_extension","test_utils.c",78,,,,"Low",1,1,3,
-FM-182,"test_str_trim","test_utils.c",84,,,,"Low",1,1,3,
-FM-183,"test_str_escape_json","test_utils.c",92,,,,"Low",1,1,3,
-FM-184,"test_path_join","test_utils.c",99,,,,"Low",1,1,3,
-FM-185,"test_path_join_trailing_slash","test_utils.c",106,,,,"Low",1,1,3,
-FM-186,"main","test_utils.c",113,,,,"Low",1,1,3,
-FM-187,"setUp","test_report.c",8,,,,"Low",1,1,3,
-FM-188,"tearDown","test_report.c",9,,,,"Low",1,1,3,
-FM-189,"test_report_init","test_report.c",11,,,,"Medium",1,1,5,
-FM-190,"test_report_add_error","test_report.c",23,,,,"High",1,1,9,
-FM-191,"test_report_add_warning","test_report.c",38,,,,"Low",1,1,3,
-FM-192,"test_report_score_100","test_report.c",50,,,,"Low",1,1,3,
-FM-193,"test_report_score_decreases_with_errors","test_report.c",58,,,,"High",1,1,9,
-FM-194,"test_report_severity_str","test_report.c",69,,,,"Low",1,1,3,
-FM-195,"test_format_parse","test_report.c",76,,,,"Low",1,1,3,
-FM-196,"test_report_json_output","test_report.c",86,,,,"Low",1,1,3,
-FM-197,"test_report_sarif_output","test_report.c",110,,,,"Low",1,1,3,
-FM-198,"main","test_report.c",131,,,,"Low",1,1,3,
-FM-199,"cfusa_report_init","report.c",10,,,,"Medium",1,1,5,
-FM-200,"cfusa_report_free","report.c",23,,,,"Low",1,1,3,
-FM-201,"cfusa_severity_str","report.c",69,,,,"Low",1,1,3,
-FM-202,"cfusa_format_parse","report.c",79,,,,"Low",1,1,3,
-FM-203,"cfusa_report_score","report.c",90,,,,"Low",1,1,3,
-FM-204,"cfusa_report_score","report.c",106,,,,"Low",1,1,3,
-FM-205,"cfusa_severity_str","report.c",112,,,,"Low",1,1,3,
-FM-206,"cfusa_report_score","report.c",137,,,,"Low",1,1,3,
-FM-207,"cfusa_severity_str","report.c",151,,,,"Low",1,1,3,
-FM-208,"cfusa_report_score","report.c",213,,,,"Low",1,1,3,
-FM-209,"cfusa_severity_str","report.c",228,,,,"Low",1,1,3,
-FM-210,"cfusa_severity_str","report.c",229,,,,"Low",1,1,3,
-FM-211,"cfusa_report_score","report.c",255,,,,"Low",1,1,3,
-FM-212,"cfusa_severity_str","report.c",269,,,,"Low",1,1,3,
-FM-213,"cfusa_report_print","report.c",276,,,,"Low",1,1,3,
-FM-214,"cfusa_engine_reset","engine.c",8,,,,"Low",1,1,3,
-FM-215,"cfusa_engine_register","engine.c",13,,,,"Low",1,1,3,
-FM-216,"cfusa_engine_rule_count","engine.c",22,,,,"Low",1,1,3,
-FM-217,"cfusa_engine_list_rules","engine.c",27,,,,"Low",1,1,3,
-FM-218,"strcmp","utils.c",43,,,,"Low",1,1,3,
-FM-219,"cfusa_read_file","utils.c",57,,,,"Low",1,1,3,
-FM-220,"cfusa_file_exists","utils.c",75,,,,"Low",1,1,3,
-FM-221,"cfusa_dir_exists","utils.c",81,,,,"Low",1,1,3,
-FM-222,"cfusa_mkdir_p","utils.c",87,,,,"Low",1,1,3,
-FM-223,"cfusa_scan_lines","utils.c",103,,,,"Low",1,1,3,
-FM-224,"cfusa_basename","utils.c",121,,,,"Low",1,1,3,
-FM-225,"cfusa_extension","utils.c",127,,,,"Low",1,1,3,
-FM-226,"cfusa_str_contains","utils.c",134,,,,"Low",1,1,3,
-FM-227,"cfusa_str_starts_with","utils.c",139,,,,"Low",1,1,3,
-FM-228,"cfusa_str_trim","utils.c",144,,,,"Low",1,1,3,
-FM-229,"cfusa_str_escape_json","utils.c",155,,,,"Low",1,1,3,
-FM-230,"cfusa_path_join","utils.c",175,,,,"Low",1,1,3,
-FM-231,"cfusa_sha256_buf","utils.c",297,,,,"Low",1,1,3,
-FM-232,"cfusa_sha256_file","utils.c",309,,,,"Low",1,1,3,
-FM-233,"cfusa_sha256_buf","utils.c",338,,,,"Low",1,1,3,
-FM-234,"cfusa_timestamp_now","utils.c",369,,,,"Low",1,1,3,
-FM-235,"cfusa_count_c_files","utils.c",385,,,,"Low",1,1,3,
-FM-236,"cfusa_count_lines_in_file","utils.c",393,,,,"Low",1,1,3,
-FM-237,"cfusa_match_outside_string","utils.c",405,,,,"Low",1,1,3,
-FM-238,"cfusa_config_defaults","config.c",7,,,,"High",1,1,9,
-FM-239,"cfusa_config_load","config.c",91,,,,"Medium",1,1,5,
-FM-240,"extract_str_array_n","config.c",108,,,,"Low",1,1,3,
-FM-241,"extract_str_array_n","config.c",111,,,,"Low",1,1,3,
-FM-242,"cfusa_config_save","config.c",119,,,,"Medium",1,1,5,
-FM-243,"cfusa_config_is_excluded","config.c",153,,,,"Medium",1,1,5,
+ID,Function,File,Line,Failure Mode,Effect,Cause,Severity,O,D,ActionPriority
+FM-001,"cmd_pr","cmd_pr.c",146,"cmd_pr (general function) does not perform its intended action","Failure of cmd_pr could propagate undetected to callers in cmd_pr.c","Logic error or untested edge case in cmd_pr",3,2,3,"low"
+FM-002,"cmd_version","cmd_version.c",7,"cmd_version (general function) does not perform its intended action","Failure of cmd_version could propagate undetected to callers in cmd_version.c","Logic error or untested edge case in cmd_version",3,2,3,"low"
+FM-003,"cmd_help","cmd_dispatch.c",66,"cmd_help (general function) does not perform its intended action","Failure of cmd_help could propagate undetected to callers in cmd_dispatch.c","Logic error or untested edge case in cmd_help",3,2,3,"low"
+FM-004,"snprintf","cmd_coupling.c",56,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_coupling.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-005,"snprintf","cmd_coupling.c",65,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_coupling.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-006,"cmd_coupling","cmd_coupling.c",121,"cmd_coupling (general function) does not perform its intended action","Failure of cmd_coupling could propagate undetected to callers in cmd_coupling.c","Logic error or untested edge case in cmd_coupling",3,2,3,"low"
+FM-007,"printf","cmd_coupling.c",177,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_coupling.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-008,"fn","cmd_qualify.c",347,"fn (general function) does not perform its intended action","Failure of fn could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in fn",3,2,3,"low"
+FM-009,"fn","cmd_qualify.c",375,"fn (general function) does not perform its intended action","Failure of fn could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in fn",3,2,3,"low"
+FM-010,"fn","cmd_qualify.c",398,"fn (general function) does not perform its intended action","Failure of fn could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in fn",3,2,3,"low"
+FM-011,"fn","cmd_qualify.c",408,"fn (general function) does not perform its intended action","Failure of fn could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in fn",3,2,3,"low"
+FM-012,"""strcpy","cmd_qualify.c",427,"""strcpy (general function) does not perform its intended action","Failure of ""strcpy could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in ""strcpy",3,2,3,"low"
+FM-013,"""snprintf","cmd_qualify.c",428,"""snprintf (general function) does not perform its intended action","Failure of ""snprintf could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in ""snprintf",3,2,3,"low"
+FM-014,"""MD5_Init","cmd_qualify.c",429,"""MD5_Init (general function) does not perform its intended action","Failure of ""MD5_Init could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in ""MD5_Init",3,2,3,"low"
+FM-015,"""SHA256_Init","cmd_qualify.c",430,"""SHA256_Init (general function) does not perform its intended action","Failure of ""SHA256_Init could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in ""SHA256_Init",3,2,3,"low"
+FM-016,"cmd_qualify","cmd_qualify.c",472,"cmd_qualify (general function) does not perform its intended action","Failure of cmd_qualify could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in cmd_qualify",3,2,3,"low"
+FM-017,"qualification_badge","cmd_qualify.c",579,"qualification_badge (general function) does not perform its intended action","Failure of qualification_badge could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in qualification_badge",3,2,3,"low"
+FM-018,"independence_status","cmd_qualify.c",580,"independence_status (general function) does not perform its intended action","Failure of independence_status could propagate undetected to callers in cmd_qualify.c","Logic error or untested edge case in independence_status",3,2,3,"low"
+FM-019,"cmd_misra","cmd_misra.c",60,"cmd_misra (general function) does not perform its intended action","Failure of cmd_misra could propagate undetected to callers in cmd_misra.c","Logic error or untested edge case in cmd_misra",3,2,3,"low"
+FM-020,"!path_exists","cmd_safety_rules.c",119,"!path_exists (general function) does not perform its intended action","Failure of !path_exists could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in !path_exists",3,2,3,"low"
+FM-021,"strcmp","cmd_safety_rules.c",278,"strcmp (general function) does not perform its intended action","Failure of strcmp could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in strcmp",3,2,3,"low"
+FM-022,"!path_exists","cmd_safety_rules.c",391,"!path_exists (general function) does not perform its intended action","Failure of !path_exists could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in !path_exists",3,2,3,"low"
+FM-023,"sscanf","cmd_safety_rules.c",422,"sscanf (general function) does not perform its intended action","Failure of sscanf could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in sscanf",3,2,3,"low"
+FM-024,"failure","cmd_safety_rules.c",483,"failure (general function) does not perform its intended action","Failure of failure could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in failure",3,2,3,"low"
+FM-025,"!strchr","cmd_safety_rules.c",506,"!strchr (general function) does not perform its intended action","Failure of !strchr could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in !strchr",3,2,3,"low"
+FM-026,"!strstr","cmd_safety_rules.c",507,"!strstr (general function) does not perform its intended action","Failure of !strstr could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in !strstr",3,2,3,"low"
+FM-027,"strchr","cmd_safety_rules.c",544,"strchr (general function) does not perform its intended action","Failure of strchr could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in strchr",3,2,3,"low"
+FM-028,"sscanf","cmd_safety_rules.c",614,"sscanf (general function) does not perform its intended action","Failure of sscanf could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in sscanf",3,2,3,"low"
+FM-029,"strstr","cmd_safety_rules.c",724,"strstr (general function) does not perform its intended action","Failure of strstr could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in strstr",3,2,3,"low"
+FM-030,"!path_exists","cmd_safety_rules.c",804,"!path_exists (general function) does not perform its intended action","Failure of !path_exists could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in !path_exists",3,2,3,"low"
+FM-031,"!path_exists","cmd_safety_rules.c",818,"!path_exists (general function) does not perform its intended action","Failure of !path_exists could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in !path_exists",3,2,3,"low"
+FM-032,"!path_exists","cmd_safety_rules.c",831,"!path_exists (general function) does not perform its intended action","Failure of !path_exists could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in !path_exists",3,2,3,"low"
+FM-033,"""V","cmd_safety_rules.c",915,"""V (general function) does not perform its intended action","Failure of ""V could propagate undetected to callers in cmd_safety_rules.c","Logic error or untested edge case in ""V",3,2,3,"low"
+FM-034,"cfusa_safety_register_rules","cmd_safety_rules.c",919,"cfusa_safety_register_rules (safety-critical function) does not perform its intended action","Failure of cfusa_safety_register_rules could propagate undetected to callers in cmd_safety_rules.c","Unhandled fault or invalid input condition within cfusa_safety_register_rules",9,4,6,"high"
+FM-035,"cfusa_safety_rule_count","cmd_safety_rules.c",927,"cfusa_safety_rule_count (safety-critical function) does not perform its intended action","Failure of cfusa_safety_rule_count could propagate undetected to callers in cmd_safety_rules.c","Unhandled fault or invalid input condition within cfusa_safety_rule_count",9,4,6,"high"
+FM-036,"cmd_iso26262","cmd_iso26262.c",84,"cmd_iso26262 (general function) does not perform its intended action","Failure of cmd_iso26262 could propagate undetected to callers in cmd_iso26262.c","Logic error or untested edge case in cmd_iso26262",3,2,3,"low"
+FM-037,"fprintf","cmd_iso26262.c",183,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_iso26262.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-038,"fprintf","cmd_iso26262.c",206,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_iso26262.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-039,"cfusa_scan_lines","cmd_req.c",135,"cfusa_scan_lines (general function) does not perform its intended action","Failure of cfusa_scan_lines could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in cfusa_scan_lines",3,2,3,"low"
+FM-040,"xml_escape","cmd_req.c",172,"xml_escape (general function) does not perform its intended action","Failure of xml_escape could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in xml_escape",3,2,3,"low"
+FM-041,"xml_escape","cmd_req.c",176,"xml_escape (general function) does not perform its intended action","Failure of xml_escape could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in xml_escape",3,2,3,"low"
+FM-042,"xml_escape","cmd_req.c",180,"xml_escape (general function) does not perform its intended action","Failure of xml_escape could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in xml_escape",3,2,3,"low"
+FM-043,"fprintf","cmd_req.c",193,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-044,"fprintf","cmd_req.c",209,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-045,"fprintf","cmd_req.c",225,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-046,"snprintf","cmd_req.c",257,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-047,"!strcmp","cmd_req.c",520,"!strcmp (general function) does not perform its intended action","Failure of !strcmp could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in !strcmp",3,2,3,"low"
+FM-048,"import_reqif","cmd_req.c",646,"import_reqif (general function) does not perform its intended action","Failure of import_reqif could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in import_reqif",3,2,3,"low"
+FM-049,"import_polarion_xml","cmd_req.c",652,"import_polarion_xml (general function) does not perform its intended action","Failure of import_polarion_xml could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in import_polarion_xml",3,2,3,"low"
+FM-050,"import_reqif","cmd_req.c",655,"import_reqif (general function) does not perform its intended action","Failure of import_reqif could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in import_reqif",3,2,3,"low"
+FM-051,"import_codebeamer_xml","cmd_req.c",660,"import_codebeamer_xml (general function) does not perform its intended action","Failure of import_codebeamer_xml could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in import_codebeamer_xml",3,2,3,"low"
+FM-052,"import_jama_xml","cmd_req.c",671,"import_jama_xml (general function) does not perform its intended action","Failure of import_jama_xml could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in import_jama_xml",3,2,3,"low"
+FM-053,"sizeof","cmd_req.c",695,"sizeof (general function) does not perform its intended action","Failure of sizeof could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in sizeof",3,2,3,"low"
+FM-054,"append_entry","cmd_req.c",713,"append_entry (general function) does not perform its intended action","Failure of append_entry could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in append_entry",3,2,3,"low"
+FM-055,"printf","cmd_req.c",755,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-056,"cmd_req","cmd_req.c",760,"cmd_req (general function) does not perform its intended action","Failure of cmd_req could propagate undetected to callers in cmd_req.c","Logic error or untested edge case in cmd_req",3,2,3,"low"
+FM-057,"cmd_release","cmd_release.c",100,"cmd_release (general function) does not perform its intended action","Failure of cmd_release could propagate undetected to callers in cmd_release.c","Logic error or untested edge case in cmd_release",3,2,3,"low"
+FM-058,"snprintf","cmd_release.c",174,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_release.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-059,"cmd_check","cmd_check.c",14,"cmd_check (monitoring/control function) does not perform its intended action","Failure of cmd_check could propagate undetected to callers in cmd_check.c","Configuration or state inconsistency affecting cmd_check",5,3,4,"medium"
+FM-060,"cfusa_template_generate_all","cmd_template.c",84,"cfusa_template_generate_all (general function) does not perform its intended action","Failure of cfusa_template_generate_all could propagate undetected to callers in cmd_template.c","Logic error or untested edge case in cfusa_template_generate_all",3,2,3,"low"
+FM-061,"cmd_template","cmd_template.c",106,"cmd_template (general function) does not perform its intended action","Failure of cmd_template could propagate undetected to callers in cmd_template.c","Logic error or untested edge case in cmd_template",3,2,3,"low"
+FM-062,"fprintf","cmd_tara.c",326,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_tara.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-063,"cmd_tara","cmd_tara.c",330,"cmd_tara (general function) does not perform its intended action","Failure of cmd_tara could propagate undetected to callers in cmd_tara.c","Logic error or untested edge case in cmd_tara",3,2,3,"low"
+FM-064,"fprintf","cmd_tara.c",426,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_tara.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-065,"write_threat_json","cmd_tara.c",439,"write_threat_json (general function) does not perform its intended action","Failure of write_threat_json could propagate undetected to callers in cmd_tara.c","Logic error or untested edge case in write_threat_json",3,2,3,"low"
+FM-066,"fprintf","cmd_tara.c",440,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_tara.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-067,"fprintf","cmd_tara.c",449,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_tara.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-068,"fprintf","cmd_tara.c",459,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_tara.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-069,"fprintf","cmd_tara.c",461,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_tara.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-070,"cfusa_scan_lines","cmd_trace.c",184,"cfusa_scan_lines (general function) does not perform its intended action","Failure of cfusa_scan_lines could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in cfusa_scan_lines",3,2,3,"low"
+FM-071,"cmd_trace","cmd_trace.c",336,"cmd_trace (general function) does not perform its intended action","Failure of cmd_trace could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in cmd_trace",3,2,3,"low"
+FM-072,"compute_hlr_llr","cmd_trace.c",436,"compute_hlr_llr (general function) does not perform its intended action","Failure of compute_hlr_llr could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in compute_hlr_llr",3,2,3,"low"
+FM-073,"printf","cmd_trace.c",453,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-074,"LLR","cmd_trace.c",460,"LLR (general function) does not perform its intended action","Failure of LLR could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in LLR",3,2,3,"low"
+FM-075,"printf","cmd_trace.c",478,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-076,"printf","cmd_trace.c",497,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-077,"printf","cmd_trace.c",530,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-078,"printf","cmd_trace.c",558,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-079,"snprintf","cmd_trace.c",696,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-080,"snprintf","cmd_trace.c",700,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-081,"cfusa_basename","cmd_trace.c",716,"cfusa_basename (general function) does not perform its intended action","Failure of cfusa_basename could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in cfusa_basename",3,2,3,"low"
+FM-082,"snprintf","cmd_trace.c",763,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-083,"snprintf","cmd_trace.c",767,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-084,"fprintf","cmd_trace.c",790,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_trace.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-085,"for","cmd_analyze.c",25,"for (general function) does not perform its intended action","Failure of for could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in for",3,2,3,"low"
+FM-086,"if","cmd_analyze.c",67,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-087,"!strstr","cmd_analyze.c",68,"!strstr (general function) does not perform its intended action","Failure of !strstr could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in !strstr",3,2,3,"low"
+FM-088,"strstr","cmd_analyze.c",102,"strstr (general function) does not perform its intended action","Failure of strstr could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in strstr",3,2,3,"low"
+FM-089,"strstr","cmd_analyze.c",103,"strstr (general function) does not perform its intended action","Failure of strstr could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in strstr",3,2,3,"low"
+FM-090,"!strstr","cmd_analyze.c",104,"!strstr (general function) does not perform its intended action","Failure of !strstr could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in !strstr",3,2,3,"low"
+FM-091,"if","cmd_analyze.c",135,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-092,"!strstr","cmd_analyze.c",136,"!strstr (general function) does not perform its intended action","Failure of !strstr could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in !strstr",3,2,3,"low"
+FM-093,"if","cmd_analyze.c",167,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-094,"""assert","cmd_analyze.c",171,"""assert (general function) does not perform its intended action","Failure of ""assert could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in ""assert",3,2,3,"low"
+FM-095,"if","cmd_analyze.c",199,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-096,"strstr","cmd_analyze.c",200,"strstr (general function) does not perform its intended action","Failure of strstr could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in strstr",3,2,3,"low"
+FM-097,"strstr","cmd_analyze.c",201,"strstr (general function) does not perform its intended action","Failure of strstr could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in strstr",3,2,3,"low"
+FM-098,"for","cmd_analyze.c",238,"for (general function) does not perform its intended action","Failure of for could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in for",3,2,3,"low"
+FM-099,"""assert","cmd_analyze.c",284,"""assert (general function) does not perform its intended action","Failure of ""assert could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in ""assert",3,2,3,"low"
+FM-100,"cfusa_analyze_register_rules","cmd_analyze.c",292,"cfusa_analyze_register_rules (general function) does not perform its intended action","Failure of cfusa_analyze_register_rules could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in cfusa_analyze_register_rules",3,2,3,"low"
+FM-101,"cmd_analyze","cmd_analyze.c",298,"cmd_analyze (general function) does not perform its intended action","Failure of cmd_analyze could propagate undetected to callers in cmd_analyze.c","Logic error or untested edge case in cmd_analyze",3,2,3,"low"
+FM-102,"cmd_report","cmd_report.c",14,"cmd_report (general function) does not perform its intended action","Failure of cmd_report could propagate undetected to callers in cmd_report.c","Logic error or untested edge case in cmd_report",3,2,3,"low"
+FM-103,"cmd_init","cmd_init.c",15,"cmd_init (monitoring/control function) does not perform its intended action","Failure of cmd_init could propagate undetected to callers in cmd_init.c","Configuration or state inconsistency affecting cmd_init",5,3,4,"medium"
+FM-104,"fprintf","cmd_init.c",99,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_init.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-105,"fprintf","cmd_init.c",116,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_init.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-106,"cmd_iec62443","cmd_iec62443.c",85,"cmd_iec62443 (general function) does not perform its intended action","Failure of cmd_iec62443 could propagate undetected to callers in cmd_iec62443.c","Logic error or untested edge case in cmd_iec62443",3,2,3,"low"
+FM-107,"fprintf","cmd_iec62443.c",223,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_iec62443.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-108,"cfusa_basename","cmd_fmea.c",187,"cfusa_basename (general function) does not perform its intended action","Failure of cfusa_basename could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in cfusa_basename",3,2,3,"low"
+FM-109,"cfusa_basename","cmd_fmea.c",267,"cfusa_basename (general function) does not perform its intended action","Failure of cfusa_basename could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in cfusa_basename",3,2,3,"low"
+FM-110,"cmd_fmea","cmd_fmea.c",274,"cmd_fmea (general function) does not perform its intended action","Failure of cmd_fmea could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in cmd_fmea",3,2,3,"low"
+FM-111,"fprintf","cmd_fmea.c",383,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-112,"fprintf","cmd_fmea.c",393,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-113,"cfusa_path_join","cmd_fmea.c",399,"cfusa_path_join (general function) does not perform its intended action","Failure of cfusa_path_join could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in cfusa_path_join",3,2,3,"low"
+FM-114,"printf","cmd_fmea.c",402,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-115,"cfusa_basename","cmd_fmea.c",442,"cfusa_basename (general function) does not perform its intended action","Failure of cfusa_basename could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in cfusa_basename",3,2,3,"low"
+FM-116,"cfusa_basename","cmd_fmea.c",506,"cfusa_basename (general function) does not perform its intended action","Failure of cfusa_basename could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in cfusa_basename",3,2,3,"low"
+FM-117,"cfusa_basename","cmd_fmea.c",534,"cfusa_basename (general function) does not perform its intended action","Failure of cfusa_basename could propagate undetected to callers in cmd_fmea.c","Logic error or untested edge case in cfusa_basename",3,2,3,"low"
+FM-118,"strtol","cmd_fix.c",50,"strtol (general function) does not perform its intended action","Failure of strtol could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in strtol",3,2,3,"low"
+FM-119,"fgets","cmd_fix.c",57,"fgets (general function) does not perform its intended action","Failure of fgets could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in fgets",3,2,3,"low"
+FM-120,"strncpy","cmd_fix.c",58,"strncpy (general function) does not perform its intended action","Failure of strncpy could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in strncpy",3,2,3,"low"
+FM-121,"snprintf","cmd_fix.c",59,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-122,"malloc","cmd_fix.c",63,"malloc (general function) does not perform its intended action","Failure of malloc could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in malloc",3,2,3,"low"
+FM-123,"assert","cmd_fix.c",73,"assert (general function) does not perform its intended action","Failure of assert could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in assert",3,2,3,"low"
+FM-124,"strncpy","cmd_fix.c",80,"strncpy (general function) does not perform its intended action","Failure of strncpy could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in strncpy",3,2,3,"low"
+FM-125,"dst[sizeof","cmd_fix.c",81,"dst[sizeof (general function) does not perform its intended action","Failure of dst[sizeof could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in dst[sizeof",3,2,3,"low"
+FM-126,"printf","cmd_fix.c",85,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-127,"printf","cmd_fix.c",86,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-128,"execve","cmd_fix.c",90,"execve (general function) does not perform its intended action","Failure of execve could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in execve",3,2,3,"low"
+FM-129,"sizeof","cmd_fix.c",97,"sizeof (general function) does not perform its intended action","Failure of sizeof could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in sizeof",3,2,3,"low"
+FM-130,"malloc","cmd_fix.c",99,"malloc (general function) does not perform its intended action","Failure of malloc could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in malloc",3,2,3,"low"
+FM-131,"free","cmd_fix.c",103,"free (general function) does not perform its intended action","Failure of free could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in free",3,2,3,"low"
+FM-132,"cmd_fix","cmd_fix.c",125,"cmd_fix (general function) does not perform its intended action","Failure of cmd_fix could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in cmd_fix",3,2,3,"low"
+FM-133,"printf","cmd_fix.c",175,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-134,"printf","cmd_fix.c",195,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_fix.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-135,"main","main.c",14,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in main.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-136,"cmd_boundary","cmd_boundary.c",72,"cmd_boundary (general function) does not perform its intended action","Failure of cmd_boundary could propagate undetected to callers in cmd_boundary.c","Logic error or untested edge case in cmd_boundary",3,2,3,"low"
+FM-137,"cmd_impact","cmd_impact.c",106,"cmd_impact (general function) does not perform its intended action","Failure of cmd_impact could propagate undetected to callers in cmd_impact.c","Logic error or untested edge case in cmd_impact",3,2,3,"low"
+FM-138,"printf","cmd_impact.c",194,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_impact.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-139,"cmd_sci","cmd_sci.c",44,"cmd_sci (general function) does not perform its intended action","Failure of cmd_sci could propagate undetected to callers in cmd_sci.c","Logic error or untested edge case in cmd_sci",3,2,3,"low"
+FM-140,"cmd_iec61508","cmd_iec61508.c",78,"cmd_iec61508 (general function) does not perform its intended action","Failure of cmd_iec61508 could propagate undetected to callers in cmd_iec61508.c","Logic error or untested edge case in cmd_iec61508",3,2,3,"low"
+FM-141,"fprintf","cmd_iec61508.c",204,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_iec61508.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-142,"cmd_badge","cmd_badge.c",9,"cmd_badge (general function) does not perform its intended action","Failure of cmd_badge could propagate undetected to callers in cmd_badge.c","Logic error or untested edge case in cmd_badge",3,2,3,"low"
+FM-143,"fill=\""url","cmd_badge.c",87,"fill=\""url (general function) does not perform its intended action","Failure of fill=\""url could propagate undetected to callers in cmd_badge.c","Logic error or untested edge case in fill=\""url",3,2,3,"low"
+FM-144,"cmd_unece","cmd_unece.c",57,"cmd_unece (general function) does not perform its intended action","Failure of cmd_unece could propagate undetected to callers in cmd_unece.c","Logic error or untested edge case in cmd_unece",3,2,3,"low"
+FM-145,"cmd_sign","cmd_sign.c",43,"cmd_sign (general function) does not perform its intended action","Failure of cmd_sign could propagate undetected to callers in cmd_sign.c","Logic error or untested edge case in cmd_sign",3,2,3,"low"
+FM-146,"cfusa_hmac_sha256","cmd_sign.c",120,"cfusa_hmac_sha256 (general function) does not perform its intended action","Failure of cfusa_hmac_sha256 could propagate undetected to callers in cmd_sign.c","Logic error or untested edge case in cfusa_hmac_sha256",3,2,3,"low"
+FM-147,"cmd_iso21434","cmd_iso21434.c",77,"cmd_iso21434 (general function) does not perform its intended action","Failure of cmd_iso21434 could propagate undetected to callers in cmd_iso21434.c","Logic error or untested edge case in cmd_iso21434",3,2,3,"low"
+FM-148,"fprintf","cmd_iso21434.c",212,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_iso21434.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-149,"""gets","cmd_vuln.c",26,"""gets (general function) does not perform its intended action","Failure of ""gets could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in ""gets",3,2,3,"low"
+FM-150,"fgets","cmd_vuln.c",27,"fgets (general function) does not perform its intended action","Failure of fgets could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in fgets",3,2,3,"low"
+FM-151,"""sprintf","cmd_vuln.c",29,"""sprintf (general function) does not perform its intended action","Failure of ""sprintf could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in ""sprintf",3,2,3,"low"
+FM-152,"snprintf","cmd_vuln.c",30,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-153,"""strcpy","cmd_vuln.c",32,"""strcpy (general function) does not perform its intended action","Failure of ""strcpy could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in ""strcpy",3,2,3,"low"
+FM-154,"strlcpy","cmd_vuln.c",33,"strlcpy (general function) does not perform its intended action","Failure of strlcpy could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in strlcpy",3,2,3,"low"
+FM-155,"""strcat","cmd_vuln.c",35,"""strcat (general function) does not perform its intended action","Failure of ""strcat could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in ""strcat",3,2,3,"low"
+FM-156,"strlcat","cmd_vuln.c",36,"strlcat (general function) does not perform its intended action","Failure of strlcat could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in strlcat",3,2,3,"low"
+FM-157,"scanf","cmd_vuln.c",39,"scanf (general function) does not perform its intended action","Failure of scanf could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in scanf",3,2,3,"low"
+FM-158,"""tmpnam","cmd_vuln.c",41,"""tmpnam (general function) does not perform its intended action","Failure of ""tmpnam could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in ""tmpnam",3,2,3,"low"
+FM-159,"mkstemp","cmd_vuln.c",42,"mkstemp (general function) does not perform its intended action","Failure of mkstemp could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in mkstemp",3,2,3,"low"
+FM-160,"""system","cmd_vuln.c",44,"""system (general function) does not perform its intended action","Failure of ""system could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in ""system",3,2,3,"low"
+FM-161,"system","cmd_vuln.c",45,"system (general function) does not perform its intended action","Failure of system could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in system",3,2,3,"low"
+FM-162,"""rand","cmd_vuln.c",47,"""rand (general function) does not perform its intended action","Failure of ""rand could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in ""rand",3,2,3,"low"
+FM-163,"""mktemp","cmd_vuln.c",50,"""mktemp (general function) does not perform its intended action","Failure of ""mktemp could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in ""mktemp",3,2,3,"low"
+FM-164,"mkstemp","cmd_vuln.c",51,"mkstemp (general function) does not perform its intended action","Failure of mkstemp could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in mkstemp",3,2,3,"low"
+FM-165,"""popen","cmd_vuln.c",53,"""popen (general function) does not perform its intended action","Failure of ""popen could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in ""popen",3,2,3,"low"
+FM-166,"execv","cmd_vuln.c",54,"execv (general function) does not perform its intended action","Failure of execv could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in execv",3,2,3,"low"
+FM-167,"cfusa_scan_lines","cmd_vuln.c",107,"cfusa_scan_lines (general function) does not perform its intended action","Failure of cfusa_scan_lines could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in cfusa_scan_lines",3,2,3,"low"
+FM-168,"cmd_vuln","cmd_vuln.c",109,"cmd_vuln (general function) does not perform its intended action","Failure of cmd_vuln could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in cmd_vuln",3,2,3,"low"
+FM-169,"printf","cmd_vuln.c",181,"printf (general function) does not perform its intended action","Failure of printf could propagate undetected to callers in cmd_vuln.c","Logic error or untested edge case in printf",3,2,3,"low"
+FM-170,"strstr","cmd_comp.c",102,"strstr (general function) does not perform its intended action","Failure of strstr could propagate undetected to callers in cmd_comp.c","Logic error or untested edge case in strstr",3,2,3,"low"
+FM-171,"fprintf","cmd_comp.c",184,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_comp.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-172,"cmd_comp","cmd_comp.c",222,"cmd_comp (general function) does not perform its intended action","Failure of cmd_comp could propagate undetected to callers in cmd_comp.c","Logic error or untested edge case in cmd_comp",3,2,3,"low"
+FM-173,"cmd_audit_pack","cmd_audit_pack.c",21,"cmd_audit_pack (general function) does not perform its intended action","Failure of cmd_audit_pack could propagate undetected to callers in cmd_audit_pack.c","Logic error or untested edge case in cmd_audit_pack",3,2,3,"low"
+FM-174,"snprintf","cmd_audit_pack.c",149,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_audit_pack.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-175,"snprintf","cmd_audit_pack.c",162,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_audit_pack.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-176,"snprintf","cmd_audit_pack.c",187,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_audit_pack.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-177,"cmd_hooks","cmd_hooks.c",20,"cmd_hooks (general function) does not perform its intended action","Failure of cmd_hooks could propagate undetected to callers in cmd_hooks.c","Logic error or untested edge case in cmd_hooks",3,2,3,"low"
+FM-178,"cmd_disposition","cmd_disposition.c",184,"cmd_disposition (general function) does not perform its intended action","Failure of cmd_disposition could propagate undetected to callers in cmd_disposition.c","Logic error or untested edge case in cmd_disposition",3,2,3,"low"
+FM-179,"strcmp","cmd_disposition.c",261,"strcmp (general function) does not perform its intended action","Failure of strcmp could propagate undetected to callers in cmd_disposition.c","Logic error or untested edge case in strcmp",3,2,3,"low"
+FM-180,"snprintf","cmd_coverage.c",42,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_coverage.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-181,"snprintf","cmd_coverage.c",81,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_coverage.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-182,"snprintf","cmd_coverage.c",93,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_coverage.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-183,"cmd_coverage","cmd_coverage.c",174,"cmd_coverage (general function) does not perform its intended action","Failure of cmd_coverage could propagate undetected to callers in cmd_coverage.c","Logic error or untested edge case in cmd_coverage",3,2,3,"low"
+FM-184,"strcmp","cmd_coverage.c",258,"strcmp (general function) does not perform its intended action","Failure of strcmp could propagate undetected to callers in cmd_coverage.c","Logic error or untested edge case in strcmp",3,2,3,"low"
+FM-185,"fprintf","cmd_coverage.c",408,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_coverage.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-186,"fprintf","cmd_coverage.c",411,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_coverage.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-187,"fprintf","cmd_coverage.c",413,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_coverage.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-188,"fprintf","cmd_coverage.c",425,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_coverage.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-189,"cmd_diff","cmd_diff.c",66,"cmd_diff (general function) does not perform its intended action","Failure of cmd_diff could propagate undetected to callers in cmd_diff.c","Logic error or untested edge case in cmd_diff",3,2,3,"low"
+FM-190,"fprintf","cmd_hara.c",622,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_hara.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-191,"parse_sec_code","cmd_hara.c",650,"parse_sec_code (general function) does not perform its intended action","Failure of parse_sec_code could propagate undetected to callers in cmd_hara.c","Logic error or untested edge case in parse_sec_code",3,2,3,"low"
+FM-192,"cmd_hara","cmd_hara.c",770,"cmd_hara (general function) does not perform its intended action","Failure of cmd_hara could propagate undetected to callers in cmd_hara.c","Logic error or untested edge case in cmd_hara",3,2,3,"low"
+FM-193,"cmd_slsa","cmd_slsa.c",71,"cmd_slsa (general function) does not perform its intended action","Failure of cmd_slsa could propagate undetected to callers in cmd_slsa.c","Logic error or untested edge case in cmd_slsa",3,2,3,"low"
+FM-194,"slsa_file_exists","cmd_slsa.c",123,"slsa_file_exists (general function) does not perform its intended action","Failure of slsa_file_exists could propagate undetected to callers in cmd_slsa.c","Logic error or untested edge case in slsa_file_exists",3,2,3,"low"
+FM-195,"cmd_do178","cmd_do178.c",113,"cmd_do178 (general function) does not perform its intended action","Failure of cmd_do178 could propagate undetected to callers in cmd_do178.c","Logic error or untested edge case in cmd_do178",3,2,3,"low"
+FM-196,"cmd_verify","cmd_verify.c",14,"cmd_verify (general function) does not perform its intended action","Failure of cmd_verify could propagate undetected to callers in cmd_verify.c","Logic error or untested edge case in cmd_verify",3,2,3,"low"
+FM-197,"fprintf","cmd_sas.c",61,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_sas.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-198,"cmd_sas","cmd_sas.c",90,"cmd_sas (general function) does not perform its intended action","Failure of cmd_sas could propagate undetected to callers in cmd_sas.c","Logic error or untested edge case in cmd_sas",3,2,3,"low"
+FM-199,"fprintf","cmd_sas.c",178,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_sas.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-200,"fprintf","cmd_sas.c",255,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_sas.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-201,"for","cmd_cyber.c",19,"for (general function) does not perform its intended action","Failure of for could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in for",3,2,3,"low"
+FM-202,"if","cmd_cyber.c",22,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-203,"||","cmd_cyber.c",23,"|| (general function) does not perform its intended action","Failure of || could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in ||",3,2,3,"low"
+FM-204,"for","cmd_cyber.c",51,"for (general function) does not perform its intended action","Failure of for could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in for",3,2,3,"low"
+FM-205,"if","cmd_cyber.c",55,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-206,"if","cmd_cyber.c",63,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-207,"if","cmd_cyber.c",71,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-208,"strncmp","cmd_cyber.c",72,"strncmp (general function) does not perform its intended action","Failure of strncmp could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in strncmp",3,2,3,"low"
+FM-209,"for","cmd_cyber.c",96,"for (general function) does not perform its intended action","Failure of for could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in for",3,2,3,"low"
+FM-210,"if","cmd_cyber.c",103,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-211,"if","cmd_cyber.c",155,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-212,"strstr","cmd_cyber.c",156,"strstr (general function) does not perform its intended action","Failure of strstr could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in strstr",3,2,3,"low"
+FM-213,"if","cmd_cyber.c",179,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-214,"free","cmd_cyber.c",182,"free (general function) does not perform its intended action","Failure of free could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in free",3,2,3,"low"
+FM-215,"if","cmd_cyber.c",204,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-216,"if","cmd_cyber.c",223,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-217,"cfusa_match_outside_string","cmd_cyber.c",224,"cfusa_match_outside_string (general function) does not perform its intended action","Failure of cfusa_match_outside_string could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in cfusa_match_outside_string",3,2,3,"low"
+FM-218,"mkstemp","cmd_cyber.c",227,"mkstemp (general function) does not perform its intended action","Failure of mkstemp could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in mkstemp",3,2,3,"low"
+FM-219,"for","cmd_cyber.c",246,"for (general function) does not perform its intended action","Failure of for could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in for",3,2,3,"low"
+FM-220,"if","cmd_cyber.c",247,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-221,"for","cmd_cyber.c",270,"for (general function) does not perform its intended action","Failure of for could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in for",3,2,3,"low"
+FM-222,"if","cmd_cyber.c",274,"if (general function) does not perform its intended action","Failure of if could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in if",3,2,3,"low"
+FM-223,"cfusa_match_outside_string","cmd_cyber.c",329,"cfusa_match_outside_string (general function) does not perform its intended action","Failure of cfusa_match_outside_string could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in cfusa_match_outside_string",3,2,3,"low"
+FM-224,"cfusa_match_outside_string","cmd_cyber.c",349,"cfusa_match_outside_string (general function) does not perform its intended action","Failure of cfusa_match_outside_string could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in cfusa_match_outside_string",3,2,3,"low"
+FM-225,"cfusa_match_outside_string","cmd_cyber.c",350,"cfusa_match_outside_string (general function) does not perform its intended action","Failure of cfusa_match_outside_string could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in cfusa_match_outside_string",3,2,3,"low"
+FM-226,"realpath","cmd_cyber.c",352,"realpath (general function) does not perform its intended action","Failure of realpath could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in realpath",3,2,3,"low"
+FM-227,"TLS_method","cmd_cyber.c",378,"TLS_method (general function) does not perform its intended action","Failure of TLS_method could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in TLS_method",3,2,3,"low"
+FM-228,"cfusa_match_outside_string","cmd_cyber.c",445,"cfusa_match_outside_string (general function) does not perform its intended action","Failure of cfusa_match_outside_string could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in cfusa_match_outside_string",3,2,3,"low"
+FM-229,"cfusa_match_outside_string","cmd_cyber.c",479,"cfusa_match_outside_string (general function) does not perform its intended action","Failure of cfusa_match_outside_string could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in cfusa_match_outside_string",3,2,3,"low"
+FM-230,"access","cmd_cyber.c",503,"access (general function) does not perform its intended action","Failure of access could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in access",3,2,3,"low"
+FM-231,"cfusa_cyber_register_rules","cmd_cyber.c",564,"cfusa_cyber_register_rules (general function) does not perform its intended action","Failure of cfusa_cyber_register_rules could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in cfusa_cyber_register_rules",3,2,3,"low"
+FM-232,"for","cmd_cyber.c",566,"for (general function) does not perform its intended action","Failure of for could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in for",3,2,3,"low"
+FM-233,"cmd_cyber","cmd_cyber.c",570,"cmd_cyber (general function) does not perform its intended action","Failure of cmd_cyber could propagate undetected to callers in cmd_cyber.c","Logic error or untested edge case in cmd_cyber",3,2,3,"low"
+FM-234,"cmd_safety_case","cmd_safety_case.c",35,"cmd_safety_case (safety-critical function) does not perform its intended action","Failure of cmd_safety_case could propagate undetected to callers in cmd_safety_case.c","Unhandled fault or invalid input condition within cmd_safety_case",9,4,6,"high"
+FM-235,"snprintf","cmd_safety_case.c",106,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_safety_case.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-236,"snprintf","cmd_safety_case.c",110,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_safety_case.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-237,"snprintf","cmd_safety_case.c",113,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_safety_case.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-238,"snprintf","cmd_safety_case.c",116,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_safety_case.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-239,"snprintf","cmd_safety_case.c",119,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in cmd_safety_case.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-240,"fprintf","cmd_safety_case.c",223,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_safety_case.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-241,"fprintf","cmd_safety_case.c",317,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_safety_case.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-242,"cmd_metrics","cmd_metrics.c",288,"cmd_metrics (general function) does not perform its intended action","Failure of cmd_metrics could propagate undetected to callers in cmd_metrics.c","Logic error or untested edge case in cmd_metrics",3,2,3,"low"
+FM-243,"cmd_capabilities","cmd_capabilities.c",15,"cmd_capabilities (general function) does not perform its intended action","Failure of cmd_capabilities could propagate undetected to callers in cmd_capabilities.c","Logic error or untested edge case in cmd_capabilities",3,2,3,"low"
+FM-244,"fprintf","cmd_capabilities.c",86,"fprintf (general function) does not perform its intended action","Failure of fprintf could propagate undetected to callers in cmd_capabilities.c","Logic error or untested edge case in fprintf",3,2,3,"low"
+FM-245,"strstr","cmd_lint.c",42,"strstr (general function) does not perform its intended action","Failure of strstr could propagate undetected to callers in cmd_lint.c","Logic error or untested edge case in strstr",3,2,3,"low"
+FM-246,"fgets","cmd_lint.c",186,"fgets (general function) does not perform its intended action","Failure of fgets could propagate undetected to callers in cmd_lint.c","Logic error or untested edge case in fgets",3,2,3,"low"
+FM-247,"strstr","cmd_lint.c",220,"strstr (general function) does not perform its intended action","Failure of strstr could propagate undetected to callers in cmd_lint.c","Logic error or untested edge case in strstr",3,2,3,"low"
+FM-248,"!strstr","cmd_lint.c",222,"!strstr (general function) does not perform its intended action","Failure of !strstr could propagate undetected to callers in cmd_lint.c","Logic error or untested edge case in !strstr",3,2,3,"low"
+FM-249,"!strstr","cmd_lint.c",384,"!strstr (general function) does not perform its intended action","Failure of !strstr could propagate undetected to callers in cmd_lint.c","Logic error or untested edge case in !strstr",3,2,3,"low"
+FM-250,"cfusa_lint_register_rules","cmd_lint.c",527,"cfusa_lint_register_rules (general function) does not perform its intended action","Failure of cfusa_lint_register_rules could propagate undetected to callers in cmd_lint.c","Logic error or untested edge case in cfusa_lint_register_rules",3,2,3,"low"
+FM-251,"cmd_lint","cmd_lint.c",535,"cmd_lint (general function) does not perform its intended action","Failure of cmd_lint could propagate undetected to callers in cmd_lint.c","Logic error or untested edge case in cmd_lint",3,2,3,"low"
+FM-252,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-253,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-254,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-255,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-256,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-257,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-258,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-259,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-260,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-261,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-262,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-263,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-264,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-265,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-266,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-267,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-268,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-269,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-270,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-271,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-272,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-273,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-274,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-275,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-276,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-277,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-278,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-279,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-280,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-281,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-282,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-283,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-284,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-285,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-286,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-287,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-288,"defined","CMakeCCompilerId.c",891,"defined (general function) does not perform its intended action","Failure of defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in defined",3,2,3,"low"
+FM-289,"!defined","CMakeCCompilerId.c",892,"!defined (general function) does not perform its intended action","Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in !defined",3,2,3,"low"
+FM-290,"main","CMakeCCompilerId.c",902,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-291,"main","CMakeCCompilerId.c",907,"main (general function) does not perform its intended action","Failure of main could propagate undetected to callers in CMakeCCompilerId.c","Logic error or untested edge case in main",3,2,3,"low"
+FM-292,"cfusa_watchdog_kick","cfusa_runtime.c",26,"cfusa_watchdog_kick (safety-critical function) does not perform its intended action","Failure of cfusa_watchdog_kick could propagate undetected to callers in cfusa_runtime.c","Unhandled fault or invalid input condition within cfusa_watchdog_kick",9,4,6,"high"
+FM-293,"cfusa_watchdog_check","cfusa_runtime.c",33,"cfusa_watchdog_check (safety-critical function) does not perform its intended action","Failure of cfusa_watchdog_check could propagate undetected to callers in cfusa_runtime.c","Unhandled fault or invalid input condition within cfusa_watchdog_check",9,4,6,"high"
+FM-294,"cfusa_watchdog_stop","cfusa_runtime.c",43,"cfusa_watchdog_stop (safety-critical function) does not perform its intended action","Failure of cfusa_watchdog_stop could propagate undetected to callers in cfusa_runtime.c","Unhandled fault or invalid input condition within cfusa_watchdog_stop",9,4,6,"high"
+FM-295,"cfusa_watchdog_fired","cfusa_runtime.c",48,"cfusa_watchdog_fired (safety-critical function) does not perform its intended action","Failure of cfusa_watchdog_fired could propagate undetected to callers in cfusa_runtime.c","Unhandled fault or invalid input condition within cfusa_watchdog_fired",9,4,6,"high"
+FM-296,"cfusa_heartbeat_beat","cfusa_runtime.c",67,"cfusa_heartbeat_beat (general function) does not perform its intended action","Failure of cfusa_heartbeat_beat could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_heartbeat_beat",3,2,3,"low"
+FM-297,"cfusa_heartbeat_check","cfusa_runtime.c",74,"cfusa_heartbeat_check (monitoring/control function) does not perform its intended action","Failure of cfusa_heartbeat_check could propagate undetected to callers in cfusa_runtime.c","Configuration or state inconsistency affecting cfusa_heartbeat_check",5,3,4,"medium"
+FM-298,"cfusa_heartbeat_stop","cfusa_runtime.c",85,"cfusa_heartbeat_stop (general function) does not perform its intended action","Failure of cfusa_heartbeat_stop could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_heartbeat_stop",3,2,3,"low"
+FM-299,"cfusa_heartbeat_missed","cfusa_runtime.c",90,"cfusa_heartbeat_missed (general function) does not perform its intended action","Failure of cfusa_heartbeat_missed could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_heartbeat_missed",3,2,3,"low"
+FM-300,"cfusa_state_get","cfusa_runtime.c",107,"cfusa_state_get (general function) does not perform its intended action","Failure of cfusa_state_get could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_state_get",3,2,3,"low"
+FM-301,"cfusa_state_transition","cfusa_runtime.c",112,"cfusa_state_transition (general function) does not perform its intended action","Failure of cfusa_state_transition could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_state_transition",3,2,3,"low"
+FM-302,"cfusa_state_name","cfusa_runtime.c",123,"cfusa_state_name (general function) does not perform its intended action","Failure of cfusa_state_name could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_state_name",3,2,3,"low"
+FM-303,"cfusa_diag_init","cfusa_runtime.c",137,"cfusa_diag_init (monitoring/control function) does not perform its intended action","Failure of cfusa_diag_init could propagate undetected to callers in cfusa_runtime.c","Configuration or state inconsistency affecting cfusa_diag_init",5,3,4,"medium"
+FM-304,"cfusa_diag_count","cfusa_runtime.c",160,"cfusa_diag_count (general function) does not perform its intended action","Failure of cfusa_diag_count could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_diag_count",3,2,3,"low"
+FM-305,"cfusa_diag_get","cfusa_runtime.c",165,"cfusa_diag_get (general function) does not perform its intended action","Failure of cfusa_diag_get could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_diag_get",3,2,3,"low"
+FM-306,"cfusa_diag_clear","cfusa_runtime.c",174,"cfusa_diag_clear (general function) does not perform its intended action","Failure of cfusa_diag_clear could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_diag_clear",3,2,3,"low"
+FM-307,"cfusa_diag_level_name","cfusa_runtime.c",179,"cfusa_diag_level_name (general function) does not perform its intended action","Failure of cfusa_diag_level_name could propagate undetected to callers in cfusa_runtime.c","Logic error or untested edge case in cfusa_diag_level_name",3,2,3,"low"
+FM-308,"cfusa_fault_record","cfusa_runtime.c",223,"cfusa_fault_record (safety-critical function) does not perform its intended action","Failure of cfusa_fault_record could propagate undetected to callers in cfusa_runtime.c","Unhandled fault or invalid input condition within cfusa_fault_record",9,4,6,"high"
+FM-309,"cfusa_fault_reset","cfusa_runtime.c",233,"cfusa_fault_reset (safety-critical function) does not perform its intended action","Failure of cfusa_fault_reset could propagate undetected to callers in cfusa_runtime.c","Unhandled fault or invalid input condition within cfusa_fault_reset",9,4,6,"high"
+FM-310,"cfusa_fault_count","cfusa_runtime.c",240,"cfusa_fault_count (safety-critical function) does not perform its intended action","Failure of cfusa_fault_count could propagate undetected to callers in cfusa_runtime.c","Unhandled fault or invalid input condition within cfusa_fault_count",9,4,6,"high"
+FM-311,"cfusa_report_init","report.c",14,"cfusa_report_init (monitoring/control function) does not perform its intended action","Failure of cfusa_report_init could propagate undetected to callers in report.c","Configuration or state inconsistency affecting cfusa_report_init",5,3,4,"medium"
+FM-312,"cfusa_report_free","report.c",27,"cfusa_report_free (general function) does not perform its intended action","Failure of cfusa_report_free could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_report_free",3,2,3,"low"
+FM-313,"snprintf","report.c",117,"snprintf (general function) does not perform its intended action","Failure of snprintf could propagate undetected to callers in report.c","Logic error or untested edge case in snprintf",3,2,3,"low"
+FM-314,"cfusa_severity_str","report.c",127,"cfusa_severity_str (general function) does not perform its intended action","Failure of cfusa_severity_str could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_severity_str",3,2,3,"low"
+FM-315,"cfusa_format_parse","report.c",137,"cfusa_format_parse (general function) does not perform its intended action","Failure of cfusa_format_parse could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_format_parse",3,2,3,"low"
+FM-316,"cfusa_report_score","report.c",148,"cfusa_report_score (general function) does not perform its intended action","Failure of cfusa_report_score could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_report_score",3,2,3,"low"
+FM-317,"cfusa_report_score","report.c",256,"cfusa_report_score (general function) does not perform its intended action","Failure of cfusa_report_score could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_report_score",3,2,3,"low"
+FM-318,"cfusa_severity_str","report.c",262,"cfusa_severity_str (general function) does not perform its intended action","Failure of cfusa_severity_str could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_severity_str",3,2,3,"low"
+FM-319,"cfusa_report_score","report.c",307,"cfusa_report_score (general function) does not perform its intended action","Failure of cfusa_report_score could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_report_score",3,2,3,"low"
+FM-320,"cfusa_severity_str","report.c",344,"cfusa_severity_str (general function) does not perform its intended action","Failure of cfusa_severity_str could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_severity_str",3,2,3,"low"
+FM-321,"cfusa_severity_str","report.c",360,"cfusa_severity_str (general function) does not perform its intended action","Failure of cfusa_severity_str could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_severity_str",3,2,3,"low"
+FM-322,"cfusa_severity_str","report.c",375,"cfusa_severity_str (general function) does not perform its intended action","Failure of cfusa_severity_str could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_severity_str",3,2,3,"low"
+FM-323,"cfusa_report_score","report.c",508,"cfusa_report_score (general function) does not perform its intended action","Failure of cfusa_report_score could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_report_score",3,2,3,"low"
+FM-324,"cfusa_severity_str","report.c",523,"cfusa_severity_str (general function) does not perform its intended action","Failure of cfusa_severity_str could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_severity_str",3,2,3,"low"
+FM-325,"cfusa_severity_str","report.c",524,"cfusa_severity_str (general function) does not perform its intended action","Failure of cfusa_severity_str could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_severity_str",3,2,3,"low"
+FM-326,"cfusa_report_score","report.c",550,"cfusa_report_score (general function) does not perform its intended action","Failure of cfusa_report_score could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_report_score",3,2,3,"low"
+FM-327,"cfusa_severity_str","report.c",564,"cfusa_severity_str (general function) does not perform its intended action","Failure of cfusa_severity_str could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_severity_str",3,2,3,"low"
+FM-328,"cfusa_report_print","report.c",571,"cfusa_report_print (general function) does not perform its intended action","Failure of cfusa_report_print could propagate undetected to callers in report.c","Logic error or untested edge case in cfusa_report_print",3,2,3,"low"
+FM-329,"cfusa_qb_is_stub_text","qualitybar.c",44,"cfusa_qb_is_stub_text (general function) does not perform its intended action","Failure of cfusa_qb_is_stub_text could propagate undetected to callers in qualitybar.c","Logic error or untested edge case in cfusa_qb_is_stub_text",3,2,3,"low"
+FM-330,"cfusa_qb_rule_b_flagged","qualitybar.c",59,"cfusa_qb_rule_b_flagged (general function) does not perform its intended action","Failure of cfusa_qb_rule_b_flagged could propagate undetected to callers in qualitybar.c","Logic error or untested edge case in cfusa_qb_rule_b_flagged",3,2,3,"low"
+FM-331,"cfusa_qb_attestation_read","qualitybar.c",100,"cfusa_qb_attestation_read (general function) does not perform its intended action","Failure of cfusa_qb_attestation_read could propagate undetected to callers in qualitybar.c","Logic error or untested edge case in cfusa_qb_attestation_read",3,2,3,"low"
+FM-332,"cfusa_qb_attestation_valid","qualitybar.c",161,"cfusa_qb_attestation_valid (general function) does not perform its intended action","Failure of cfusa_qb_attestation_valid could propagate undetected to callers in qualitybar.c","Logic error or untested edge case in cfusa_qb_attestation_valid",3,2,3,"low"
+FM-333,"cfusa_qb_rule_disposed","qualitybar.c",180,"cfusa_qb_rule_disposed (general function) does not perform its intended action","Failure of cfusa_qb_rule_disposed could propagate undetected to callers in qualitybar.c","Logic error or untested edge case in cfusa_qb_rule_disposed",3,2,3,"low"
+FM-334,"cfusa_qb_content_hash","qualitybar.c",206,"cfusa_qb_content_hash (general function) does not perform its intended action","Failure of cfusa_qb_content_hash could propagate undetected to callers in qualitybar.c","Logic error or untested edge case in cfusa_qb_content_hash",3,2,3,"low"
+FM-335,"cfusa_engine_reset","engine.c",9,"cfusa_engine_reset (general function) does not perform its intended action","Failure of cfusa_engine_reset could propagate undetected to callers in engine.c","Logic error or untested edge case in cfusa_engine_reset",3,2,3,"low"
+FM-336,"cfusa_engine_register","engine.c",14,"cfusa_engine_register (general function) does not perform its intended action","Failure of cfusa_engine_register could propagate undetected to callers in engine.c","Logic error or untested edge case in cfusa_engine_register",3,2,3,"low"
+FM-337,"cfusa_engine_rule_count","engine.c",23,"cfusa_engine_rule_count (general function) does not perform its intended action","Failure of cfusa_engine_rule_count could propagate undetected to callers in engine.c","Logic error or untested edge case in cfusa_engine_rule_count",3,2,3,"low"
+FM-338,"cfusa_engine_get_rule","engine.c",28,"cfusa_engine_get_rule (general function) does not perform its intended action","Failure of cfusa_engine_get_rule could propagate undetected to callers in engine.c","Logic error or untested edge case in cfusa_engine_get_rule",3,2,3,"low"
+FM-339,"cfusa_engine_list_rules","engine.c",34,"cfusa_engine_list_rules (general function) does not perform its intended action","Failure of cfusa_engine_list_rules could propagate undetected to callers in engine.c","Logic error or untested edge case in cfusa_engine_list_rules",3,2,3,"low"
+FM-340,"!cfusa_config_is_rule_disabled","engine.c",65,"!cfusa_config_is_rule_disabled (monitoring/control function) does not perform its intended action","Failure of !cfusa_config_is_rule_disabled could propagate undetected to callers in engine.c","Configuration or state inconsistency affecting !cfusa_config_is_rule_disabled",5,3,4,"medium"
+FM-341,"strcmp","utils.c",46,"strcmp (general function) does not perform its intended action","Failure of strcmp could propagate undetected to callers in utils.c","Logic error or untested edge case in strcmp",3,2,3,"low"
+FM-342,"cfusa_read_file","utils.c",60,"cfusa_read_file (general function) does not perform its intended action","Failure of cfusa_read_file could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_read_file",3,2,3,"low"
+FM-343,"cfusa_fopen_write","utils.c",78,"cfusa_fopen_write (general function) does not perform its intended action","Failure of cfusa_fopen_write could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_fopen_write",3,2,3,"low"
+FM-344,"cfusa_file_exists","utils.c",87,"cfusa_file_exists (general function) does not perform its intended action","Failure of cfusa_file_exists could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_file_exists",3,2,3,"low"
+FM-345,"cfusa_dir_exists","utils.c",93,"cfusa_dir_exists (general function) does not perform its intended action","Failure of cfusa_dir_exists could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_dir_exists",3,2,3,"low"
+FM-346,"cfusa_mkdir_p","utils.c",99,"cfusa_mkdir_p (general function) does not perform its intended action","Failure of cfusa_mkdir_p could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_mkdir_p",3,2,3,"low"
+FM-347,"cfusa_scan_lines","utils.c",115,"cfusa_scan_lines (general function) does not perform its intended action","Failure of cfusa_scan_lines could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_scan_lines",3,2,3,"low"
+FM-348,"cfusa_basename","utils.c",134,"cfusa_basename (general function) does not perform its intended action","Failure of cfusa_basename could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_basename",3,2,3,"low"
+FM-349,"cfusa_extension","utils.c",140,"cfusa_extension (general function) does not perform its intended action","Failure of cfusa_extension could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_extension",3,2,3,"low"
+FM-350,"cfusa_str_contains","utils.c",147,"cfusa_str_contains (general function) does not perform its intended action","Failure of cfusa_str_contains could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_str_contains",3,2,3,"low"
+FM-351,"cfusa_str_starts_with","utils.c",152,"cfusa_str_starts_with (general function) does not perform its intended action","Failure of cfusa_str_starts_with could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_str_starts_with",3,2,3,"low"
+FM-352,"cfusa_str_trim","utils.c",157,"cfusa_str_trim (general function) does not perform its intended action","Failure of cfusa_str_trim could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_str_trim",3,2,3,"low"
+FM-353,"cfusa_str_escape_json","utils.c",168,"cfusa_str_escape_json (general function) does not perform its intended action","Failure of cfusa_str_escape_json could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_str_escape_json",3,2,3,"low"
+FM-354,"cfusa_path_join","utils.c",188,"cfusa_path_join (general function) does not perform its intended action","Failure of cfusa_path_join could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_path_join",3,2,3,"low"
+FM-355,"cfusa_sha256_buf","utils.c",311,"cfusa_sha256_buf (general function) does not perform its intended action","Failure of cfusa_sha256_buf could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_sha256_buf",3,2,3,"low"
+FM-356,"cfusa_sha256_file","utils.c",323,"cfusa_sha256_file (general function) does not perform its intended action","Failure of cfusa_sha256_file could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_sha256_file",3,2,3,"low"
+FM-357,"cfusa_sha256_buf","utils.c",352,"cfusa_sha256_buf (general function) does not perform its intended action","Failure of cfusa_sha256_buf could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_sha256_buf",3,2,3,"low"
+FM-358,"cfusa_timestamp_now","utils.c",383,"cfusa_timestamp_now (general function) does not perform its intended action","Failure of cfusa_timestamp_now could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_timestamp_now",3,2,3,"low"
+FM-359,"cfusa_count_c_files","utils.c",400,"cfusa_count_c_files (general function) does not perform its intended action","Failure of cfusa_count_c_files could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_count_c_files",3,2,3,"low"
+FM-360,"cfusa_count_lines_in_file","utils.c",408,"cfusa_count_lines_in_file (general function) does not perform its intended action","Failure of cfusa_count_lines_in_file could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_count_lines_in_file",3,2,3,"low"
+FM-361,"cfusa_match_outside_string","utils.c",421,"cfusa_match_outside_string (general function) does not perform its intended action","Failure of cfusa_match_outside_string could propagate undetected to callers in utils.c","Logic error or untested edge case in cfusa_match_outside_string",3,2,3,"low"
+FM-362,"cfusa_config_defaults","config.c",8,"cfusa_config_defaults (safety-critical function) does not perform its intended action","Failure of cfusa_config_defaults could propagate undetected to callers in config.c","Unhandled fault or invalid input condition within cfusa_config_defaults",9,4,6,"high"
+FM-363,"cfusa_config_load","config.c",92,"cfusa_config_load (monitoring/control function) does not perform its intended action","Failure of cfusa_config_load could propagate undetected to callers in config.c","Configuration or state inconsistency affecting cfusa_config_load",5,3,4,"medium"
+FM-364,"extract_str_array_n","config.c",150,"extract_str_array_n (general function) does not perform its intended action","Failure of extract_str_array_n could propagate undetected to callers in config.c","Logic error or untested edge case in extract_str_array_n",3,2,3,"low"
+FM-365,"extract_str_array_n","config.c",160,"extract_str_array_n (general function) does not perform its intended action","Failure of extract_str_array_n could propagate undetected to callers in config.c","Logic error or untested edge case in extract_str_array_n",3,2,3,"low"
+FM-366,"extract_str_array_n","config.c",170,"extract_str_array_n (general function) does not perform its intended action","Failure of extract_str_array_n could propagate undetected to callers in config.c","Logic error or untested edge case in extract_str_array_n",3,2,3,"low"
+FM-367,"extract_str_array_n","config.c",177,"extract_str_array_n (general function) does not perform its intended action","Failure of extract_str_array_n could propagate undetected to callers in config.c","Logic error or untested edge case in extract_str_array_n",3,2,3,"low"
+FM-368,"cfusa_config_is_rule_disabled","config.c",186,"cfusa_config_is_rule_disabled (monitoring/control function) does not perform its intended action","Failure of cfusa_config_is_rule_disabled could propagate undetected to callers in config.c","Configuration or state inconsistency affecting cfusa_config_is_rule_disabled",5,3,4,"medium"
+FM-369,"cfusa_config_save","config.c",193,"cfusa_config_save (monitoring/control function) does not perform its intended action","Failure of cfusa_config_save could propagate undetected to callers in config.c","Configuration or state inconsistency affecting cfusa_config_save",5,3,4,"medium"
+FM-370,"cfusa_config_is_excluded","config.c",225,"cfusa_config_is_excluded (monitoring/control function) does not perform its intended action","Failure of cfusa_config_is_excluded could propagate undetected to callers in config.c","Configuration or state inconsistency affecting cfusa_config_is_excluded",5,3,4,"medium"

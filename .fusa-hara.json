@@ -1,0 +1,132 @@
+{
+  "project": "c-FuSa",
+  "standard": "iso26262",
+  "createdAt": "2026-06-09T18:34:23Z",
+  "operationalSituations": [
+    {
+      "id": "OS-001",
+      "description": "Developer runs cfusa check/lint in CI or as a pre-commit gate as the sole safety-relevant static analysis step for a change"
+    },
+    {
+      "id": "OS-002",
+      "description": "Developer runs cfusa impact locally against a git repository, passing --from/--to ref arguments that may originate from an untrusted source (e.g. a CI job templated from a pull request)"
+    },
+    {
+      "id": "OS-003",
+      "description": "cfusa release/qualify artifacts (SBOM, provenance, qualification record) are generated and submitted as evidence into an external safety case or certification package"
+    },
+    {
+      "id": "OS-004",
+      "description": "Developer manually computes an ASIL rating via cfusa hara asil from S/E/C parameters during hazard analysis"
+    }
+  ],
+  "hazards": [
+    {
+      "id": "H-001",
+      "description": "Tool reports no violations on a file that contains real safety violations (false-negative), leading the developer to believe code is safe when it is not",
+      "source": "c-FuSa self-analysis",
+      "situations": ["OS-001"],
+      "risk": {
+        "severity": "S3",
+        "exposure": "E4",
+        "controllability": "C2",
+        "asil": "ASIL-D"
+      },
+      "safetyGoals": ["SG-001"]
+    },
+    {
+      "id": "H-002",
+      "description": "Tool reports excessive false-positives, causing the developer to disable checks or ignore findings, masking real violations",
+      "source": "c-FuSa self-analysis",
+      "situations": ["OS-001"],
+      "risk": {
+        "severity": "S2",
+        "exposure": "E4",
+        "controllability": "C3",
+        "asil": "ASIL-D"
+      },
+      "safetyGoals": ["SG-002"]
+    },
+    {
+      "id": "H-003",
+      "description": "Command injection via unsanitised --from/--to git refs passed to popen(), allowing arbitrary shell execution on the developer's machine",
+      "source": "c-FuSa self-analysis / cyber review",
+      "situations": ["OS-002"],
+      "risk": {
+        "severity": "S3",
+        "exposure": "E2",
+        "controllability": "C1",
+        "asil": "ASIL-B"
+      },
+      "safetyGoals": ["SG-003"]
+    },
+    {
+      "id": "H-004",
+      "description": "SBOM or qualification record is generated with incorrect checksums or version info, leading to incorrect evidence being submitted to a safety case",
+      "source": "c-FuSa self-analysis",
+      "situations": ["OS-003"],
+      "risk": {
+        "severity": "S2",
+        "exposure": "E3",
+        "controllability": "C2",
+        "asil": "ASIL-B"
+      },
+      "safetyGoals": ["SG-004"]
+    },
+    {
+      "id": "H-005",
+      "description": "Incorrect ASIL determination output (wrong table lookup) causes the developer to under-design safety measures for a hazardous item",
+      "source": "c-FuSa self-analysis",
+      "situations": ["OS-004"],
+      "risk": {
+        "severity": "S3",
+        "exposure": "E3",
+        "controllability": "C2",
+        "asil": "ASIL-D"
+      },
+      "safetyGoals": ["SG-005"]
+    }
+  ],
+  "safetyGoals": [
+    {
+      "id": "SG-001",
+      "description": "cfusa shall not suppress or omit any finding for which the rule engine is configured to detect",
+      "hazards": ["H-001"],
+      "asil": "ASIL-D",
+      "safeState": "Developer independently reviews code and uses additional static analysis tools",
+      "fssrRefs": ["REQ-FSR-CHECK001"]
+    },
+    {
+      "id": "SG-002",
+      "description": "cfusa shall limit its false-positive rate to a level that does not cause systematic check-disabling",
+      "hazards": ["H-002"],
+      "asil": "ASIL-D",
+      "safeState": "Developer uses the disposition system to explicitly accept findings with rationale",
+      "fssrRefs": ["REQ-FSR-CHECK002"]
+    },
+    {
+      "id": "SG-003",
+      "description": "cfusa impact shall validate all git ref arguments before constructing shell commands",
+      "hazards": ["H-003"],
+      "asil": "ASIL-B",
+      "safeState": "validate_git_ref() whitelist prevents injection; the tool exits 1 with an error message",
+      "fssrRefs": ["REQ-IMP001"]
+    },
+    {
+      "id": "SG-004",
+      "description": "cfusa release/qualify shall compute SHA-256 checksums deterministically and embed the correct project/version from .fusa.json",
+      "hazards": ["H-004"],
+      "asil": "ASIL-B",
+      "safeState": "Reviewer independently verifies SBOM checksums against source",
+      "fssrRefs": ["REQ-REL002", "REQ-UTIL015"]
+    },
+    {
+      "id": "SG-005",
+      "description": "cfusa hara asil shall implement ISO 26262-3:2018 Table 4 correctly for all S/E/C combinations",
+      "hazards": ["H-005"],
+      "asil": "ASIL-D",
+      "safeState": "Developer cross-checks the ASIL result with ISO 26262-3:2018 Table 4 directly",
+      "fssrRefs": ["REQ-HARA009"]
+    }
+  ]
+}

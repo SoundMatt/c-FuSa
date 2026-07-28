@@ -1,3 +1,11 @@
+/* open()/fdopen() are POSIX; required on Linux with -std=c99 (same fix as
+ * cmd_capabilities.c/cmd_qualify.c/cmd_impact.c/cmd_release.c/
+ * cmd_audit_pack.c) — without it, strict ISO C99 glibc headers hide
+ * fdopen()'s prototype, gcc implicitly declares it returning `int`, and the
+ * truncated 32-bit "pointer" assigned to a FILE* segfaults on first use. */
+#if defined(__linux__) || defined(__unix__)
+#  define _POSIX_C_SOURCE 200809L
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +14,8 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "cfusa/utils.h"
 
 /* ---- file walker ---- */
@@ -71,6 +81,15 @@ char *cfusa_read_file(const char *path, size_t *len_out)
     fclose(f);
     if (len_out) *len_out = (size_t)sz;
     return buf;
+}
+
+FILE *cfusa_fopen_write(const char *path)
+{
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd < 0) return NULL;
+    FILE *f = fdopen(fd, "w");
+    if (!f) { close(fd); return NULL; }
+    return f;
 }
 
 int cfusa_file_exists(const char *path)

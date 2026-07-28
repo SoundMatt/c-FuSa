@@ -5,13 +5,19 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
-//cfusa:req REQ-CLI-SCI001 REQ-SCI001 REQ-SCI002
+//cfusa:req REQ-CLI-SCI001 REQ-SCI001 REQ-SCI002 REQ-SCI003
 
-/* Software Configuration Index — lists all source files with SHA-256 checksums */
+/* Software Configuration Index — lists all source files with SHA-256
+ * checksums (DO-178C §11.16), x-FuSa spec §9.3.
+ *
+ * `artifacts[].hash` is a field *named* "hash" (its algorithm is allowed to
+ * vary per x-FuSa spec §2.7), so it MUST carry the "sha256:" prefix, unlike
+ * a field literally named "sha256" (which would carry bare hex). */
 
 typedef struct {
     FILE       *out;
     const char *fmt;   /* "text" or "md" or "json" */
+    const char *version;
     int         count;
     int         first;
 } sci_ctx_t;
@@ -23,13 +29,13 @@ static int sci_file(const char *path, void *vctx)
     cfusa_sha256_file(path, hex);
 
     if (!strcmp(ctx->fmt,"json")) {
-        fprintf(ctx->out, "%s\n    {\"file\": \"%s\", \"sha256\": \"%s\"}",
-                ctx->first ? "" : ",", path, hex);
+        fprintf(ctx->out, "%s\n    {\"file\": \"%s\", \"hash\": \"sha256:%s\", \"version\": \"%s\"}",
+                ctx->first ? "" : ",", path, hex, ctx->version);
         ctx->first = 0;
     } else if (!strcmp(ctx->fmt,"md")) {
-        fprintf(ctx->out, "| %s | `%s` |\n", path, hex);
+        fprintf(ctx->out, "| %s | `sha256:%s` |\n", path, hex);
     } else {
-        fprintf(ctx->out, "%-60s  %s\n", path, hex);
+        fprintf(ctx->out, "%-60s  sha256:%s\n", path, hex);
     }
     ctx->count++;
     return 0;
@@ -70,7 +76,7 @@ int cmd_sci(int argc, char **argv)
     cfusa_config_load(dir, &cfg);
 
     FILE *out = stdout;
-    if (output) { out = fopen(output,"w"); if (!out){perror(output);return 1;} }
+    if (output) { out = cfusa_fopen_write(output); if (!out){perror(output);return 1;} }
 
     char ts[32]; cfusa_timestamp_now(ts);
 
@@ -85,7 +91,7 @@ int cmd_sci(int argc, char **argv)
                 "  \"generatedAt\": \"%s\",\n"
                 "  \"project\": \"%s\",\n"
                 "  \"version\": \"%s\",\n"
-                "  \"files\": [",
+                "  \"artifacts\": [",
                 ts, cfg.project, cfg.version);
     } else if (!strcmp(fmt_s,"md")) {
         fprintf(out, "# Software Configuration Index\n\n"
@@ -103,12 +109,12 @@ int cmd_sci(int argc, char **argv)
                 "----------------------------------------------------------------");
     }
 
-    sci_ctx_t ctx = {out, fmt_s, 0, 1};
+    sci_ctx_t ctx = {out, fmt_s, cfg.version, 0, 1};
     static const char * const exts[] = {".c",".h"};
     cfusa_walk_sources(dir, exts, 2, sci_file, &ctx);
 
     if (!strcmp(fmt_s,"json"))
-        fprintf(out, "\n  ],\n  \"total_files\": %d\n}\n", ctx.count);
+        fprintf(out, "\n  ],\n  \"totalFiles\": %d\n}\n", ctx.count);
     else if (!strcmp(fmt_s,"text"))
         fprintf(out, "\nTotal files: %d\n", ctx.count);
     else
