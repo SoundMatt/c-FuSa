@@ -57,3 +57,12 @@ jobs:
           build-args: |
             CFUSA_VERSION=${{ steps.meta.outputs.version }}
             CFUSA_SPEC_VERSION=${{ steps.version.outputs.spec-version }}
+
+      - name: Notify FuSaOps
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.FUSAOPS_DISPATCH_TOKEN }}
+          repository: SoundMatt/FuSaOps
+          event-type: xfusa-released
+          client-payload: '{"tool":"c-FuSa","version":"${{ github.ref_name }}"}'
+        continue-on-error: true
