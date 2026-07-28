@@ -242,7 +242,7 @@ int cmd_safety_case(int argc, char **argv)
         } else {
             cfusa_path_join(out_path, sizeof(out_path), dir, "safety-case.json");
         }
-        FILE *f = fopen(out_path, "w");
+        FILE *f = cfusa_fopen_write(out_path);
         if (!f) { perror(out_path); return 3; }
 
         fprintf(f,
@@ -301,7 +301,7 @@ int cmd_safety_case(int argc, char **argv)
     if (out_name[0]=='/') strncpy(out_path,out_name,sizeof(out_path)-1);
     else cfusa_path_join(out_path,sizeof(out_path),dir,out_name);
 
-    FILE *f = fopen(out_path,"w");
+    FILE *f = cfusa_fopen_write(out_path);
     if (!f) { perror(out_path); return 3; }
 
     fprintf(f, "# Safety Case — %s v%s\n\n", cfg.project, cfg.version);

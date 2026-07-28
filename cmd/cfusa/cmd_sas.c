@@ -208,7 +208,7 @@ int cmd_sas(int argc, char **argv)
     } else {
         if (output[0] == '/') strncpy(out_path, output, sizeof(out_path) - 1);
         else cfusa_path_join(out_path, sizeof(out_path), dir, output);
-        f = fopen(out_path, "w");
+        f = cfusa_fopen_write(out_path);
         if (!f) { perror(out_path); return 3; }
     }
 
@@ -282,7 +282,7 @@ int cmd_sas(int argc, char **argv)
         if (!wrote_sas_md && strcmp(fmt_s, "md") != 0) {
             char companion_path[512];
             cfusa_path_join(companion_path, sizeof(companion_path), dir, "sas.md");
-            FILE *cf = fopen(companion_path, "w");
+            FILE *cf = cfusa_fopen_write(companion_path);
             if (cf) {
                 render_sas_markdown(cf, dir, &cfg, dal, ts, approver, present_count, total);
                 fclose(cf);

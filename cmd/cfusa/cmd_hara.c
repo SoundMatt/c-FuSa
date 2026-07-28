@@ -469,7 +469,7 @@ static int do_init(const char *dir, const char *project)
         return 2;
     }
 
-    FILE *f = fopen(path, "w");
+    FILE *f = cfusa_fopen_write(path);
     if (!f) { perror(path); return 3; }
 
     char ts[32]; cfusa_timestamp_now(ts);
@@ -845,7 +845,7 @@ int cmd_hara(int argc, char **argv)
     } else if (!strcmp(subcmd, "show")) {
         FILE *out = stdout;
         if (output) {
-            out = fopen(output, "w");
+            out = cfusa_fopen_write(output);
             if (!out) { perror(output); return 3; }
         }
         int rc;

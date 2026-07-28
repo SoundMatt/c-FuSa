@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include "../vendor/unity/unity.h"
 #include "cfusa/qualitybar.h"
+#include "cfusa/utils.h"
 
 extern int cmd_hara(int argc, char **argv);
 extern int cmd_fmea(int argc, char **argv);
@@ -28,7 +29,7 @@ static void write_file(const char *name, const char *body)
 {
     char path[512];
     snprintf(path, sizeof(path), "%s/%s", V114_DIR, name);
-    FILE *f = fopen(path, "w");
+    FILE *f = cfusa_fopen_write(path);
     if (f) { fputs(body, f); fclose(f); }
 }
 
@@ -278,7 +279,7 @@ static void write_fmea_source(int n_funcs)
 {
     char path[512];
     snprintf(path, sizeof(path), "%s/fmea_v114_src.c", V114_DIR);
-    FILE *f = fopen(path, "w");
+    FILE *f = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(f);
     for (int i = 0; i < n_funcs; i++)
         fprintf(f, "int do_thing_%d(int x)\n{\n    return x + %d;\n}\n\n", i, i);
@@ -371,7 +372,7 @@ static void write_tara_source(void)
 {
     char path[512];
     snprintf(path, sizeof(path), "%s/tara_v114_src.c", V114_DIR);
-    FILE *f = fopen(path, "w");
+    FILE *f = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(f);
     fprintf(f,
         "int parse_config(char *buf)\n{\n    return 0;\n}\n\n"

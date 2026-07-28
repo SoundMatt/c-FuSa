@@ -1,6 +1,6 @@
 # Safety Case — c-FuSa v0.5.1
 
-**Standard:** iso26262  |  **Generated:** 2026-07-28T19:41:08Z
+**Standard:** iso26262  |  **Generated:** 2026-07-28T19:47:39Z
 
 ---
 
@@ -78,7 +78,7 @@ _Completeness: 3 goal(s), 1 with cited evidence, 1 undeveloped._
 |---|---|---|
 | hara.md | absent | — |
 | safety-plan.md | absent | — |
-| tara.md | present | `15a207b4316df4f5db5affac7846a77380917a35cffca2783f8a1bf09d464e8d` |
+| tara.md | present | `dcfdbf0fe1239b5a9f1263b1e328d5d7f7938678f74d937ff382dfb1c846517a` |
 | fmea.md | absent | — |
 | test-evidence.md | absent | — |
 | sas.md | absent | — |

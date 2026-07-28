@@ -4,7 +4,7 @@
   "tool": "c-FuSa",
   "toolVersion": "0.5.46",
   "language": "c",
-  "generatedAt": "2026-07-28T19:41:08Z",
+  "generatedAt": "2026-07-28T19:47:38Z",
   "project": "c-FuSa",
   "version": "0.5.1",
   "standard": "IEC 60812:2018 / ISO 26262-5",
@@ -4317,6 +4317,66 @@
     },
     {
       "id": "FM-288",
+      "item": "defined",
+      "file": "CMakeCCompilerId.c",
+      "line": 891,
+      "failureMode": "defined (general function) does not perform its intended action",
+      "effect": "Failure of defined could propagate undetected to callers in CMakeCCompilerId.c",
+      "cause": "Logic error or untested edge case in defined",
+      "severity": 3,
+      "occurrence": 2,
+      "detection": 3,
+      "actionPriority": "low",
+      "mitigations": [],
+      "requirementIds": []
+    },
+    {
+      "id": "FM-289",
+      "item": "!defined",
+      "file": "CMakeCCompilerId.c",
+      "line": 892,
+      "failureMode": "!defined (general function) does not perform its intended action",
+      "effect": "Failure of !defined could propagate undetected to callers in CMakeCCompilerId.c",
+      "cause": "Logic error or untested edge case in !defined",
+      "severity": 3,
+      "occurrence": 2,
+      "detection": 3,
+      "actionPriority": "low",
+      "mitigations": [],
+      "requirementIds": []
+    },
+    {
+      "id": "FM-290",
+      "item": "main",
+      "file": "CMakeCCompilerId.c",
+      "line": 902,
+      "failureMode": "main (general function) does not perform its intended action",
+      "effect": "Failure of main could propagate undetected to callers in CMakeCCompilerId.c",
+      "cause": "Logic error or untested edge case in main",
+      "severity": 3,
+      "occurrence": 2,
+      "detection": 3,
+      "actionPriority": "low",
+      "mitigations": [],
+      "requirementIds": []
+    },
+    {
+      "id": "FM-291",
+      "item": "main",
+      "file": "CMakeCCompilerId.c",
+      "line": 907,
+      "failureMode": "main (general function) does not perform its intended action",
+      "effect": "Failure of main could propagate undetected to callers in CMakeCCompilerId.c",
+      "cause": "Logic error or untested edge case in main",
+      "severity": 3,
+      "occurrence": 2,
+      "detection": 3,
+      "actionPriority": "low",
+      "mitigations": [],
+      "requirementIds": []
+    },
+    {
+      "id": "FM-292",
       "item": "cfusa_watchdog_kick",
       "file": "cfusa_runtime.c",
       "line": 26,
@@ -4331,7 +4391,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-289",
+      "id": "FM-293",
       "item": "cfusa_watchdog_check",
       "file": "cfusa_runtime.c",
       "line": 33,
@@ -4346,7 +4406,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-290",
+      "id": "FM-294",
       "item": "cfusa_watchdog_stop",
       "file": "cfusa_runtime.c",
       "line": 43,
@@ -4361,7 +4421,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-291",
+      "id": "FM-295",
       "item": "cfusa_watchdog_fired",
       "file": "cfusa_runtime.c",
       "line": 48,
@@ -4376,7 +4436,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-292",
+      "id": "FM-296",
       "item": "cfusa_heartbeat_beat",
       "file": "cfusa_runtime.c",
       "line": 67,
@@ -4391,7 +4451,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-293",
+      "id": "FM-297",
       "item": "cfusa_heartbeat_check",
       "file": "cfusa_runtime.c",
       "line": 74,
@@ -4406,7 +4466,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-294",
+      "id": "FM-298",
       "item": "cfusa_heartbeat_stop",
       "file": "cfusa_runtime.c",
       "line": 85,
@@ -4421,7 +4481,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-295",
+      "id": "FM-299",
       "item": "cfusa_heartbeat_missed",
       "file": "cfusa_runtime.c",
       "line": 90,
@@ -4436,7 +4496,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-296",
+      "id": "FM-300",
       "item": "cfusa_state_get",
       "file": "cfusa_runtime.c",
       "line": 107,
@@ -4451,7 +4511,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-297",
+      "id": "FM-301",
       "item": "cfusa_state_transition",
       "file": "cfusa_runtime.c",
       "line": 112,
@@ -4466,7 +4526,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-298",
+      "id": "FM-302",
       "item": "cfusa_state_name",
       "file": "cfusa_runtime.c",
       "line": 123,
@@ -4481,7 +4541,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-299",
+      "id": "FM-303",
       "item": "cfusa_diag_init",
       "file": "cfusa_runtime.c",
       "line": 137,
@@ -4496,7 +4556,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-300",
+      "id": "FM-304",
       "item": "cfusa_diag_count",
       "file": "cfusa_runtime.c",
       "line": 160,
@@ -4511,7 +4571,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-301",
+      "id": "FM-305",
       "item": "cfusa_diag_get",
       "file": "cfusa_runtime.c",
       "line": 165,
@@ -4526,7 +4586,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-302",
+      "id": "FM-306",
       "item": "cfusa_diag_clear",
       "file": "cfusa_runtime.c",
       "line": 174,
@@ -4541,7 +4601,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-303",
+      "id": "FM-307",
       "item": "cfusa_diag_level_name",
       "file": "cfusa_runtime.c",
       "line": 179,
@@ -4556,7 +4616,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-304",
+      "id": "FM-308",
       "item": "cfusa_fault_record",
       "file": "cfusa_runtime.c",
       "line": 223,
@@ -4571,7 +4631,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-305",
+      "id": "FM-309",
       "item": "cfusa_fault_reset",
       "file": "cfusa_runtime.c",
       "line": 233,
@@ -4586,7 +4646,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-306",
+      "id": "FM-310",
       "item": "cfusa_fault_count",
       "file": "cfusa_runtime.c",
       "line": 240,
@@ -4601,7 +4661,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-307",
+      "id": "FM-311",
       "item": "cfusa_report_init",
       "file": "report.c",
       "line": 14,
@@ -4616,7 +4676,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-308",
+      "id": "FM-312",
       "item": "cfusa_report_free",
       "file": "report.c",
       "line": 27,
@@ -4631,7 +4691,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-309",
+      "id": "FM-313",
       "item": "snprintf",
       "file": "report.c",
       "line": 117,
@@ -4646,7 +4706,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-310",
+      "id": "FM-314",
       "item": "cfusa_severity_str",
       "file": "report.c",
       "line": 127,
@@ -4661,7 +4721,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-311",
+      "id": "FM-315",
       "item": "cfusa_format_parse",
       "file": "report.c",
       "line": 137,
@@ -4676,7 +4736,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-312",
+      "id": "FM-316",
       "item": "cfusa_report_score",
       "file": "report.c",
       "line": 148,
@@ -4691,7 +4751,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-313",
+      "id": "FM-317",
       "item": "cfusa_report_score",
       "file": "report.c",
       "line": 256,
@@ -4706,7 +4766,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-314",
+      "id": "FM-318",
       "item": "cfusa_severity_str",
       "file": "report.c",
       "line": 262,
@@ -4721,7 +4781,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-315",
+      "id": "FM-319",
       "item": "cfusa_report_score",
       "file": "report.c",
       "line": 307,
@@ -4736,7 +4796,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-316",
+      "id": "FM-320",
       "item": "cfusa_severity_str",
       "file": "report.c",
       "line": 344,
@@ -4751,7 +4811,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-317",
+      "id": "FM-321",
       "item": "cfusa_severity_str",
       "file": "report.c",
       "line": 360,
@@ -4766,7 +4826,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-318",
+      "id": "FM-322",
       "item": "cfusa_severity_str",
       "file": "report.c",
       "line": 375,
@@ -4781,7 +4841,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-319",
+      "id": "FM-323",
       "item": "cfusa_report_score",
       "file": "report.c",
       "line": 508,
@@ -4796,7 +4856,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-320",
+      "id": "FM-324",
       "item": "cfusa_severity_str",
       "file": "report.c",
       "line": 523,
@@ -4811,7 +4871,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-321",
+      "id": "FM-325",
       "item": "cfusa_severity_str",
       "file": "report.c",
       "line": 524,
@@ -4826,7 +4886,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-322",
+      "id": "FM-326",
       "item": "cfusa_report_score",
       "file": "report.c",
       "line": 550,
@@ -4841,7 +4901,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-323",
+      "id": "FM-327",
       "item": "cfusa_severity_str",
       "file": "report.c",
       "line": 564,
@@ -4856,7 +4916,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-324",
+      "id": "FM-328",
       "item": "cfusa_report_print",
       "file": "report.c",
       "line": 571,
@@ -4871,7 +4931,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-325",
+      "id": "FM-329",
       "item": "cfusa_qb_is_stub_text",
       "file": "qualitybar.c",
       "line": 44,
@@ -4886,7 +4946,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-326",
+      "id": "FM-330",
       "item": "cfusa_qb_rule_b_flagged",
       "file": "qualitybar.c",
       "line": 59,
@@ -4901,7 +4961,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-327",
+      "id": "FM-331",
       "item": "cfusa_qb_attestation_read",
       "file": "qualitybar.c",
       "line": 100,
@@ -4916,7 +4976,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-328",
+      "id": "FM-332",
       "item": "cfusa_qb_attestation_valid",
       "file": "qualitybar.c",
       "line": 161,
@@ -4931,7 +4991,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-329",
+      "id": "FM-333",
       "item": "cfusa_qb_rule_disposed",
       "file": "qualitybar.c",
       "line": 180,
@@ -4946,7 +5006,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-330",
+      "id": "FM-334",
       "item": "cfusa_qb_content_hash",
       "file": "qualitybar.c",
       "line": 206,
@@ -4961,7 +5021,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-331",
+      "id": "FM-335",
       "item": "cfusa_engine_reset",
       "file": "engine.c",
       "line": 9,
@@ -4976,7 +5036,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-332",
+      "id": "FM-336",
       "item": "cfusa_engine_register",
       "file": "engine.c",
       "line": 14,
@@ -4991,7 +5051,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-333",
+      "id": "FM-337",
       "item": "cfusa_engine_rule_count",
       "file": "engine.c",
       "line": 23,
@@ -5006,7 +5066,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-334",
+      "id": "FM-338",
       "item": "cfusa_engine_get_rule",
       "file": "engine.c",
       "line": 28,
@@ -5021,7 +5081,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-335",
+      "id": "FM-339",
       "item": "cfusa_engine_list_rules",
       "file": "engine.c",
       "line": 34,
@@ -5036,7 +5096,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-336",
+      "id": "FM-340",
       "item": "!cfusa_config_is_rule_disabled",
       "file": "engine.c",
       "line": 65,
@@ -5051,10 +5111,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-337",
+      "id": "FM-341",
       "item": "strcmp",
       "file": "utils.c",
-      "line": 44,
+      "line": 46,
       "failureMode": "strcmp (general function) does not perform its intended action",
       "effect": "Failure of strcmp could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in strcmp",
@@ -5066,10 +5126,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-338",
+      "id": "FM-342",
       "item": "cfusa_read_file",
       "file": "utils.c",
-      "line": 58,
+      "line": 60,
       "failureMode": "cfusa_read_file (general function) does not perform its intended action",
       "effect": "Failure of cfusa_read_file could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_read_file",
@@ -5081,10 +5141,25 @@
       "requirementIds": []
     },
     {
-      "id": "FM-339",
+      "id": "FM-343",
+      "item": "cfusa_fopen_write",
+      "file": "utils.c",
+      "line": 78,
+      "failureMode": "cfusa_fopen_write (general function) does not perform its intended action",
+      "effect": "Failure of cfusa_fopen_write could propagate undetected to callers in utils.c",
+      "cause": "Logic error or untested edge case in cfusa_fopen_write",
+      "severity": 3,
+      "occurrence": 2,
+      "detection": 3,
+      "actionPriority": "low",
+      "mitigations": [],
+      "requirementIds": []
+    },
+    {
+      "id": "FM-344",
       "item": "cfusa_file_exists",
       "file": "utils.c",
-      "line": 76,
+      "line": 87,
       "failureMode": "cfusa_file_exists (general function) does not perform its intended action",
       "effect": "Failure of cfusa_file_exists could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_file_exists",
@@ -5096,10 +5171,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-340",
+      "id": "FM-345",
       "item": "cfusa_dir_exists",
       "file": "utils.c",
-      "line": 82,
+      "line": 93,
       "failureMode": "cfusa_dir_exists (general function) does not perform its intended action",
       "effect": "Failure of cfusa_dir_exists could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_dir_exists",
@@ -5111,10 +5186,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-341",
+      "id": "FM-346",
       "item": "cfusa_mkdir_p",
       "file": "utils.c",
-      "line": 88,
+      "line": 99,
       "failureMode": "cfusa_mkdir_p (general function) does not perform its intended action",
       "effect": "Failure of cfusa_mkdir_p could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_mkdir_p",
@@ -5126,10 +5201,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-342",
+      "id": "FM-347",
       "item": "cfusa_scan_lines",
       "file": "utils.c",
-      "line": 104,
+      "line": 115,
       "failureMode": "cfusa_scan_lines (general function) does not perform its intended action",
       "effect": "Failure of cfusa_scan_lines could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_scan_lines",
@@ -5141,10 +5216,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-343",
+      "id": "FM-348",
       "item": "cfusa_basename",
       "file": "utils.c",
-      "line": 123,
+      "line": 134,
       "failureMode": "cfusa_basename (general function) does not perform its intended action",
       "effect": "Failure of cfusa_basename could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_basename",
@@ -5156,10 +5231,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-344",
+      "id": "FM-349",
       "item": "cfusa_extension",
       "file": "utils.c",
-      "line": 129,
+      "line": 140,
       "failureMode": "cfusa_extension (general function) does not perform its intended action",
       "effect": "Failure of cfusa_extension could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_extension",
@@ -5171,10 +5246,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-345",
+      "id": "FM-350",
       "item": "cfusa_str_contains",
       "file": "utils.c",
-      "line": 136,
+      "line": 147,
       "failureMode": "cfusa_str_contains (general function) does not perform its intended action",
       "effect": "Failure of cfusa_str_contains could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_str_contains",
@@ -5186,10 +5261,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-346",
+      "id": "FM-351",
       "item": "cfusa_str_starts_with",
       "file": "utils.c",
-      "line": 141,
+      "line": 152,
       "failureMode": "cfusa_str_starts_with (general function) does not perform its intended action",
       "effect": "Failure of cfusa_str_starts_with could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_str_starts_with",
@@ -5201,10 +5276,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-347",
+      "id": "FM-352",
       "item": "cfusa_str_trim",
       "file": "utils.c",
-      "line": 146,
+      "line": 157,
       "failureMode": "cfusa_str_trim (general function) does not perform its intended action",
       "effect": "Failure of cfusa_str_trim could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_str_trim",
@@ -5216,10 +5291,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-348",
+      "id": "FM-353",
       "item": "cfusa_str_escape_json",
       "file": "utils.c",
-      "line": 157,
+      "line": 168,
       "failureMode": "cfusa_str_escape_json (general function) does not perform its intended action",
       "effect": "Failure of cfusa_str_escape_json could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_str_escape_json",
@@ -5231,10 +5306,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-349",
+      "id": "FM-354",
       "item": "cfusa_path_join",
       "file": "utils.c",
-      "line": 177,
+      "line": 188,
       "failureMode": "cfusa_path_join (general function) does not perform its intended action",
       "effect": "Failure of cfusa_path_join could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_path_join",
@@ -5246,10 +5321,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-350",
+      "id": "FM-355",
       "item": "cfusa_sha256_buf",
       "file": "utils.c",
-      "line": 300,
+      "line": 311,
       "failureMode": "cfusa_sha256_buf (general function) does not perform its intended action",
       "effect": "Failure of cfusa_sha256_buf could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_sha256_buf",
@@ -5261,10 +5336,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-351",
+      "id": "FM-356",
       "item": "cfusa_sha256_file",
       "file": "utils.c",
-      "line": 312,
+      "line": 323,
       "failureMode": "cfusa_sha256_file (general function) does not perform its intended action",
       "effect": "Failure of cfusa_sha256_file could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_sha256_file",
@@ -5276,10 +5351,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-352",
+      "id": "FM-357",
       "item": "cfusa_sha256_buf",
       "file": "utils.c",
-      "line": 341,
+      "line": 352,
       "failureMode": "cfusa_sha256_buf (general function) does not perform its intended action",
       "effect": "Failure of cfusa_sha256_buf could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_sha256_buf",
@@ -5291,10 +5366,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-353",
+      "id": "FM-358",
       "item": "cfusa_timestamp_now",
       "file": "utils.c",
-      "line": 372,
+      "line": 383,
       "failureMode": "cfusa_timestamp_now (general function) does not perform its intended action",
       "effect": "Failure of cfusa_timestamp_now could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_timestamp_now",
@@ -5306,10 +5381,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-354",
+      "id": "FM-359",
       "item": "cfusa_count_c_files",
       "file": "utils.c",
-      "line": 389,
+      "line": 400,
       "failureMode": "cfusa_count_c_files (general function) does not perform its intended action",
       "effect": "Failure of cfusa_count_c_files could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_count_c_files",
@@ -5321,10 +5396,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-355",
+      "id": "FM-360",
       "item": "cfusa_count_lines_in_file",
       "file": "utils.c",
-      "line": 397,
+      "line": 408,
       "failureMode": "cfusa_count_lines_in_file (general function) does not perform its intended action",
       "effect": "Failure of cfusa_count_lines_in_file could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_count_lines_in_file",
@@ -5336,10 +5411,10 @@
       "requirementIds": []
     },
     {
-      "id": "FM-356",
+      "id": "FM-361",
       "item": "cfusa_match_outside_string",
       "file": "utils.c",
-      "line": 410,
+      "line": 421,
       "failureMode": "cfusa_match_outside_string (general function) does not perform its intended action",
       "effect": "Failure of cfusa_match_outside_string could propagate undetected to callers in utils.c",
       "cause": "Logic error or untested edge case in cfusa_match_outside_string",
@@ -5351,7 +5426,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-357",
+      "id": "FM-362",
       "item": "cfusa_config_defaults",
       "file": "config.c",
       "line": 8,
@@ -5366,7 +5441,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-358",
+      "id": "FM-363",
       "item": "cfusa_config_load",
       "file": "config.c",
       "line": 92,
@@ -5381,7 +5456,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-359",
+      "id": "FM-364",
       "item": "extract_str_array_n",
       "file": "config.c",
       "line": 150,
@@ -5396,7 +5471,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-360",
+      "id": "FM-365",
       "item": "extract_str_array_n",
       "file": "config.c",
       "line": 160,
@@ -5411,7 +5486,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-361",
+      "id": "FM-366",
       "item": "extract_str_array_n",
       "file": "config.c",
       "line": 170,
@@ -5426,7 +5501,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-362",
+      "id": "FM-367",
       "item": "extract_str_array_n",
       "file": "config.c",
       "line": 177,
@@ -5441,7 +5516,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-363",
+      "id": "FM-368",
       "item": "cfusa_config_is_rule_disabled",
       "file": "config.c",
       "line": 186,
@@ -5456,7 +5531,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-364",
+      "id": "FM-369",
       "item": "cfusa_config_save",
       "file": "config.c",
       "line": 193,
@@ -5471,7 +5546,7 @@
       "requirementIds": []
     },
     {
-      "id": "FM-365",
+      "id": "FM-370",
       "item": "cfusa_config_is_excluded",
       "file": "config.c",
       "line": 225,
@@ -5487,7 +5562,7 @@
     }
   ],
   "summary": {
-    "total": 365, "highPriority": 11,
-    "componentsAnalyzed": 365, "componentsInProject": 365, "coveragePct": 100
+    "total": 370, "highPriority": 11,
+    "componentsAnalyzed": 370, "componentsInProject": 370, "coveragePct": 100
   }
 }

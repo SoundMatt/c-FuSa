@@ -463,7 +463,7 @@ int cmd_tara(int argc, char **argv)
 
     /* Specific output file requested */
     if (output) {
-        FILE *f = fopen(output, "w");
+        FILE *f = cfusa_fopen_write(output);
         if (!f) { perror(output); return 3; }
         if (fmt_s && !strcmp(fmt_s, "json")) WRITE_JSON(f);
         else render_markdown(f, cfg.project, cfg.version, ts, coverage_pct);
@@ -477,7 +477,7 @@ int cmd_tara(int argc, char **argv)
         char out_path[512];
         const char *fname = !strcmp(fmt_s,"json") ? "tara.json" : "tara.md";
         cfusa_path_join(out_path, sizeof(out_path), base, fname);
-        FILE *f = fopen(out_path, "w");
+        FILE *f = cfusa_fopen_write(out_path);
         if (!f) { perror(out_path); return 3; }
         if (!strcmp(fmt_s, "json")) WRITE_JSON(f);
         else render_markdown(f, cfg.project, cfg.version, ts, coverage_pct);
@@ -491,13 +491,13 @@ int cmd_tara(int argc, char **argv)
     cfusa_path_join(json_path, sizeof(json_path), base, "tara.json");
     cfusa_path_join(md_path,   sizeof(md_path),   base, "tara.md");
 
-    FILE *jf = fopen(json_path, "w");
+    FILE *jf = cfusa_fopen_write(json_path);
     if (!jf) { perror(json_path); return 3; }
     WRITE_JSON(jf);
     fclose(jf);
     printf("TARA written to %s\n", json_path);
 
-    FILE *mf = fopen(md_path, "w");
+    FILE *mf = cfusa_fopen_write(md_path);
     if (!mf) { perror(md_path); return 3; }
     render_markdown(mf, cfg.project, cfg.version, ts, coverage_pct);
     fclose(mf);

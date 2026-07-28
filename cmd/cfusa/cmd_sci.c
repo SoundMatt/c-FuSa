@@ -76,7 +76,7 @@ int cmd_sci(int argc, char **argv)
     cfusa_config_load(dir, &cfg);
 
     FILE *out = stdout;
-    if (output) { out = fopen(output,"w"); if (!out){perror(output);return 1;} }
+    if (output) { out = cfusa_fopen_write(output); if (!out){perror(output);return 1;} }
 
     char ts[32]; cfusa_timestamp_now(ts);
 

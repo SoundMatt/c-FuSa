@@ -397,7 +397,7 @@ int cmd_fmea(int argc, char **argv)
     /* Helper: open output file relative to base directory */
 #define OPEN_OUT(name, var)  do { \
     char _p[512]; cfusa_path_join(_p, sizeof(_p), base, (name)); \
-    (var) = fopen(_p, "w"); \
+    (var) = cfusa_fopen_write(_p); \
     if (!(var)) { perror(_p); return 3; } \
     printf("FMEA written to %s  (%d functions)\n", _p, g_fn_count); \
 } while(0)

@@ -4,7 +4,7 @@
   "tool": "c-FuSa",
   "toolVersion": "0.5.46",
   "language": "c",
-  "generatedAt": "2026-07-28T19:41:08Z",
+  "generatedAt": "2026-07-28T19:47:38Z",
   "project": "c-FuSa",
   "version": "0.5.1",
   "standard": "ISO/SAE 21434:2021 Clause 15",
@@ -143,6 +143,18 @@
     },
     {
       "id": "TARA-012",
+      "asset": "Data handled by cfusa_fopen_write (utils.c)",
+      "threat": "An attacker supplies malformed/untrusted input to cfusa_fopen_write, potentially causing incorrect behaviour, a crash, or information disclosure",
+      "attackVector": "local",
+      "attackFeasibility": "medium",
+      "impact": {"safety": "low", "financial": "low", "operational": "medium", "privacy": "low"},
+      "risk": "medium",
+      "treatment": "mitigate",
+      "mitigations": ["Validate file contents against an expected schema before use", "Reject unexpected file sizes/paths"],
+      "location": {"file": "utils.c", "line": 78}
+    },
+    {
+      "id": "TARA-013",
       "asset": "Data handled by cfusa_config_load (config.c)",
       "threat": "An attacker supplies malformed/untrusted input to cfusa_config_load, potentially causing incorrect behaviour, a crash, or information disclosure",
       "attackVector": "local",
@@ -155,7 +167,7 @@
     }
   ],
   "summary": {
-    "assetsAnalyzed": 12, "assetsInProject": 12, "coveragePct": 100,
+    "assetsAnalyzed": 13, "assetsInProject": 13, "coveragePct": 100,
     "assetInventoryMethod": "Keyword-based scan of public C function names against a network/file/auth/memory-input vocabulary; not a formal asset inventory."
   }
 }

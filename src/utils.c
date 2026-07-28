@@ -6,6 +6,8 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "cfusa/utils.h"
 
 /* ---- file walker ---- */
@@ -71,6 +73,15 @@ char *cfusa_read_file(const char *path, size_t *len_out)
     fclose(f);
     if (len_out) *len_out = (size_t)sz;
     return buf;
+}
+
+FILE *cfusa_fopen_write(const char *path)
+{
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd < 0) return NULL;
+    FILE *f = fdopen(fd, "w");
+    if (!f) { close(fd); return NULL; }
+    return f;
 }
 
 int cfusa_file_exists(const char *path)

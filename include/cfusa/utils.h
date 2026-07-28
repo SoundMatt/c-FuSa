@@ -16,6 +16,12 @@ int   cfusa_file_exists(const char *path);
 int   cfusa_dir_exists(const char *path);
 int   cfusa_mkdir_p(const char *path);
 
+/* Opens `path` for writing (truncating) with explicit 0600 permissions —
+ * unlike fopen(path, "w"), whose actual mode depends on the process umask
+ * and so may create a world-writable file. Returns NULL (errno set) on
+ * failure, exactly like fopen(). */
+FILE *cfusa_fopen_write(const char *path);
+
 /* ---- line scanning ---- */
 typedef void (*cfusa_line_cb)(const char *path, int lineno,
                                const char *line, void *ctx);
