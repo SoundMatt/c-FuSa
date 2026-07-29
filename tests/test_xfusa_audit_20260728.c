@@ -26,10 +26,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "../vendor/unity/unity.h"
 #include "cfusa/report.h"
 #include "cfusa/engine.h"
 #include "cfusa/config.h"
+#include "cfusa/utils.h"
 
 extern int cmd_qualify(int argc, char **argv);
 extern int cmd_misra(int argc, char **argv);
@@ -55,7 +57,7 @@ static void write_file(const char *name, const char *body)
 {
     char path[512];
     snprintf(path, sizeof(path), "%s/%s", AUDIT_DIR, name);
-    FILE *f = fopen(path, "w");
+    FILE *f = cfusa_fopen_write(path);
     if (f) { fputs(body, f); fclose(f); }
 }
 
@@ -91,13 +93,18 @@ static char *slurp(const char *name, size_t *len_out)
 /* Each of these two cases gets its own isolated, freshly-emptied
  * directory — lint scans every .c file under --dir, so sharing AUDIT_DIR
  * with other tests (or leftover files from a prior run of this same
- * binary) would make one case's fixture pollute the other's result. */
+ * binary) would make one case's fixture pollute the other's result.
+ * Each subdirectory only ever holds one known fixture file, so cleanup
+ * unlinks it directly (no shelling out via system() for what is really
+ * just "remove these two known paths"). */
 static void l004_reset_dir(const char *sub)
 {
     char dir[512]; snprintf(dir, sizeof(dir), "%s/%s", L004_DIR, sub);
-    char rmcmd[600]; snprintf(rmcmd, sizeof(rmcmd), "rm -rf '%s'", dir);
-    (void)system(rmcmd); /* test-only cleanup of a fixed /tmp path — not
-                           * project source under analysis */
+    char f1[600]; snprintf(f1, sizeof(f1), "%s/l004_suffix.c", dir);
+    char f2[600]; snprintf(f2, sizeof(f2), "%s/l004_real.c", dir);
+    (void)remove(f1);
+    (void)remove(f2);
+    (void)rmdir(dir);
     mkdir(L004_DIR, 0700);
     mkdir(dir, 0700);
 }
@@ -108,7 +115,7 @@ void test_l004_no_false_positive_on_suffix_match(void)
     char dir[512]; snprintf(dir, sizeof(dir), "%s/pos", L004_DIR);
     l004_reset_dir("pos");
     char path[512]; snprintf(path, sizeof(path), "%s/l004_suffix.c", dir);
-    FILE *f = fopen(path, "w");
+    FILE *f = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(f);
     fputs(
         "int helper_evaluate(int x) {\n"
@@ -141,7 +148,7 @@ void test_l004_still_detects_real_recursion(void)
     char dir[512]; snprintf(dir, sizeof(dir), "%s/neg", L004_DIR);
     l004_reset_dir("neg");
     char path[512]; snprintf(path, sizeof(path), "%s/l004_real.c", dir);
-    FILE *f = fopen(path, "w");
+    FILE *f = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(f);
     fputs(
         "static int factorial(int n) {\n"
