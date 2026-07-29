@@ -7,6 +7,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+- Bump `CFUSA_SCHEMA_VERSION`/`CFUSA_SPEC_VERSION` to x-FuSa spec v1.15.2 — v1.15.1 and v1.15.2 are both pure documentation clarifications (schemaVersion/specVersion format, §1.6.1 Rule A false-positive example) with no required behavior or wire-format changes.
+
 ## v0.5.47 — 2026-07-28
 
 x-FuSa spec v1.15.0 adoption + deep-audit bug-fix sprint (issues #73-80):
