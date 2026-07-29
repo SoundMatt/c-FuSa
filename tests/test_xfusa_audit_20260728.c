@@ -182,7 +182,7 @@ void test_fmea_attestation_carried_forward_when_content_changes(void)
 
     char *argv1[] = {"cfusa", "--dir", dir, "--format", "json",
                       "--attest", "Jane Doe <jane@example.com>", NULL};
-    cmd_fmea(6, argv1);
+    cmd_fmea(7, argv1);
 
     size_t len1 = 0;
     char *buf1 = slurp("fmea.json", &len1);
@@ -196,7 +196,7 @@ void test_fmea_attestation_carried_forward_when_content_changes(void)
         "int subtract(int a, int b) { return a - b; }\n");
 
     char *argv2[] = {"cfusa", "--dir", dir, "--format", "json", NULL};
-    cmd_fmea(4, argv2);
+    cmd_fmea(5, argv2);
 
     size_t len2 = 0;
     char *buf2 = slurp("fmea.json", &len2);
@@ -425,7 +425,7 @@ void test_sas_json_format_writes_sas_json_and_md_companion(void)
 {
     char dir[512]; snprintf(dir, sizeof(dir), "%s", AUDIT_DIR);
     char *argv[] = {"cfusa", "--dir", dir, "--format", "json", NULL};
-    cmd_sas(4, argv);
+    cmd_sas(5, argv);
 
     TEST_ASSERT_TRUE(file_exists("sas.json"));
     TEST_ASSERT_TRUE(file_exists("sas.md"));
