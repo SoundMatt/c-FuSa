@@ -3,8 +3,8 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  5
-#define CFUSA_VERSION_PATCH  47
-#define CFUSA_VERSION_STRING "0.5.47"
+#define CFUSA_VERSION_PATCH  48
+#define CFUSA_VERSION_STRING "0.5.48"
 #define CFUSA_SCHEMA_VERSION "1.15.0"
 /* Bumped from 1.14.0 to 1.15.0: adopts the x-FuSa master spec's v1.15.0
  * attestation-carry-forward MUST (already conformant for fmea/tara/
@@ -24,7 +24,23 @@
  * path; HARA's stored `risk.asil` is now cross-checked against the S x E x
  * C table both in `hara --format json`'s completeness block and as a new
  * `check` engine rule (HARA006), not just a text-mode warning. See issues
- * #73-80. */
+ * #73-80.
+ *
+ * v0.5.48 — 2026-07-28/29 deep-audit bug-fix sprint (issues #82-91):
+ * SARIF tool.driver.name now "c-FuSa" (§2.9); hara init's scaffold matches
+ * the §1.2.5 INPUT schema (no report envelope, no "kind": "hara"); sas
+ * --format json now writes real sas.json + sas.md companion instead of raw
+ * JSON into a file named sas.md; qualify accepts --dir (§2.2); misra now
+ * uses the canonical §9.3 gap-report schema; iec62443's standard id is
+ * "iec62443-4-2" (§2.4.1); iso26262/iec61508/do178/iso21434/unece/iec62443
+ * gap-report JSON now carries a summary{total,satisfied,partial,gaps}
+ * object (§9.3 MUST); check/lint/analyze/cyber findings emit a canonical
+ * `standard` id with a separate `clause` field instead of a combined
+ * display string (§2.4.1); fmea/tara/safety-case/sas now carry a prior
+ * attestation forward verbatim (preserved-as-stale) instead of dropping it
+ * the moment content changes (§1.6.2 MUST); CFUSA-L004 no longer
+ * false-positives when a callee's name merely has the caller's name as a
+ * suffix. */
 #define CFUSA_SPEC_VERSION   "1.15.0"
 
 #endif /* CFUSA_VERSION_H */
