@@ -160,7 +160,7 @@ int cmd_iec62443(int argc, char **argv)
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
             "  \"projectRoot\": \"%s\",\n"
-            "  \"standard\": \"iec62443\",\n"
+            "  \"standard\": \"iec62443-4-2\",\n"
             "  \"project\": \"%s\",\n"
             "  \"sl\": \"%s\",\n"
             "  \"hasProjectConfig\": %s,\n"
@@ -192,7 +192,11 @@ int cmd_iec62443(int argc, char **argv)
                 level_str, status);
             first = 0;
         }
-        fprintf(out, "\n  ]\n}\n");
+        fprintf(out,
+            "\n  ],\n"
+            "  \"summary\": {\"total\": %d, \"satisfied\": %d, \"partial\": %d, \"gaps\": %d}\n"
+            "}\n",
+            covered + gaps_r + gaps_m, covered, gaps_r, gaps_m);
     } else if (!strcmp(fmt_s, "text")) {
         fprintf(out, "IEC 62443 Gap Report — %s (target %s, profile 4-2)\n", cfg.project, sl);
         fprintf(out, "==================================================\n\n");

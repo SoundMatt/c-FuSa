@@ -183,7 +183,18 @@ int cmd_iso21434(int argc, char **argv)
                 o->id, o->description, status);
             first = 0;
         }
-        fprintf(out, "\n  ]\n}\n");
+        /* §9.3 canonical status enum is satisfied|partial|gap — "manual" and
+         * "na" (used above for objectives requiring non-tool-checkable
+         * organisational evidence, or not applicable at this CAL) are not
+         * members of that closed enum, so a spec-conformant consumer's
+         * fail-safe mapping treats them as "gap" (see §9.3 status note).
+         * The summary below counts them the same way for consistency with
+         * that fail-safe rule. */
+        fprintf(out,
+            "\n  ],\n"
+            "  \"summary\": {\"total\": %d, \"satisfied\": %d, \"partial\": 0, \"gaps\": %d}\n"
+            "}\n",
+            pass + gap + manual, pass, gap + manual);
     } else if (!strcmp(fmt, "text")) {
         fprintf(out, "ISO 21434 Gap Report — %s  (%s)\n", cfg.project, cal);
         fprintf(out, "============================================\n\n");

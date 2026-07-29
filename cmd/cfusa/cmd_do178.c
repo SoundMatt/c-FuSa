@@ -211,12 +211,14 @@ int cmd_do178(int argc, char **argv)
                 " \"applicable\": %d, \"total\": %d,\n  \"objectives\": [\n",
                 ts, dir, cfg.project,(char)('A'+dal_col),applicable,total);
         int first=1;
+        int satisfied=0;
         for (int i=0;OBJECTIVES[i].id;i++){
             int applies[4]={OBJECTIVES[i].dal_a,OBJECTIVES[i].dal_b,
                              OBJECTIVES[i].dal_c,OBJECTIVES[i].dal_d};
             if(!applies[dal_col]) continue;
             int ok = OBJECTIVES[i].evidence_file &&
                      do178_file_exists(dir, OBJECTIVES[i].evidence_file);
+            if (ok) satisfied++;
             const char *status = ok ? "satisfied" : "gap";
             fprintf(out,"%s    {\"id\":\"%s\",\"process\":\"%s\","
                     "\"title\":\"%s\",\"findings\":[],\"status\":\"%s\"}",
@@ -225,7 +227,11 @@ int cmd_do178(int argc, char **argv)
                     OBJECTIVES[i].objective, status);
             first=0;
         }
-        fprintf(out,"\n  ]\n}\n");
+        fprintf(out,
+                "\n  ],\n"
+                "  \"summary\": {\"total\": %d, \"satisfied\": %d, \"partial\": 0, \"gaps\": %d}\n"
+                "}\n",
+                applicable, satisfied, applicable - satisfied);
     } else {
         fprintf(out,"DO-178C Annex A Gap Report\n"
                 "Project: %s v%s   DAL: %c   Generated: %s\n"

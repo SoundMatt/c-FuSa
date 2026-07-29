@@ -399,8 +399,10 @@ void test_iec62443_json_format(void)
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"gap-report\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iec62443\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
+        /* x-FuSa spec §2.4.1: canonical id is "iec62443-4-2" (this command
+         * only implements the Component Requirements / -4-2 part), not the
+         * bare, non-registry command name "iec62443". */
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\": \"iec62443-4-2\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
         /* REQ-IEC62443-002: canonical §9.3 objective shape (id/fr/title/

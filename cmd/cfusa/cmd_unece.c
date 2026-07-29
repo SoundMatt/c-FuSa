@@ -146,7 +146,14 @@ int cmd_unece(int argc, char **argv)
                 status);
             first = 0;
         }
-        fprintf(out, "\n  ]\n}\n");
+        /* §9.3's canonical status enum is satisfied|partial|gap; "manual"
+         * (organisational evidence, not tool-checkable) falls back to the
+         * fail-safe "gap" mapping for the purposes of this summary. */
+        fprintf(out,
+            "\n  ],\n"
+            "  \"summary\": {\"total\": %d, \"satisfied\": %d, \"partial\": 0, \"gaps\": %d}\n"
+            "}\n",
+            pass + gap + manual, pass, gap + manual);
     } else if (!strcmp(fmt, "text")) {
         fprintf(out, "UN R.155 Gap Report — %s\n", cfg.project);
         fprintf(out, "====================================\n\n");
