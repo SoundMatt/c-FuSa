@@ -428,7 +428,6 @@ int cmd_tara(int argc, char **argv)
     }
 
     int qb_gate = run_quality_bar(dir, fresh_hash, &attestation, require_attestation);
-    int attestation_valid = cfusa_qb_attestation_valid(&attestation, fresh_hash);
 
     int cov_gate = 0;
     if (min_coverage > 0 && coverage_pct < min_coverage) {
@@ -460,14 +459,19 @@ int cmd_tara(int argc, char **argv)
                 "inventory.\"\n" \
         "  }", \
         g_asset_count, g_total_found, coverage_pct); \
-    if (attestation_valid) { \
+    /* x-FuSa spec §1.6.2 MUST (carry-forward across regeneration): carry a \
+     * prior attestation forward verbatim whenever one was read back, not \
+     * only when it is still hash-valid — see cmd_fmea.c's WRITE_ATTESTATION \
+     * for the full rationale. */ \
+    if (attestation.present) { \
         fprintf((fp), ",\n  \"attestation\": {\n" \
-            "    \"status\": \"reviewed\",\n" \
+            "    \"status\": \"%s\",\n" \
             "    \"implementationAuthor\": \"%s\",\n" \
             "    \"independentReviewer\": \"%s\",\n" \
             "    \"reviewedAt\": \"%s\",\n" \
             "    \"contentHash\": \"%s\"\n" \
             "  }\n", \
+            attestation.status[0] ? attestation.status : "heuristic", \
             attestation.implementation_author, attestation.independent_reviewer, \
             attestation.reviewed_at, attestation.content_hash); \
     } else { \

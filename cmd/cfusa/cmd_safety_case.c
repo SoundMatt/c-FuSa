@@ -229,7 +229,6 @@ int cmd_safety_case(int argc, char **argv)
         fprintf(stderr, "cfusa safety-case: %s: node text shows low distinct-value ratio%s\n",
                 CFUSA_QB_RULE_B, reviewed ? " (suppressed by a valid attestation)" : "");
     }
-    int attestation_valid = cfusa_qb_attestation_valid(&attestation, fresh_hash);
     int qb_gate = (rule_a_hits > 0 && !rule_a_disposed) ? 1
                 : (require_attestation && rule_b && !reviewed) ? 1 : 0;
 
@@ -275,15 +274,20 @@ int cmd_safety_case(int argc, char **argv)
                    "    \"totalGoals\": %d, \"goalsWithEvidence\": %d, \"undeveloped\": %d\n"
                    "  }",
                 total_goals, goals_with_evidence, undeveloped);
-        if (attestation_valid) {
+        /* x-FuSa spec §1.6.2 MUST (carry-forward across regeneration): carry
+         * a prior attestation forward verbatim whenever one was read back,
+         * not only when it is still hash-valid — see cmd_fmea.c's
+         * WRITE_ATTESTATION for the full rationale. */
+        if (attestation.present) {
             fprintf(f,
                 ",\n  \"attestation\": {\n"
-                "    \"status\": \"reviewed\",\n"
+                "    \"status\": \"%s\",\n"
                 "    \"implementationAuthor\": \"%s\",\n"
                 "    \"independentReviewer\": \"%s\",\n"
                 "    \"reviewedAt\": \"%s\",\n"
                 "    \"contentHash\": \"%s\"\n"
                 "  }\n",
+                attestation.status[0] ? attestation.status : "heuristic",
                 attestation.implementation_author, attestation.independent_reviewer,
                 attestation.reviewed_at, attestation.content_hash);
         } else {

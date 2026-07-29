@@ -193,7 +193,6 @@ int cmd_sas(int argc, char **argv)
         fprintf(stderr, "cfusa sas: %s: checklist item text shows low distinct-value ratio%s\n",
                 CFUSA_QB_RULE_B, reviewed ? " (suppressed by a valid attestation)" : "");
     }
-    int attestation_valid = cfusa_qb_attestation_valid(&attestation, fresh_hash);
     int qb_gate = (rule_a_hits > 0 && !rule_a_disposed) ? 1
                 : (require_attestation && rule_b && !reviewed) ? 1 : 0;
 
@@ -245,15 +244,23 @@ int cmd_sas(int argc, char **argv)
                     SAS_ITEMS[i+1].id ? "," : "");
         }
         fprintf(f,"  ],\n  \"summary\": {\"total\": %d, \"present\": %d}", total, present_count);
-        if (attestation_valid) {
+        /* x-FuSa spec §1.6.2 MUST (carry-forward across regeneration): a
+         * prior attestation is carried forward onto the regenerated
+         * document verbatim whenever one was read back, not only when it
+         * is still hash-valid — staleness is then automatic (a consumer
+         * recomputes contentHash and falls back to "heuristic" on
+         * mismatch), so gating *emission* on attestation_valid would
+         * silently erase a real prior review the moment content changes. */
+        if (attestation.present) {
             fprintf(f,
                 ",\n  \"attestation\": {\n"
-                "    \"status\": \"reviewed\",\n"
+                "    \"status\": \"%s\",\n"
                 "    \"implementationAuthor\": \"%s\",\n"
                 "    \"independentReviewer\": \"%s\",\n"
                 "    \"reviewedAt\": \"%s\",\n"
                 "    \"contentHash\": \"%s\"\n"
                 "  }\n",
+                attestation.status[0] ? attestation.status : "heuristic",
                 attestation.implementation_author, attestation.independent_reviewer,
                 attestation.reviewed_at, attestation.content_hash);
         } else {
