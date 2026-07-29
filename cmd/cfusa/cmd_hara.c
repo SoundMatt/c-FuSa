@@ -449,14 +449,15 @@ static int do_init(const char *dir, const char *project)
     cfusa_str_escape_json(project, esc_project, sizeof(esc_project));
 
     /* x-FuSa spec §1.6 rule 1: an unanalyzed section MUST be an empty
-     * array, never a dummy/placeholder row. */
+     * array, never a dummy/placeholder row.
+     *
+     * §1.2.5: .fusa-hara.json is an INPUT file (like .fusa-reqs.json), not
+     * a report document — it MUST NOT carry the §3.1 report envelope
+     * (schemaVersion/kind/tool/toolVersion/language). Its schema is just
+     * {project, standard, createdAt, operationalSituations, hazards,
+     * safetyGoals, attestation?}. */
     fprintf(f,
         "{\n"
-        "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
-        "  \"kind\": \"hara\",\n"
-        "  \"tool\": \"c-FuSa\",\n"
-        "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
-        "  \"language\": \"c\",\n"
         "  \"project\": \"%s\",\n"
         "  \"standard\": \"iso26262\",\n"
         "  \"createdAt\": \"%s\",\n"
