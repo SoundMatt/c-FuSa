@@ -5,7 +5,7 @@
 #define CFUSA_VERSION_MINOR  5
 #define CFUSA_VERSION_PATCH  48
 #define CFUSA_VERSION_STRING "0.5.48"
-#define CFUSA_SCHEMA_VERSION "1.15.0"
+#define CFUSA_SCHEMA_VERSION "1.15.2"
 /* Bumped from 1.14.0 to 1.15.0: adopts the x-FuSa master spec's v1.15.0
  * attestation-carry-forward MUST (already conformant for fmea/tara/
  * safety-case/sas; hara's own JSON output now also passes through its
@@ -41,6 +41,16 @@
  * the moment content changes (§1.6.2 MUST); CFUSA-L004 no longer
  * false-positives when a callee's name merely has the caller's name as a
  * suffix. */
-#define CFUSA_SPEC_VERSION   "1.15.0"
+#define CFUSA_SPEC_VERSION   "1.15.2"
+/* CFUSA_SCHEMA_VERSION and CFUSA_SPEC_VERSION bumped 1.15.0 -> 1.15.2
+ * together (as always): both intervening spec releases are pure
+ * documentation clarifications with zero required behavior/wire-format
+ * changes. v1.15.1 blessed MAJOR.MINOR.PATCH (not MAJOR.MINOR) as the
+ * documented format for schemaVersion/specVersion, matching what c-FuSa
+ * (and every other tool) already emitted. v1.15.2 added an explicit
+ * false-positive example to §1.6.1 Rule A's placeholder-text deny-list,
+ * documenting an already-intended tradeoff (resolved via disposition
+ * waiver, not per-tool detector narrowing) rather than changing it. No
+ * c-FuSa code changes required for either bump. */
 
 #endif /* CFUSA_VERSION_H */
