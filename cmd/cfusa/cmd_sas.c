@@ -90,7 +90,7 @@ static size_t sas_canonical_content(const char *dir, char *buf, size_t bufsz)
 int cmd_sas(int argc, char **argv)
 {
     const char *dir         = ".";
-    const char *output      = "sas.md";
+    const char *output      = NULL;
     const char *fmt_s       = "md";
     const char *dal         = "DAL-B";
     const char *prepared_by = NULL;
@@ -123,7 +123,7 @@ int cmd_sas(int argc, char **argv)
         case 'A': require_attestation = 1; break;
         case 'T': attest = optarg; break;
         case 'h':
-            printf("Usage: cfusa sas [--dir <path>] [--output sas.md]\n"
+            printf("Usage: cfusa sas [--dir <path>] [--output <file>]\n"
                    "                 [--format md|text|json] [--dal DAL-A|B|C|D]\n"
                    "                 [--prepared-by <name>]\n"
                    "                 [--strict] [--require-attestation] [--attest <reviewer>]\n\n"
@@ -136,6 +136,15 @@ int cmd_sas(int argc, char **argv)
         }
     }
     if (strict) require_attestation = 1;
+
+    /* Default --output path depends on --format when not given explicitly:
+     * "sas.json" for --format json, "sas.md" for md/text/default — a single
+     * hardcoded "sas.md" default regardless of format would (and previously
+     * did) write JSON content into a file literally named sas.md, and fool
+     * the "did we already write sas.md?" companion check below into
+     * skipping the real Markdown companion (x-FuSa spec §9.3 MUST). */
+    if (!output)
+        output = !strcmp(fmt_s, "json") ? "sas.json" : "sas.md";
 
     cfusa_config_t cfg;
     cfusa_config_load(dir, &cfg);
