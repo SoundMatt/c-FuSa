@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <getopt.h>
 #include "cfusa/engine.h"
 #include "cfusa/report.h"
@@ -186,6 +187,33 @@ typedef struct {
     int  in_block_comment; /* persists across fgets() iterations */
 } l004_ctx_t;
 
+/* Word-boundary-aware self-call detector for CFUSA-L004. Unlike the
+ * generic cfusa_match_outside_string() substring match (which is a
+ * deliberate, documented non-word-boundary checker used elsewhere for
+ * fixed dangerous-function-name lookups), a self-call check additionally
+ * requires an identifier boundary immediately before the candidate match
+ * — otherwise a callee whose name merely *ends with* the caller's name
+ * (e.g. static int evaluate(...) calling helper_evaluate(...), or
+ * rcp_e2e_wd_evaluate(...)) is misreported as recursion. */
+static int l004_self_call(const char *line, const char *fn_name)
+{
+    size_t flen = strlen(fn_name);
+    if (flen == 0) return 0;
+    int in_str = 0;
+    const char *p = line;
+    while (*p) {
+        if (*p == '"' && (p == line || p[-1] != '\\'))
+            in_str = !in_str;
+        if (!in_str && strncmp(p, fn_name, flen) == 0 && p[flen] == '(') {
+            int boundary_ok = (p == line) ||
+                !(isalnum((unsigned char)p[-1]) || p[-1] == '_');
+            if (boundary_ok) return 1;
+        }
+        p++;
+    }
+    return 0;
+}
+
 static int l004_file(const char *path, void *vctx)
 {
     l004_ctx_t *ctx = vctx;
@@ -288,9 +316,7 @@ static int l004_file(const char *path, void *vctx)
         /* Self-call check.  Skip the line where the function was first
          * detected: the signature always contains "fn_name(" naturally. */
         if (!fn_just_detected && ctx->in_fn && ctx->fn_name[0] && brace > 0) {
-            char call[130];
-            snprintf(call, sizeof(call), "%s(", ctx->fn_name);
-            if (cfusa_match_outside_string(line, call)) {
+            if (l004_self_call(line, ctx->fn_name)) {
                 cfusa_report_add(ctx->rpt,
                     "CFUSA-L004", CFUSA_CATEGORY_LINT, SEV_ERROR,
                     path, lineno,
