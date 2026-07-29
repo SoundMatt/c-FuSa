@@ -107,34 +107,36 @@ int cmd_misra(int argc, char **argv)
         fprintf(out,
             "{\n"
             "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
-            "  \"kind\": \"misra-coverage\",\n"
+            "  \"kind\": \"gap-report\",\n"
             "  \"tool\": \"c-FuSa\",\n"
             "  \"toolVersion\": \"" CFUSA_VERSION_STRING "\",\n"
             "  \"language\": \"c\",\n"
             "  \"generatedAt\": \"%s\",\n"
             "  \"projectRoot\": \"%s\",\n"
-            "  \"standard\": \"MISRA C:2012\",\n"
+            "  \"standard\": \"misra-c\",\n"
             "  \"project\": \"%s\",\n"
-            "  \"covered\": %d,\n"
-            "  \"gaps\": %d,\n"
-            "  \"rules\": [\n",
-            ts, dir, cfg.project, covered, not_covered);
+            "  \"objectives\": [\n",
+            ts, dir, cfg.project);
         int first = 1;
         for (int i = 0; MISRA_RULES[i].rule; i++) {
             const misra_row_t *r = &MISRA_RULES[i];
             if (gaps_only && r->cfusa_rule) continue;
             if (!first) fprintf(out, ",\n");
-            const char *status = r->cfusa_rule ? "covered" : "gap";
+            const char *status = r->cfusa_rule ? "satisfied" : "gap";
             fprintf(out,
-                "    {\"id\": \"%s\", \"category\": \"%s\","
-                " \"title\": \"%s\", \"rule\": %s%s%s, \"status\": \"%s\"}",
-                r->rule, r->category, r->title,
-                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "null",
+                "    {\"id\": \"%s\", \"clause\": \"%s\", \"category\": \"%s\","
+                " \"title\": \"%s\", \"findings\": [%s%s%s], \"status\": \"%s\"}",
+                r->rule, r->rule, r->category, r->title,
+                r->cfusa_rule ? "\"" : "", r->cfusa_rule ? r->cfusa_rule : "",
                 r->cfusa_rule ? "\"" : "",
                 status);
             first = 0;
         }
-        fprintf(out, "\n  ]\n}\n");
+        fprintf(out,
+            "\n  ],\n"
+            "  \"summary\": {\"total\": %d, \"satisfied\": %d, \"partial\": 0, \"gaps\": %d}\n"
+            "}\n",
+            covered + not_covered, covered, not_covered);
     } else {
         fprintf(out, "MISRA C:2012 Rule Coverage\n");
         fprintf(out, "==========================\n\n");
