@@ -39,9 +39,17 @@ void cfusa_engine_list_rules(void)
            "----------------------------------------", "--------");
     for (int i = 0; i < g_rule_count; i++) {
         const cfusa_rule_t *r = g_rules[i];
+        char std_disp[80];
+        if (r->standard_id && r->standard_id[0]) {
+            if (r->clause && r->clause[0])
+                snprintf(std_disp, sizeof(std_disp), "%s %s", r->standard_id, r->clause);
+            else
+                snprintf(std_disp, sizeof(std_disp), "%s", r->standard_id);
+        } else {
+            std_disp[0] = '\0';
+        }
         printf("%-18s %-10s %-40s %s\n",
-               r->id, r->category, r->name,
-               r->standard ? r->standard : "");
+               r->id, r->category, r->name, std_disp);
     }
 }
 
