@@ -176,7 +176,11 @@ int cmd_iec61508(int argc, char **argv)
                 level_str, status);
             first = 0;
         }
-        fprintf(out, "\n  ]\n}\n");
+        fprintf(out,
+            "\n  ],\n"
+            "  \"summary\": {\"total\": %d, \"satisfied\": %d, \"partial\": %d, \"gaps\": %d}\n"
+            "}\n",
+            covered + gaps_r + gaps_m, covered, gaps_r, gaps_m);
     } else if (!strcmp(fmt_s, "text")) {
         fprintf(out, "IEC 61508 Parts 1-3 Gap Report — %s (target %s)\n", cfg.project, sil);
         fprintf(out, "=====================================================\n\n");

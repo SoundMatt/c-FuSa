@@ -471,6 +471,7 @@ enum {
 
 int cmd_qualify(int argc, char **argv)
 {
+    const char *dir              = ".";
     const char *binary          = NULL;
     const char *output          = NULL;
     const char *fmt_s           = "text";
@@ -489,6 +490,7 @@ int cmd_qualify(int argc, char **argv)
     const char *achievable_asil = NULL;
 
     static const struct option long_opts[] = {
+        {"dir",                       required_argument, NULL, 'd'},
         {"binary",                    required_argument, NULL, 'b'},
         {"output",                    required_argument, NULL, 'o'},
         {"format",                    required_argument, NULL, 'f'},
@@ -511,8 +513,9 @@ int cmd_qualify(int argc, char **argv)
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
     { extern int optreset; optreset = 1; }
 #endif
-    while ((c = getopt_long(argc, argv, "b:o:f:vh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:b:o:f:vh", long_opts, NULL)) != -1) {
         switch (c) {
+        case 'd': dir           = optarg;     break;
         case 'b': binary       = optarg;      break;
         case 'o': output       = optarg;      break;
         case 'f': fmt_s = optarg; fmt_explicit = 1; break;
@@ -525,7 +528,7 @@ int cmd_qualify(int argc, char **argv)
         case OPT_IND_TEST_EXEC:  ind_test_exec   = optarg; break;
         case OPT_ACHIEVE_ASIL:   achievable_asil = optarg; break;
         case 'h':
-            printf("Usage: cfusa qualify [--binary <path>] [--format text|json]\n"
+            printf("Usage: cfusa qualify [--dir <path>] [--binary <path>] [--format text|json]\n"
                    "                     [--output <file>] [--verbose]\n"
                    "                     [--qualification-method self|independent]\n"
                    "                     [--qualifier <name>] [--record-uri <uri>]\n"
@@ -544,7 +547,14 @@ int cmd_qualify(int argc, char **argv)
     if (output && !fmt_explicit)
         fmt_s = "json";
 
-    /* Hash the binary if provided */
+    /* Hash the binary if provided. §2.2: --dir is the project root against
+     * which relative paths resolve — a relative --binary is joined with it
+     * rather than always resolving against the process cwd. */
+    char binary_resolved[512];
+    if (binary && binary[0] != '/') {
+        cfusa_path_join(binary_resolved, sizeof(binary_resolved), dir, binary);
+        binary = binary_resolved;
+    }
     char bin_hash[65] = "(not provided)";
     if (binary && cfusa_file_exists(binary))
         cfusa_sha256_file(binary, bin_hash);

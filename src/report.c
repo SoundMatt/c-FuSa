@@ -314,20 +314,23 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
         cfusa_str_escape_json(f->file,    esc_file, sizeof(esc_file));
         cfusa_str_escape_json(f->message, esc_msg,  sizeof(esc_msg));
 
-        /* Look up rule metadata for remediation/standard fields */
+        /* Look up rule metadata for remediation/standard/clause fields */
         const char *remediation = "";
         const char *standard    = "";
+        const char *clause      = "";
         for (int j = 0; j < nrules; j++) {
             const cfusa_rule_t *r = cfusa_engine_get_rule(j);
             if (strcmp(r->id, f->rule_id) == 0) {
-                if (r->description) remediation = r->description;
-                if (r->standard)    standard    = r->standard;
+                if (r->description)  remediation = r->description;
+                if (r->standard_id)  standard    = r->standard_id;
+                if (r->clause)       clause      = r->clause;
                 break;
             }
         }
-        char esc_rem[256], esc_rulestd[64];
+        char esc_rem[256], esc_rulestd[64], esc_clause[64];
         cfusa_str_escape_json(remediation, esc_rem,     sizeof(esc_rem));
         cfusa_str_escape_json(standard,    esc_rulestd, sizeof(esc_rulestd));
+        cfusa_str_escape_json(clause,      esc_clause,  sizeof(esc_clause));
 
         /* §4 location: file and line are MUST; endLine/endColumn are MAY */
         if (f->end_line > 0 && f->end_column > 0) {
@@ -339,12 +342,13 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
                 " \"message\": \"%s\","
                 " \"fingerprint\": \"%s\","
                 " \"remediation\": \"%s\","
-                " \"standard\": \"%s\"}%s\n",
+                " \"standard\": \"%s\","
+                " \"clause\": \"%s\"}%s\n",
                 f->rule_id, f->category,
                 cfusa_severity_str(f->severity),
                 esc_file, f->line, f->end_line, f->end_column, esc_msg,
                 f->fingerprint,
-                esc_rem, esc_rulestd,
+                esc_rem, esc_rulestd, esc_clause,
                 (i < rpt->count - 1) ? "," : "");
         } else if (f->end_line > 0) {
             fprintf(out,
@@ -355,12 +359,13 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
                 " \"message\": \"%s\","
                 " \"fingerprint\": \"%s\","
                 " \"remediation\": \"%s\","
-                " \"standard\": \"%s\"}%s\n",
+                " \"standard\": \"%s\","
+                " \"clause\": \"%s\"}%s\n",
                 f->rule_id, f->category,
                 cfusa_severity_str(f->severity),
                 esc_file, f->line, f->end_line, esc_msg,
                 f->fingerprint,
-                esc_rem, esc_rulestd,
+                esc_rem, esc_rulestd, esc_clause,
                 (i < rpt->count - 1) ? "," : "");
         } else {
             fprintf(out,
@@ -370,12 +375,13 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
                 " \"message\": \"%s\","
                 " \"fingerprint\": \"%s\","
                 " \"remediation\": \"%s\","
-                " \"standard\": \"%s\"}%s\n",
+                " \"standard\": \"%s\","
+                " \"clause\": \"%s\"}%s\n",
                 f->rule_id, f->category,
                 cfusa_severity_str(f->severity),
                 esc_file, f->line, esc_msg,
                 f->fingerprint,
-                esc_rem, esc_rulestd,
+                esc_rem, esc_rulestd, esc_clause,
                 (i < rpt->count - 1) ? "," : "");
         }
     }
@@ -403,7 +409,7 @@ static void print_sarif(const cfusa_report_t *rpt, FILE *out)
         "  \"$schema\": \"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json\",\n"
         "  \"runs\": [{\n"
         "    \"tool\": {\"driver\": {\n"
-        "      \"name\": \"cfusa\",\n"
+        "      \"name\": \"c-FuSa\",\n"
         "      \"version\": \"%s\",\n"
         "      \"informationUri\": \"https://github.com/SoundMatt/c-FuSa\",\n"
         "      \"rules\": [\n",
@@ -411,10 +417,18 @@ static void print_sarif(const cfusa_report_t *rpt, FILE *out)
 
     for (int i = 0; i < nrules; i++) {
         const cfusa_rule_t *r = cfusa_engine_get_rule(i);
-        char esc_name[128], esc_desc[256], esc_std[64];
+        char esc_name[128], esc_desc[256], esc_std[64], std_disp[80];
         cfusa_str_escape_json(r->name,                         esc_name, sizeof(esc_name));
         cfusa_str_escape_json(r->description ? r->description : r->name, esc_desc, sizeof(esc_desc));
-        cfusa_str_escape_json(r->standard    ? r->standard    : "",      esc_std,  sizeof(esc_std));
+        if (r->standard_id && r->standard_id[0]) {
+            if (r->clause && r->clause[0])
+                snprintf(std_disp, sizeof(std_disp), "%s %s", r->standard_id, r->clause);
+            else
+                snprintf(std_disp, sizeof(std_disp), "%s", r->standard_id);
+        } else {
+            std_disp[0] = '\0';
+        }
+        cfusa_str_escape_json(std_disp, esc_std, sizeof(esc_std));
         fprintf(out,
             "        {\"id\": \"%s\","
             " \"name\": \"%s\","

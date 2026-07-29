@@ -20,7 +20,7 @@ static int dummy_rule_run(const char *dir, const cfusa_config_t *cfg,
 }
 
 static const cfusa_rule_t dummy_rule = {
-    "DUMMY-001", "test", "Dummy rule", "Test rule", "TEST", dummy_rule_run
+    "DUMMY-001", "test", "Dummy rule", "Test rule", "test", "T001", dummy_rule_run
 };
 
 static int dummy_lint_called = 0;
@@ -34,7 +34,7 @@ static int dummy_lint_run(const char *dir, const cfusa_config_t *cfg,
 }
 
 static const cfusa_rule_t dummy_lint_rule = {
-    "LINT-T001", "lint", "Lint test rule", "Test", NULL, dummy_lint_run
+    "LINT-T001", "lint", "Lint test rule", "Test", NULL, NULL, dummy_lint_run
 };
 
 /* ---- Tests ---- */

@@ -124,7 +124,7 @@ int cmd_iso26262(int argc, char **argv)
         return 2;
     }
 
-    int covered = 0, gaps = 0, na = 0;
+    int covered = 0, gaps = 0, gaps_r = 0, na = 0;
     for (int i = 0; OBJECTIVES[i].clause; i++) {
         const iso26262_row_t *r = &OBJECTIVES[i];
         int req = (level==1) ? r->asil_a :
@@ -133,7 +133,9 @@ int cmd_iso26262(int argc, char **argv)
         if (req == 0) { na++; continue; }
         int ok = r->cfusa_rule != NULL;
         if (!ok && r->evidence_file) ok = file_exists_in_dir(dir, r->evidence_file);
-        if (ok) covered++; else gaps++;
+        if (ok) covered++;
+        else if (req == 2) gaps_r++;
+        else gaps++;
     }
 
     FILE *out = stdout;
@@ -155,9 +157,10 @@ int cmd_iso26262(int argc, char **argv)
             "  \"asil\": \"%s\",\n"
             "  \"covered\": %d,\n"
             "  \"gaps\": %d,\n"
+            "  \"recommendedGaps\": %d,\n"
             "  \"na\": %d,\n"
             "  \"objectives\": [\n",
-            ts, dir, cfg.project, asil, covered, gaps, na);
+            ts, dir, cfg.project, asil, covered, gaps, gaps_r, na);
         int first = 1;
         for (int i = 0; OBJECTIVES[i].clause; i++) {
             const iso26262_row_t *r = &OBJECTIVES[i];
@@ -178,7 +181,11 @@ int cmd_iso26262(int argc, char **argv)
                 status);
             first = 0;
         }
-        fprintf(out, "\n  ]\n}\n");
+        fprintf(out,
+            "\n  ],\n"
+            "  \"summary\": {\"total\": %d, \"satisfied\": %d, \"partial\": %d, \"gaps\": %d}\n"
+            "}\n",
+            covered + gaps_r + gaps, covered, gaps_r, gaps);
     } else if (!strcmp(fmt_s, "text")) {
         fprintf(out, "ISO 26262 Parts 6-11 Gap Report — %s (target %s)\n",
                 cfg.project, asil);
@@ -203,9 +210,10 @@ int cmd_iso26262(int argc, char **argv)
                    r->clause, r->title, rule_s, status);
         }
 
-        fprintf(out, "\nSummary: %d covered, %d gap(s), %d not applicable for %s\n",
-               covered, gaps, na, asil);
-        if (gaps > 0)
+        fprintf(out, "\nSummary: %d covered, %d gap(s), %d recommended gap(s), "
+               "%d not applicable for %s\n",
+               covered, gaps, gaps_r, na, asil);
+        if (gaps > 0 || gaps_r > 0)
             fprintf(out, "Review gaps and add manual evidence or custom cfusa rules.\n");
     } else {
         if (output && out != stdout) fclose(out);

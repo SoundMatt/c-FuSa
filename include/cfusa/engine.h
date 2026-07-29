@@ -18,7 +18,12 @@ typedef struct {
     const char    *category;
     const char    *name;
     const char    *description;
-    const char    *standard;     /* e.g. "MISRA-C:2012 R15.1" */
+    const char    *standard_id;  /* canonical lowercase id (x-FuSa spec §2.4.1),
+                                     e.g. "misra-c" — NULL/"" when no external
+                                     standard applies (e.g. project-structure
+                                     self-checks) */
+    const char    *clause;       /* clause/rule reference within standard_id,
+                                     e.g. "R15.1" — NULL/"" when not applicable */
     cfusa_rule_fn  run;
 } cfusa_rule_t;
 

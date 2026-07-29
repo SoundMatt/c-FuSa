@@ -325,13 +325,17 @@ void test_misra_json_format(void)
     FILE *f = fopen(out, "r");
     TEST_ASSERT_NOT_NULL(f);
     if (f) {
-        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"misra-coverage\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
+        /* x-FuSa spec §9.3: standards commands MUST use the canonical
+         * gap-report schema — kind "gap-report", canonical §2.4.1 standard
+         * id "misra-c" (not "MISRA C:2012"), objectives[]/summary{}. */
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"kind\": \"gap-report\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\": \"misra-c\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"rules\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"summary\""));
     }
 }
 
@@ -395,8 +399,10 @@ void test_iec62443_json_format(void)
         buf[n] = '\0'; fclose(f);
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"schemaVersion\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"gap-report\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"iec62443\""));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\""));
+        /* x-FuSa spec §2.4.1: canonical id is "iec62443-4-2" (this command
+         * only implements the Component Requirements / -4-2 part), not the
+         * bare, non-registry command name "iec62443". */
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\": \"iec62443-4-2\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"projectRoot\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
         /* REQ-IEC62443-002: canonical §9.3 objective shape (id/fr/title/

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(cfusa
-    VERSION 0.5.47
+    VERSION 0.5.48
     DESCRIPTION "C functional safety toolkit"
     LANGUAGES C
 )
@@ -160,6 +160,7 @@ cfusa_test(test_qualify_vv)
 cfusa_test(test_mcdc)
 cfusa_test(test_gap_coverage)
 cfusa_test(test_xfusa_v114)
+cfusa_test(test_xfusa_audit_20260728)
 
 # ---- Installation ----
 include(GNUInstallDirs)

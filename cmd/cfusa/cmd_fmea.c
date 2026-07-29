@@ -373,7 +373,6 @@ int cmd_fmea(int argc, char **argv)
     }
 
     int qb_gate = run_quality_bar(dir, fresh_hash, &attestation, require_attestation);
-    int attestation_valid = cfusa_qb_attestation_valid(&attestation, fresh_hash);
 
     int cov_gate = 0;
     if (min_coverage > 0 && coverage_pct < min_coverage) {
@@ -382,15 +381,23 @@ int cmd_fmea(int argc, char **argv)
         cov_gate = 1;
     }
 
+/* x-FuSa spec §1.6.2 MUST (carry-forward across regeneration): a prior
+ * attestation is carried forward onto the regenerated document verbatim
+ * whenever one was read back, not only when it is still hash-valid —
+ * staleness is then automatic (a consumer recomputes contentHash and
+ * falls back to "heuristic" on mismatch), so gating *emission* on
+ * attestation_valid would silently erase a real prior review the moment
+ * content changes. */
 #define WRITE_ATTESTATION(fp) do { \
-    if (attestation_valid) { \
+    if (attestation.present) { \
         fprintf((fp), ",\n  \"attestation\": {\n" \
-            "    \"status\": \"reviewed\",\n" \
+            "    \"status\": \"%s\",\n" \
             "    \"implementationAuthor\": \"%s\",\n" \
             "    \"independentReviewer\": \"%s\",\n" \
             "    \"reviewedAt\": \"%s\",\n" \
             "    \"contentHash\": \"%s\"\n" \
             "  }\n", \
+            attestation.status[0] ? attestation.status : "heuristic", \
             attestation.implementation_author, attestation.independent_reviewer, \
             attestation.reviewed_at, attestation.content_hash); \
     } else { \

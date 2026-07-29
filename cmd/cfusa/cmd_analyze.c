@@ -273,19 +273,19 @@ static int rule_a007(const char *dir, const cfusa_config_t *cfg,
 
 static const cfusa_rule_t analyze_rules[] = {
     {"CFUSA-A001","analyze","Unsafe string functions",
-     "Unbounded string operations risk overflow","CERT-C STR31-C",rule_a001},
+     "Unbounded string operations risk overflow","cert-c","STR31-C",rule_a001},
     {"CFUSA-A002","analyze","Unchecked allocation",
-     "malloc/calloc/realloc return must be checked","CERT-C MEM32-C",rule_a002},
+     "malloc/calloc/realloc return must be checked","cert-c","MEM32-C",rule_a002},
     {"CFUSA-A003","analyze","Signed/unsigned comparison",
-     "Comparison of signed and sizeof (unsigned)","CERT-C INT02-C",rule_a003},
+     "Comparison of signed and sizeof (unsigned)","cert-c","INT02-C",rule_a003},
     {"CFUSA-A004","analyze","Integer boundary",
-     "INT_MAX/MIN/UINT_MAX usage without guard","CERT-C INT30-C",rule_a004},
+     "INT_MAX/MIN/UINT_MAX usage without guard","cert-c","INT30-C",rule_a004},
     {"CFUSA-A005","analyze","Assert in production",
-     "assert() may be compiled out in release builds","CERT-C MSC11-C",rule_a005},
+     "assert() may be compiled out in release builds","cert-c","MSC11-C",rule_a005},
     {"CFUSA-A006","analyze","Pointer arithmetic",
-     "Pointer arithmetic requires bounds verification","MISRA-C:2012 R18.4",rule_a006},
+     "Pointer arithmetic requires bounds verification","misra-c","R18.4",rule_a006},
     {"CFUSA-A007","analyze","Unchecked system call",
-     "System call return values must be checked","CERT-C ERR33-C",rule_a007},
+     "System call return values must be checked","cert-c","ERR33-C",rule_a007},
 };
 #define N_ANALYZE_RULES ((int)(sizeof(analyze_rules)/sizeof(analyze_rules[0])))
 
