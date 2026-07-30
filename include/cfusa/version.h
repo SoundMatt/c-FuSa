@@ -3,9 +3,13 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  5
-#define CFUSA_VERSION_PATCH  49
-#define CFUSA_VERSION_STRING "0.5.49"
-/* v0.5.49 — 2026-07-30 external audit remediation: corrects a Critical
+#define CFUSA_VERSION_PATCH  50
+#define CFUSA_VERSION_STRING "0.5.50"
+/* v0.5.50 (previously landed as v0.5.49, but the tag/release "v0.5.49" had
+ * already been published against a stale commit whose version.h still read
+ * "0.5.48" — see the PR that introduced this bump for the full story;
+ * renumbered to v0.5.50 to avoid re-using an already-shipped version
+ * string) — 2026-07-30 external audit remediation: corrects a Critical
  * mis-implementation of ISO 26262-3:2018 Table 4 in the shared
  * cfusa_compute_asil() (19/36 S x E x C cells were over-assigned; the
  * dogfooded .fusa-hara.json and the "exhaustive" 36-cell test both

@@ -5,7 +5,13 @@ All notable changes to c-FuSa are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v0.5.49 — 2026-07-30
+## v0.5.50 — 2026-07-30
+
+_Renumbered from v0.5.49: the tag/release `v0.5.49` had already been
+published (2026-07-29, PR #93) against a commit whose `version.h` still
+read "0.5.48" — a pre-existing off-by-one in that release, unrelated to
+this change. To avoid re-using an already-shipped version string, this
+release is v0.5.50 instead._
 
 External third-party audit remediation. Two of the findings are
 **live-exploitable command/argument-injection vulnerabilities**, independently
