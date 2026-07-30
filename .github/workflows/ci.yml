@@ -147,8 +147,13 @@ jobs:
 
       - name: Self-check via Docker
         run: |
+          # Check the whole mounted repo (matching the native "Self-check"
+          # step's `--dir .`), not just src/ — src/ alone can never contain
+          # the root-level .fusa.json/.fusa-hara.json/.fusa-reqs.json, so
+          # scoping to it made FUSA00x/HARA001 fail unconditionally once
+          # this step's exit code started being enforced.
           docker run --rm -v "$(pwd)":/workspace cfusa:ci check \
-            --dir /workspace/src --format json --output /workspace/cfusa-docker-check.json
+            --dir /workspace --format json --output /workspace/cfusa-docker-check.json
 
       - name: Upload Docker self-check
         uses: actions/upload-artifact@v4

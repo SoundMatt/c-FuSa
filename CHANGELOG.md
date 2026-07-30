@@ -98,6 +98,15 @@ coverage, and several `check`/`trace`/`report` code paths.
   coincidentally contained the substrings `des_` and `system(`, false-firing
   the weak-crypto and unchecked-system-call rules (`CFUSA-CY009`/`CY003`);
   both were renamed.
+- **`cmd_req.c`'s ALM-import entry builder hardened against unbounded
+  write.** `append_entry()` (used by `req import` for CSV/ReqIF/XML sources)
+  tracked the destination buffer's fill level via a caller-passed running
+  total rather than the buffer's actual content length, and appended with
+  `strcat()`. GitHub Advanced Security's CodeQL flagged this as a possible
+  unbounded write from `fgets`/`fread`-sourced input (critical). It's
+  rewritten to measure the buffer's real length directly and append with an
+  exact-length `memcpy()` bounded against that, removing the dependency on
+  the caller's bookkeeping entirely.
 
 ### Changed
 - `qualify`'s qualification timestamp now honours `SOURCE_DATE_EPOCH` for
@@ -108,7 +117,12 @@ coverage, and several `check`/`trace`/`report` code paths.
   informational (`|| true`): it exits 1 whenever any §9.3 gap remains by
   design, and closing every long-standing documentation/process gap (e.g.
   "functional safety concept", "no multiple exit points") is a separate,
-  much larger effort than this release's scope.
+  much larger effort than this release's scope. The Docker self-check step
+  now checks the whole mounted repo (`--dir /workspace`) instead of just
+  `/workspace/src`, matching the native self-check step — `src/` alone can
+  never contain the root-level `.fusa.json`/`.fusa-hara.json`, so scoping to
+  it made `FUSA00x`/`HARA001` fail unconditionally the moment this step's
+  exit code started being enforced.
 - `docker-publish.yml`'s runner is pinned to `ubuntu-22.04` for
   build-environment parity/reproducibility.
 
