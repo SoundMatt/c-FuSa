@@ -51,13 +51,13 @@ void test_asil_s2e4c3_is_c(void)
 
 //cfusa:req REQ-HARA001
 //cfusa:test REQ-HARA001
-void test_asil_out_of_range_returns_qm(void)
+void test_asil_out_of_range_returns_error(void)
 {
-    /* S5/E5/C5 → out of range → compute_asil returns QM, command exits 0 */
+    /* S5/E5/C5 → out of range → command rejects with usage error (exit 2) */
     char *argv[] = {"cfusa", "asil",
                     "--severity", "5", "--exposure", "5", "--controllability", "5", NULL};
     int rc = cmd_hara(8, argv);
-    TEST_ASSERT_EQUAL(0, rc);
+    TEST_ASSERT_EQUAL(2, rc);
 }
 
 //cfusa:req REQ-HARA002
@@ -235,7 +235,7 @@ int main(void)
     RUN_TEST(test_asil_s3e4c3_is_d);
     RUN_TEST(test_asil_s1e1c1_is_qm);
     RUN_TEST(test_asil_s2e4c3_is_c);
-    RUN_TEST(test_asil_out_of_range_returns_qm);
+    RUN_TEST(test_asil_out_of_range_returns_error);
     RUN_TEST(test_asil_missing_params_returns_error);
     RUN_TEST(test_asil_s2e4c2_is_c);
     RUN_TEST(test_asil_s2e4c0_is_a);

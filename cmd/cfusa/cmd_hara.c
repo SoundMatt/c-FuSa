@@ -863,6 +863,10 @@ int cmd_hara(int argc, char **argv)
             fprintf(stderr, "cfusa hara asil: requires --severity, --exposure, --controllability\n");
             return 2;
         }
+        if (s > 3 || e > 4 || c > 3) {
+            fprintf(stderr, "cfusa hara asil: out-of-range class (valid S0-3, E0-4, C0-3)\n");
+            return 2;
+        }
         do_asil(s, e, c);
         return 0;
     } else if (!strcmp(subcmd, "show")) {

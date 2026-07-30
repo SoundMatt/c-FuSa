@@ -10,6 +10,10 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <dirent.h>
 
 //cfusa:req REQ-AUDIT
 
@@ -17,6 +21,60 @@
  * Bundles all safety artifacts into a single ZIP audit package.
  * Produces <output> (default: audit-pack.zip) with manifest.json at ZIP root.
  */
+
+/*
+ * Recursively remove path without any shell. Uses only POSIX
+ * opendir/readdir/lstat/unlink/rmdir (no system()/rm -rf), so there is no
+ * CWE-78 command-injection exposure and no symlink-follow risk (lstat + unlink).
+ */
+static void ap_rmdir_recursive(const char *path)
+{
+    DIR *d = opendir(path);
+    if (!d) { unlink(path); return; }
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL) {
+        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) continue;
+        char child[1024];
+        snprintf(child, sizeof(child), "%s/%s", path, ent->d_name);
+        struct stat st;
+        if (lstat(child, &st) == 0 && S_ISDIR(st.st_mode)) ap_rmdir_recursive(child);
+        else unlink(child);
+    }
+    closedir(d);
+    rmdir(path);
+}
+
+/*
+ * Run `zip -j <abs_output> <files...>` from inside `staging` with no shell:
+ * fork + chdir(staging) + execvp("zip", argv). Because argv is passed directly
+ * to execvp, attacker-controlled path/file names can never be interpreted as
+ * shell syntax (CWE-78). Returns the child exit status, or -1 on spawn failure.
+ */
+static int ap_run_zip(const char *staging, const char *abs_output,
+                      char staged[][256], int nstaged)
+{
+    /* argv: "zip" "-j" abs_output <nstaged files> NULL */
+    char *argvz[4 + 64 + 1];
+    int ai = 0;
+    argvz[ai++] = "zip";
+    argvz[ai++] = "-j";
+    argvz[ai++] = (char *)abs_output;
+    for (int i = 0; i < nstaged && ai < 4 + 64; i++)
+        argvz[ai++] = staged[i];
+    argvz[ai] = NULL;
+
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+    if (pid == 0) {
+        if (chdir(staging) != 0) _exit(127);
+        execvp("zip", argvz);
+        _exit(127);
+    }
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) return -1;
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    return -1;
+}
 
 int cmd_audit_pack(int argc, char **argv)
 {
@@ -107,6 +165,10 @@ int cmd_audit_pack(int argc, char **argv)
     size_t file_list_len = 0;
     file_list[0] = '\0';
 
+    /* Staged basenames, passed as an execvp argv array (never to a shell). */
+    char staged[64][256];
+    int nstaged = 0;
+
     int first = 1, found = 0;
     for (int i = 0; artifacts[i]; i++) {
         char ap[512];
@@ -151,6 +213,10 @@ int cmd_audit_pack(int argc, char **argv)
             if (n > 0 && (size_t)n < sizeof(file_list) - file_list_len)
                 file_list_len += (size_t)n;
         }
+        if (nstaged < 64) {
+            snprintf(staged[nstaged], sizeof(staged[nstaged]), "%s", cfusa_basename(ap));
+            nstaged++;
+        }
     }
     fprintf(mf, "\n  ]\n}\n");
     fclose(mf);
@@ -180,20 +246,14 @@ int cmd_audit_pack(int argc, char **argv)
     /* Remove any pre-existing output so zip creates a fresh archive */
     remove(abs_output);
 
-    /* Create the ZIP using system zip command (flat, no subdirs), passing
-     * the explicit file list built above -- not a `*` glob (see comment
-     * above the file_list buffer declaration). */
-    char zip_cmd[4608];
-    snprintf(zip_cmd, sizeof(zip_cmd),
-             "cd \"%s\" && zip -j \"%s\" %s 2>/dev/null",
-             staging, abs_output, file_list);
+    /* Create the ZIP with no shell: fork + chdir(staging) + execvp("zip", argv).
+     * The staged basenames and the output path are passed as argv entries, so
+     * they can never be interpreted as shell syntax (CWE-78). */
+    (void)file_list;
+    int rc = ap_run_zip(staging, abs_output, staged, nstaged);
 
-    int rc = system(zip_cmd);
-
-    /* Clean up staging directory */
-    char rm_cmd[600];
-    snprintf(rm_cmd, sizeof(rm_cmd), "rm -rf \"%s\"", staging);
-    (void)system(rm_cmd);
+    /* Clean up staging directory without a shell. */
+    ap_rmdir_recursive(staging);
 
     if (rc != 0) {
         fprintf(stderr,

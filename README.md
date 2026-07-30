@@ -91,7 +91,7 @@ cfusa fix --dir src/
 
 | Command | Description |
 |---|---|
-| `init` | Initialise `.cfusa.json` project config |
+| `init` | Initialise `.fusa.json` project config |
 | `check` | Run all checks (exits 1 on errors; `--strict` on warnings too) |
 | `lint` | MISRA-C:2012 / CERT-C coding standard rules |
 | `analyze` | Static analysis — overflows, unchecked returns, pointer issues |
@@ -101,7 +101,7 @@ cfusa fix --dir src/
 | `fmea` | Design FMEA from function signatures → `fmea.json` + `fmea.csv` |
 | `report` | Compliance report (text/json/sarif/html/md) |
 | `template` | Safety doc templates (HARA, PSAC, safety-plan, test-evidence) |
-| `trace` | Requirements traceability matrix from `.cfusa-reqs.json` |
+| `trace` | Requirements traceability matrix from `.fusa-reqs.json` |
 | `req` | Show requirements and their impl/test source locations — `export`/`import` CSV/XML (DOORS/Polarion/Codebeamer/Jama) |
 | `verify` | Collect and bundle test evidence |
 | `release` | SBOM (SPDX-3.0.1 JSON), SLSA v0.2 provenance, artifact manifest |
@@ -169,7 +169,7 @@ cfusa_watchdog_check(&wd);  /* check from scheduler tick */
 
 ## Requirements Traceability
 
-Create a requirements registry at `.cfusa-reqs.json` (copy from `.cfusa-reqs.json.template`):
+Create a requirements registry at `.fusa-reqs.json` (copy from `.cfusa-reqs.json.template`, the legacy `.cfusa-reqs.json` name is still read as a fallback):
 
 ```json
 {
@@ -265,7 +265,7 @@ cfusa hara show --dir .                    # list hazards with ASIL ratings
 cfusa hara asil --severity 3 --exposure 3 --controllability 2  # compute ASIL
 ```
 
-ASIL is computed per ISO 26262-3:2018 Table 4 from severity (S1–S4), exposure (E1–E4), and controllability (C1–C3).
+ASIL is computed per ISO 26262-3:2018 Table 4 from severity (S0–S3), exposure (E1–E4), and controllability (C0–C3), using the additive S+E+C derivation (C0 → QM). The worked example above (S3/E3/C2 = 3+3+2 = 8 points) yields ASIL-B.
 
 ---
 

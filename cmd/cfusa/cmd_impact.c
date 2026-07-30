@@ -22,6 +22,9 @@
 static int validate_git_ref(const char *ref)
 {
     if (!ref || !*ref) return 0;
+    /* A leading '-' would be parsed by git as an option, not a ref, enabling
+     * argument injection (e.g. "--output=..."). Reject it outright. */
+    if (ref[0] == '-') return 0;
     for (const char *p = ref; *p; p++) {
         if (!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
               (*p >= '0' && *p <= '9') ||
@@ -36,7 +39,7 @@ static int run_git_diff(const char *from, const char *to,
                         char files[][512], int *nfiles)
 {
     char cmd[256];
-    snprintf(cmd, sizeof(cmd), "git diff --name-only %s %s 2>/dev/null", from, to);
+    snprintf(cmd, sizeof(cmd), "git diff --name-only %s %s -- 2>/dev/null", from, to);
 
     FILE *p = popen(cmd, "r");
     if (!p) return -1;

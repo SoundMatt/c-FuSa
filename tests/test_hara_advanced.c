@@ -138,11 +138,12 @@ void test_hara_c0_is_valid(void)
 
 //cfusa:req REQ-HARA007
 //cfusa:test REQ-HARA007
-void test_hara_s5_returns_qm(void)
+void test_hara_s5_returns_error(void)
 {
-    /* S=5 is out of range [1-3] — treated as QM */
+    /* S=5 is out of range [1-3] — rejected with a usage error (exit 2),
+     * never silently coerced to the lowest (QM) safety class (c-FuSa-D004). */
     int rc = asil("5", "5", "5");
-    TEST_ASSERT_EQUAL(0, rc);
+    TEST_ASSERT_EQUAL(2, rc);
 }
 
 /* ---- init command ---- */
@@ -206,7 +207,7 @@ int main(void)
     RUN_TEST(test_hara_s0_returns_qm);
     RUN_TEST(test_hara_e0_returns_qm);
     RUN_TEST(test_hara_c0_is_valid);
-    RUN_TEST(test_hara_s5_returns_qm);
+    RUN_TEST(test_hara_s5_returns_error);
     RUN_TEST(test_hara_init_creates_file);
     RUN_TEST(test_hara_show_missing_file_no_crash);
     RUN_TEST(test_hara_help_returns_zero);

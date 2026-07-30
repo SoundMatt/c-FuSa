@@ -50,6 +50,7 @@
     {"id":"REQ-COUPLING003","title":"COUP003 warns when coupling-report.json absent","standard":"DO-178C","level":"DAL-A"},
     {"id":"REQ-DISP001","title":"DISP001 warns on undispositioned ERROR findings","standard":"ISO 26262","level":"ASIL-B"},
     {"id":"REQ-COMP001","title":"COMP001 detects cyclomatic complexity violations","standard":"DO-178C","level":"DAL-A"},
+    {"id":"REQ-DUPREQ001","title":"DUPREQ001 fails check on duplicate requirement ids in .fusa-reqs.json","standard":"ISO 26262","level":"ASIL-B"},
     {"id":"REQ-RUNTIME001","title":"Watchdog provides kick-based timeout monitoring","standard":"IEC 61508","level":"SIL-4"},
     {"id":"REQ-RUNTIME002","title":"Heartbeat provides periodic beat health checking","standard":"IEC 61508","level":"SIL-4"},
     {"id":"REQ-RUNTIME003","title":"SafeState provides formal state machine transitions","standard":"ISO 26262","level":"ASIL-D"},

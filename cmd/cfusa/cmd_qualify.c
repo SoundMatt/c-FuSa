@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <getopt.h>
+#include <time.h>
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 #include "cfusa/engine.h"
@@ -584,7 +585,22 @@ int cmd_qualify(int argc, char **argv)
     int total_fail = kat_fail + case_fail;
     int total      = total_pass + total_fail;
 
-    char ts[32]; cfusa_timestamp_now(ts);
+    char ts[32];
+    /* Reproducible evidence (REQ): when SOURCE_DATE_EPOCH is set, derive the
+     * timestamp from it so two runs of the same binary on the same inputs
+     * produce a byte-identical qualification record that can be hashed/signed.
+     * Falls back to the live clock otherwise. */
+    {
+        const char *sde = getenv("SOURCE_DATE_EPOCH");
+        if (sde && *sde) {
+            time_t t = (time_t)strtoll(sde, NULL, 10);
+            struct tm tmv;
+            gmtime_r(&t, &tmv);
+            strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%SZ", &tmv);
+        } else {
+            cfusa_timestamp_now(ts);
+        }
+    }
 
     const char *badge  = qualification_badge(qual_method);          /* REQ-QUAL006 */
     const char *indep  = independence_status(impl_author, ind_reviewer); /* REQ-VV004 */

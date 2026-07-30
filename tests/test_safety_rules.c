@@ -1,6 +1,6 @@
 /*
  * Tests for safety engine rules:
- *   HARA001-005, ISO26262001-003, COUP001-003, DISP001, COMP001
+ *   HARA001-005, ISO26262001-003, DUPREQ001, COUP001-003, DISP001, COMP001
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,10 +15,10 @@
 
 //cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA010
 //cfusa:req REQ-COUPLING001 REQ-COUPLING002 REQ-COUPLING003
-//cfusa:req REQ-DISP001 REQ-COMP001
+//cfusa:req REQ-DISP001 REQ-COMP001 REQ-DUPREQ001
 //cfusa:test REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA010
 //cfusa:test REQ-COUPLING001 REQ-COUPLING002 REQ-COUPLING003
-//cfusa:test REQ-DISP001 REQ-COMP001
+//cfusa:test REQ-DISP001 REQ-COMP001 REQ-DUPREQ001
 
 #define SR_DIR "/tmp/cfusa_sr_testdir"
 
@@ -189,8 +189,8 @@ void test_hara004_fires_on_tbd_asil(void)
 
 void test_hara006_fires_on_asil_mismatch(void)
 {
-    /* S3/E4/C2 derives to ASIL-D per ISO 26262-3 Table 4 — stored ASIL-A
-     * is wrong and must be caught even though it's a well-formed value
+    /* S3/E4/C2 derives to ASIL-C per ISO 26262-3 Table 4 (3+4+2=9) — stored
+     * ASIL-A is wrong and must be caught even though it's a well-formed value
      * (not TBD/empty, so HARA004 alone would not catch it). */
     make_file(".fusa-hara.json",
         "{\"operationalSituations\":[],"
@@ -218,14 +218,15 @@ void test_hara006_fires_on_asil_mismatch(void)
 
 void test_hara006_passes_when_asil_matches(void)
 {
-    /* S3/E4/C2 correctly stored as ASIL-D. */
+    /* S3/E4/C2 correctly stored as ASIL-C (3+4+2=9 → ASIL-C per ISO 26262-3
+     * Table 4 additive derivation). */
     make_file(".fusa-hara.json",
         "{\"operationalSituations\":[],"
         "\"hazards\":[{\"id\":\"H-10\",\"description\":\"Test hazard\","
         "\"risk\":{\"severity\":\"S3\",\"exposure\":\"E4\",\"controllability\":\"C2\","
-        "\"asil\":\"ASIL-D\"},\"safetyGoals\":[\"SG-1\"]}],"
+        "\"asil\":\"ASIL-C\"},\"safetyGoals\":[\"SG-1\"]}],"
         "\"safetyGoals\":[{\"id\":\"SG-1\",\"description\":\"Goal\","
-        "\"asil\":\"ASIL-D\",\"safeState\":\"Safe\",\"fssrRefs\":[\"REQ-1\"]}]}");
+        "\"asil\":\"ASIL-C\",\"safeState\":\"Safe\",\"fssrRefs\":[\"REQ-1\"]}]}");
 
     cfusa_engine_reset();
     cfusa_safety_register_rules();
@@ -283,6 +284,59 @@ void test_iso26262001_passes_when_report_present(void)
     TEST_ASSERT_EQUAL_INT(0, rpt.warning_count);
     cfusa_report_free(&rpt);
     rm_file("iso26262-gap-report.json");
+}
+
+/* ── DUPREQ001 ──────────────────────────────────────────────────────── */
+
+void test_dupreq001_fires_on_duplicate_id(void)
+{
+    make_file(".fusa-reqs.json",
+        "{\"requirements\":["
+        "{\"id\":\"REQ-DUP001\",\"title\":\"first\"},"
+        "{\"id\":\"REQ-DUP002\",\"title\":\"unique\"},"
+        "{\"id\":\"REQ-DUP001\",\"title\":\"second, same id\"}"
+        "]}");
+
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "DUPREQ001") == 0) r->run(SR_DIR, &cfg, &rpt);
+    }
+    TEST_ASSERT_EQUAL_INT(1, rpt.error_count);
+    TEST_ASSERT_EQUAL_STRING("DUPREQ001", rpt.findings[0].rule_id);
+    TEST_ASSERT_TRUE(strstr(rpt.findings[0].fingerprint, "sha256:") == rpt.findings[0].fingerprint);
+    cfusa_report_free(&rpt);
+    rm_file(".fusa-reqs.json");
+}
+
+void test_dupreq001_passes_when_ids_unique(void)
+{
+    make_file(".fusa-reqs.json",
+        "{\"requirements\":["
+        "{\"id\":\"REQ-DUP010\",\"title\":\"first\"},"
+        "{\"id\":\"REQ-DUP011\",\"title\":\"second\"}"
+        "]}");
+
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "DUPREQ001") == 0) r->run(SR_DIR, &cfg, &rpt);
+    }
+    TEST_ASSERT_EQUAL_INT(0, rpt.error_count);
+    cfusa_report_free(&rpt);
+    rm_file(".fusa-reqs.json");
 }
 
 /* ── COUP003 ────────────────────────────────────────────────────────── */
@@ -438,6 +492,9 @@ int main(void)
     /* ISO 26262 rules */
     RUN_TEST(test_iso26262001_fires_when_no_report);
     RUN_TEST(test_iso26262001_passes_when_report_present);
+    /* Duplicate requirement id rule */
+    RUN_TEST(test_dupreq001_fires_on_duplicate_id);
+    RUN_TEST(test_dupreq001_passes_when_ids_unique);
     /* Coupling rules */
     RUN_TEST(test_coup003_fires_when_no_coupling_report);
     RUN_TEST(test_coup001_detects_extern_mutable);

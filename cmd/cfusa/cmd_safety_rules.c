@@ -4,6 +4,7 @@
  * Registers rules that run during `cfusa check`:
  *   HARA001-006   — HARA file and content validation (ISO 26262-3)
  *   ISO26262001-3 — ISO 26262 evidence and qualification checks
+ *   DUPREQ001     — Duplicate requirement ids (x-FuSa spec §1.2.2)
  *   COUP001-003   — Data/control coupling (DO-178C §6.4.4.3)
  *   DISP001       — Undispositioned ERROR findings
  *   COMP001       — Cyclomatic complexity (DO-178C §6.3.4)
@@ -24,7 +25,7 @@
 
 //cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA010
 //cfusa:req REQ-COUPLING001 REQ-COUPLING002 REQ-COUPLING003
-//cfusa:req REQ-DISP001 REQ-COMP001
+//cfusa:req REQ-DISP001 REQ-COMP001 REQ-DUPREQ001
 
 /* ── File helpers ────────────────────────────────────────────────────── */
 
@@ -552,6 +553,74 @@ static int rule_iso26262003(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+/* ── DUPREQ001 — requirement ids must be unique (x-FuSa spec §1.2.2) ──── */
+
+/* cmd_trace.c's load_reqs() has long detected duplicate requirement ids
+ * in .fusa-reqs.json/.cfusa-reqs.json and printed a "cfusa trace: ERROR:
+ * duplicate requirement id" line to stderr — but that line never became a
+ * `Finding` and never gated any exit code, so a requirements registry with
+ * colliding ids (silently shadowing one of the two reqs for traceability
+ * purposes) could still pass `cfusa check` cleanly. This rule re-parses the
+ * same file and surfaces each duplicate as a real, fingerprinted §4 Finding
+ * that fails `check` (ISO 26262-6 §7.2 requires unambiguous bidirectional
+ * traceability, which a duplicated id breaks). Only the *first* repeat of
+ * each id is reported (not every pairwise collision), so an id appearing
+ * N times yields N-1 findings rather than a combinatorial blow-up. */
+#define DUPREQ001_MAX_IDS 2048
+
+static int rule_dupreq001(const char *dir, const cfusa_config_t *cfg,
+                           cfusa_report_t *rpt)
+{
+    (void)cfg;
+    size_t len;
+    const char *reqs_name = ".fusa-reqs.json";
+    char *json = read_file_at(dir, reqs_name, &len);
+    if (!json) {
+        reqs_name = ".cfusa-reqs.json";
+        json = read_file_at(dir, reqs_name, &len);
+    }
+    if (!json) return 0;
+
+    static char seen[DUPREQ001_MAX_IDS][64];
+    int seen_count = 0;
+    int findings = 0;
+
+    const char *p = json;
+    while ((p = strstr(p, "\"id\"")) != NULL) {
+        char id[64] = "";
+        char *fp = strstr(p, "\"id\":");
+        if (fp) {
+            fp += 5;
+            while (*fp == ' ') fp++;
+            if (*fp == '"') {
+                fp++;
+                sscanf(fp, "%63[^\"]", id);
+            }
+        }
+        if (id[0]) {
+            int dup = 0;
+            for (int i = 0; i < seen_count; i++) {
+                if (!strcmp(seen[i], id)) { dup = 1; break; }
+            }
+            if (dup) {
+                cfusa_report_add(rpt, "DUPREQ001", "safety", SEV_ERROR,
+                    reqs_name, 0,
+                    "duplicate requirement id '%s' in %s — requirement ids "
+                    "MUST be unique within the registry (x-FuSa spec §1.2.2, "
+                    "ISO 26262-6 §7.2 bidirectional traceability)",
+                    id, reqs_name);
+                findings++;
+            } else if (seen_count < DUPREQ001_MAX_IDS) {
+                strncpy(seen[seen_count], id, sizeof(seen[seen_count]) - 1);
+                seen_count++;
+            }
+        }
+        p += 4;
+    }
+    free(json);
+    return findings;
+}
+
 /* ── COUP001 — data coupling: extern mutable global variables ─────────── */
 
 typedef struct { cfusa_report_t *rpt; } coup_ctx_t;
@@ -965,6 +1034,10 @@ static const cfusa_rule_t SAFETY_RULES[] = {
     {"ISO26262003", "safety", "Tool qualification passes",
      "Tool qualification report must have zero failures",
      "iso26262", "Part 8", rule_iso26262003},
+    {"DUPREQ001", "safety", "Requirement ids unique",
+     "Requirement ids in .fusa-reqs.json/.cfusa-reqs.json must be unique "
+     "(x-FuSa spec §1.2.2)",
+     "iso26262", "Part 6 §7.2", rule_dupreq001},
     /* Coupling */
     {"COUP001", "analyze", "Data coupling — extern mutable vars",
      "Exported mutable variables create data coupling (DO-178C §6.4.4.3)",

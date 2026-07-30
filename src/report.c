@@ -385,8 +385,11 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
                 (i < rpt->count - 1) ? "," : "");
         }
     }
-    /* §3.2: structured error channel; empty when no tool-level runtime errors occurred */
-    fprintf(out, "  ],\n  \"errors\": []\n}\n");
+    /* §3.2 (MUST-106): the structured `error` object is emitted ONLY on a runtime
+     * error paired with exit 3, as an object {"code","message"}; otherwise it MUST
+     * be omitted entirely (not an always-empty "errors": [] array). The `report`
+     * path renders findings only and reports no runtime error, so it is omitted. */
+    fprintf(out, "  ]\n}\n");
 }
 
 /* djb2 hash for SARIF partialFingerprints */

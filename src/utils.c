@@ -87,12 +87,17 @@ char *cfusa_read_file(const char *path, size_t *len_out)
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
 
+    /* Guard against ftell failure (-1) and absurd sizes before allocating:
+     * a negative/huge value would otherwise wrap in (size_t)sz + 1 and cause a
+     * heap overflow or DoS on a crafted/unseekable file (CWE-190/CWE-789). */
+    if (sz < 0 || (unsigned long)sz > (1UL << 31)) { fclose(f); return NULL; }
+
     char *buf = malloc((size_t)sz + 1);
     if (!buf) { fclose(f); return NULL; }
-    fread(buf, 1, (size_t)sz, f);
-    buf[sz] = '\0';
+    size_t got = fread(buf, 1, (size_t)sz, f);
+    buf[got] = '\0';
     fclose(f);
-    if (len_out) *len_out = (size_t)sz;
+    if (len_out) *len_out = got;
     return buf;
 }
 
