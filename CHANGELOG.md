@@ -5,9 +5,131 @@ All notable changes to c-FuSa are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## v0.5.49 — 2026-07-30
 
-- Bump `CFUSA_SCHEMA_VERSION`/`CFUSA_SPEC_VERSION` to x-FuSa spec v1.15.2 — v1.15.1 and v1.15.2 are both pure documentation clarifications (schemaVersion/specVersion format, §1.6.1 Rule A false-positive example) with no required behavior or wire-format changes.
+External third-party audit remediation. Two of the findings are
+**live-exploitable command/argument-injection vulnerabilities**, independently
+reproduced against the shipped tool before being fixed here; the rest are
+correctness/robustness defects in the ASIL derivation table, its test
+coverage, and several `check`/`trace`/`report` code paths.
+
+### Security
+- **`impact` git-ref argument injection.** `cmd_impact.c`'s `--from`/`--to`
+  validator accepted a value beginning with `-` and built the underlying
+  `git diff` invocation with no `--` separator between refs and paths. A
+  crafted `--from` value could smuggle an arbitrary `git diff` flag —
+  reproduced concretely with `cfusa impact --from '--output=victim.txt' --to
+  HEAD`, which truncates `victim.txt` via git's own `--output` flag. Refs
+  beginning with `-` are now rejected, and a `--` separator is always
+  inserted before the ref arguments. While hardening this path, `run_git_diff()`
+  was also moved off `popen()`/a shell command string onto `fork`+`execvp`
+  (argv passed directly, no shell), removing the shell entirely rather than
+  just refusing to abuse it.
+- **`audit-pack` shell command injection.** `cmd_audit_pack.c` interpolated
+  unsanitized `--output`/`--dir` values into a double-quoted
+  `system("cd ... && zip ...")` string; `$(...)` command substitution is
+  still expanded inside double quotes by the shell, so a crafted `--output`
+  executed arbitrary commands — reproduced concretely with `cfusa audit-pack
+  --output 'x.zip$(touch /tmp/pwned)'`. The `system()`/`zip`/`rm -rf` shell
+  pipeline has been replaced with `fork`/`execvp` (argv passed directly, no
+  shell interpretation) and a POSIX `nftw()`-based recursive remove for
+  staging cleanup.
+
+### Fixed
+- **ISO 26262-3:2018 Table 4 ASIL derivation corrected (Critical).** The
+  shared `cfusa_compute_asil()` table (`src/asil.c`) over-assigned ASIL in 19
+  of 36 S×E×C cells (all S2 except the E1 row, and every S3 row). It now
+  implements the additive S+E+C mapping (≤6 → QM, 7 → A, 8 → B, 9 → C, 10 →
+  D). `tests/test_asil_table.c`'s "exhaustive" 36-cell test previously only
+  asserted `exit == 0` and never the returned ASIL string, so it passed
+  against the wrong table; it now asserts the exact ASIL for every cell. The
+  dogfooded `.fusa-hara.json` shipped over-classified hazard ASILs (H-001
+  through H-005) as a direct consequence of the table bug and has been
+  regenerated to match. NOTE: the v0.5.47 entry below described the table as
+  making both call sites "provably consistent" — they were consistent with
+  each other but consistently wrong until this fix.
+- **C0 controllability now maps to QM.** A non-standard `C0` ("controllable
+  in general") value previously fell through to a non-QM result; per ISO
+  26262-3:2018 §4.3.5 it now short-circuits `cfusa_compute_asil()` to QM
+  regardless of S/E.
+- **Out-of-range S/E/C now rejected.** `hara` previously coerced an
+  out-of-range severity/exposure/controllability value to QM silently; it
+  now exits 2 with a diagnostic instead of masking a malformed hazard entry.
+- **Duplicate requirement ids now fail `check`.** A duplicate `id` in
+  `.fusa-reqs.json`/`.cfusa-reqs.json` was previously only reported as a
+  `cfusa trace: ERROR: ...` line on stderr, never as a machine-readable
+  `Finding`, and never affected any command's exit code. A new `check`
+  engine rule, `DUPREQ001`, re-parses the requirements registry and emits a
+  real, fingerprinted §4 Finding (SEV_ERROR) for each duplicated id, so
+  `cfusa check` now fails on it.
+- **`trace` reads the canonical `parent` key.** `cmd_trace.c` read only the
+  legacy `parentId` field for LLR→HLR links; it now reads the spec-canonical
+  `parent` key first, falling back to `parentId` for backward compatibility.
+- **Report envelope no longer hardcodes an always-empty `errors` array.**
+  `src/report.c` emitted a permanently-empty `"errors": []` array in every
+  report; per the x-FuSa spec this MUST be a singular `error{code,message}`
+  object present only when a runtime error occurred (and omitted
+  otherwise), which is now what's emitted.
+- **`ftell()` return value now bounds-checked.** `cfusa_read_file()`
+  (`src/utils.c`) used an unchecked `ftell()` result as an allocation size;
+  on a crafted or unseekable file this could wrap to a huge or negative
+  value and cause a heap-overflow/DoS. The result is now validated before
+  use.
+- **Requirement objects over 1KB no longer truncated.** `cmd_trace.c`
+  parsed each requirement object into a fixed 1024-byte stack buffer,
+  silently dropping `id`/`title`/`parent` fields past that size; it now
+  heap-allocates to the exact object length.
+- **`.fusa.json` version string reconciled.** `project.version` had drifted
+  to a stale `"0.5.1"` while the shipped tool moved well past it; it now
+  matches the real released version. (The README's config-name guidance was
+  also updated to point at the canonical `.fusa-*` names rather than the
+  deprecated `.cfusa-*` ones, with the legacy names kept as a documented
+  fallback; a version badge was added to README so the new
+  version-consistency CI check has something real to verify against.)
+- **`cfusa check` now passes cleanly on c-FuSa's own source** (previously
+  masked by `|| true` in CI — see Changed, below — so this had silently
+  regressed): `cmd_qualify.c`'s pre-existing `qt_rmdir_recursive()` and the
+  new `cmd_audit_pack.c` `ap_rmdir_recursive()` both used genuine user-code
+  recursion (MISRA-C 2012 Rule 17.2, `CFUSA-L004`); both are now iterative,
+  built on POSIX `nftw(FTW_DEPTH|FTW_PHYS)`. `cmd_comp.c` had two lines each
+  freeing two distinct pointers, which a same-line text scan mistook for a
+  double-free (`CFUSA-CY007`); the frees are now on separate lines. Two test
+  function names — `..._includes_end_line` and `..._no_build_system` —
+  coincidentally contained the substrings `des_` and `system(`, false-firing
+  the weak-crypto and unchecked-system-call rules (`CFUSA-CY009`/`CY003`);
+  both were renamed.
+- **`cmd_req.c`'s ALM-import entry builder hardened against unbounded
+  write.** `append_entry()` (used by `req import` for CSV/ReqIF/XML sources)
+  tracked the destination buffer's fill level via a caller-passed running
+  total rather than the buffer's actual content length, and appended with
+  `strcat()`. GitHub Advanced Security's CodeQL flagged this as a possible
+  unbounded write from `fgets`/`fread`-sourced input (critical). It's
+  rewritten to measure the buffer's real length directly and append with an
+  exact-length `memcpy()` bounded against that, removing the dependency on
+  the caller's bookkeeping entirely.
+
+### Changed
+- `qualify`'s qualification timestamp now honours `SOURCE_DATE_EPOCH` for
+  reproducible builds.
+- CI (`ci.yml`) no longer masks 5 meaningful steps behind `|| true`,
+  including the version-consistency check, which now actually fails the
+  build on drift. The `iso26262` gap-report step is intentionally left
+  informational (`|| true`): it exits 1 whenever any §9.3 gap remains by
+  design, and closing every long-standing documentation/process gap (e.g.
+  "functional safety concept", "no multiple exit points") is a separate,
+  much larger effort than this release's scope. The Docker self-check step
+  now checks the whole mounted repo (`--dir /workspace`) instead of just
+  `/workspace/src`, matching the native self-check step — `src/` alone can
+  never contain the root-level `.fusa.json`/`.fusa-hara.json`, so scoping to
+  it made `FUSA00x`/`HARA001` fail unconditionally the moment this step's
+  exit code started being enforced.
+- `docker-publish.yml`'s runner is pinned to `ubuntu-22.04` for
+  build-environment parity/reproducibility.
+
+### Removed
+- The stale committed `.cfusa_qualification.json` (wrong version, obsolete
+  schema) has been deleted; CI regenerates it as a build artifact instead of
+  it being tracked in source control.
 
 ## v0.5.47 — 2026-07-28
 

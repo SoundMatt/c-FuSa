@@ -91,17 +91,26 @@ static void load_reqs(const char *dir)
     while (*p && *p != ']' && g_req_count < MAX_REQS) {
         const char *bs = strchr(p, '{'); if (!bs) break;
         const char *be = strchr(bs, '}'); if (!be) break;
-        char obj[1024] = "";
+        /* Heap-allocate to the exact object length so requirement objects
+         * longer than a fixed stack buffer are no longer silently truncated
+         * (which dropped id/title/parent fields past ~1KB). */
         size_t ol = (size_t)(be - bs + 1);
-        if (ol > sizeof(obj) - 1) ol = sizeof(obj) - 1;
+        char *obj = malloc(ol + 1);
+        if (!obj) break;
         memcpy(obj, bs, ol);
+        obj[ol] = '\0';
         jfield(obj, "id",       g_reqs[g_req_count].id,        MAX_ID);
         jfield(obj, "title",    g_reqs[g_req_count].title,     MAX_TITLE);
         jfield(obj, "standard", g_reqs[g_req_count].standard,  64);
         jfield(obj, "level",    g_reqs[g_req_count].level,     32);
         //cfusa:req REQ-HLR004
-        jfield(obj, "parentId", g_reqs[g_req_count].parent_id, MAX_ID);
+        /* x-FuSa spec §1.2.2: the canonical LLR->HLR link key is "parent";
+         * accept the legacy "parentId" only as a fallback alias. */
+        jfield(obj, "parent", g_reqs[g_req_count].parent_id, MAX_ID);
+        if (!g_reqs[g_req_count].parent_id[0])
+            jfield(obj, "parentId", g_reqs[g_req_count].parent_id, MAX_ID);
         if (g_reqs[g_req_count].id[0]) g_req_count++;
+        free(obj);
         p = be + 1;
     }
     free(json);

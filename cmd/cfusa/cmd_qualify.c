@@ -1,4 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
+/* nftw()/FTW_DEPTH/FTW_PHYS are XSI extensions glibc hides unless
+ * _XOPEN_SOURCE >= 500 (or _DEFAULT_SOURCE) is defined before the first
+ * system header — _POSIX_C_SOURCE alone does not expose them. */
+#define _XOPEN_SOURCE 700
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -8,6 +12,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <getopt.h>
+#include <time.h>
+#include <ftw.h>
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 #include "cfusa/engine.h"
@@ -92,37 +98,26 @@ static void qt_rm_file(const char *dir, const char *name)
     char p[512]; snprintf(p, sizeof(p), "%s/%s", dir, name); remove(p);
 }
 
+/* nftw() callback: remove() dispatches to unlink() or rmdir() as appropriate. */
+static int qt_rm_visitor(const char *fpath, const struct stat *sb,
+                          int typeflag, struct FTW *ftwbuf)
+{
+    (void)sb; (void)typeflag; (void)ftwbuf;
+    remove(fpath);
+    return 0;
+}
+
 /*
- * Recursively remove all regular files and sub-directories under path,
- * then remove path itself.  Uses only POSIX opendir/readdir/lstat/unlink/rmdir —
- * no system() or shell, so there is no CWE-78 / MISRA-C Rule 21.8 exposure
- * and no TOCTOU symlink-follow risk (symlinks are unlinked via unlink(), not
- * followed into their targets).
+ * Remove all regular files and sub-directories under path, then remove path
+ * itself. Uses POSIX nftw(FTW_DEPTH|FTW_PHYS) — an iterative library
+ * tree-walk (no user-code recursion, satisfying MISRA-C 2012 Rule 17.2) that
+ * visits children before their parent directory and never follows symlinks
+ * (FTW_PHYS) — no system()/shell (CWE-78 / MISRA-C Rule 21.8) and no TOCTOU
+ * symlink-follow risk.
  */
 static void qt_rmdir_recursive(const char *path)
 {
-    DIR *d = opendir(path);
-    if (!d) {
-        /* Not a directory — try plain unlink */
-        unlink(path);
-        return;
-    }
-    struct dirent *ent;
-    while ((ent = readdir(d)) != NULL) {
-        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
-            continue;
-        char child[512];
-        snprintf(child, sizeof(child), "%s/%s", path, ent->d_name);
-        /* Use lstat (not stat) so symlinks are never followed */
-        struct stat st;
-        if (lstat(child, &st) == 0 && S_ISDIR(st.st_mode)) {
-            qt_rmdir_recursive(child);
-        } else {
-            unlink(child);
-        }
-    }
-    closedir(d);
-    rmdir(path);
+    nftw(path, qt_rm_visitor, 16, FTW_DEPTH | FTW_PHYS);
 }
 
 static int qt_mkdir_p(const char *path)
@@ -584,7 +579,22 @@ int cmd_qualify(int argc, char **argv)
     int total_fail = kat_fail + case_fail;
     int total      = total_pass + total_fail;
 
-    char ts[32]; cfusa_timestamp_now(ts);
+    char ts[32];
+    /* Reproducible evidence (REQ): when SOURCE_DATE_EPOCH is set, derive the
+     * timestamp from it so two runs of the same binary on the same inputs
+     * produce a byte-identical qualification record that can be hashed/signed.
+     * Falls back to the live clock otherwise. */
+    {
+        const char *sde = getenv("SOURCE_DATE_EPOCH");
+        if (sde && *sde) {
+            time_t t = (time_t)strtoll(sde, NULL, 10);
+            struct tm tmv;
+            gmtime_r(&t, &tmv);
+            strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%SZ", &tmv);
+        } else {
+            cfusa_timestamp_now(ts);
+        }
+    }
 
     const char *badge  = qualification_badge(qual_method);          /* REQ-QUAL006 */
     const char *indep  = independence_status(impl_author, ind_reviewer); /* REQ-VV004 */

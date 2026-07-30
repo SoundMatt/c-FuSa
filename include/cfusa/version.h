@@ -3,8 +3,35 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  5
-#define CFUSA_VERSION_PATCH  48
-#define CFUSA_VERSION_STRING "0.5.48"
+#define CFUSA_VERSION_PATCH  49
+#define CFUSA_VERSION_STRING "0.5.49"
+/* v0.5.49 — 2026-07-30 external audit remediation: corrects a Critical
+ * mis-implementation of ISO 26262-3:2018 Table 4 in the shared
+ * cfusa_compute_asil() (19/36 S x E x C cells were over-assigned; the
+ * dogfooded .fusa-hara.json and the "exhaustive" 36-cell test both
+ * inherited/masked the same error) and fixes two independently
+ * live-reproduced command/argument-injection vulnerabilities: `impact`
+ * accepted a git-ref beginning with '-' and built `git diff` without a
+ * `--` separator (an attacker-controlled --from could smuggle a git flag
+ * such as --output); `audit-pack` interpolated --output/--dir unsanitized
+ * into a double-quoted system("... zip ...") string, allowing shell
+ * command substitution. Also fixes: C0 controllability now short-circuits
+ * to QM per ISO 26262-3:2018 4.3.5; out-of-range S/E/C now exits 2 instead
+ * of silently coercing to QM; duplicate requirement ids in
+ * .fusa-reqs.json now fail `check` as a real fingerprinted DUPREQ001
+ * Finding instead of only printing to stderr; cmd_trace.c reads the
+ * canonical "parent" key (with "parentId" as a legacy fallback) instead of
+ * only "parentId"; the report envelope no longer hardcodes an always-empty
+ * "errors": [] array; cfusa_read_file()'s unchecked ftell() can no longer
+ * wrap into an oversized/negative allocation; cmd_trace.c heap-allocates
+ * requirement-object parsing so objects over 1KB are no longer truncated;
+ * and .fusa.json's project.version (stale at "0.5.1") now matches the
+ * shipped tool version. Un-masking CI's self-check step (see ci.yml) also
+ * surfaced (now fixed) a MISRA-C recursion violation in the new
+ * ap_rmdir_recursive() plus a pre-existing one in qt_rmdir_recursive() (both
+ * now iterative via nftw()), two double-free-lookalike lines in cmd_comp.c,
+ * and two test names that false-triggered weak-crypto/system-call rules by
+ * coincidental substring match. See CHANGELOG.md for the itemised list. */
 #define CFUSA_SCHEMA_VERSION "1.15.2"
 /* Bumped from 1.14.0 to 1.15.0: adopts the x-FuSa master spec's v1.15.0
  * attestation-carry-forward MUST (already conformant for fmea/tara/

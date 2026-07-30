@@ -98,7 +98,7 @@ void test_fusa001_silent_when_config_present(void)
 
 /* ── FUSA002 ─────────────────────────────────────────────────────────── */
 
-void test_fusa002_fires_when_no_build_system(void)
+void test_fusa002_fires_missing_build_system_file(void)
 {
     fr_rm("CMakeLists.txt");
     cfusa_report_t rpt; cfusa_report_init(&rpt);
@@ -187,7 +187,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_fusa001_fires_when_no_config);
     RUN_TEST(test_fusa001_silent_when_config_present);
-    RUN_TEST(test_fusa002_fires_when_no_build_system);
+    RUN_TEST(test_fusa002_fires_missing_build_system_file);
     RUN_TEST(test_fusa002_silent_with_cmake);
     RUN_TEST(test_fusa003_fires_when_no_license);
     RUN_TEST(test_fusa003_silent_when_license_present);

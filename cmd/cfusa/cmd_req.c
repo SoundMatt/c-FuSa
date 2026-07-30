@@ -247,7 +247,18 @@ static void do_req_export(const char *dir, const char *output, const char *fmt)
 
 /* ---- ALM format parsers ------------------------------------------ */
 
-/* Write one entry into new_entries[], return updated length */
+/*
+ * Write one entry into new_entries[], return updated length.
+ *
+ * Bounds every write against the buffer's *actual* current content length
+ * (strlen(buf) — buf is always zero-initialized by the caller and every
+ * write here keeps it NUL-terminated within bounds, so this is always
+ * accurate) rather than the caller-tracked cur_len estimate, and uses an
+ * exact-length memcpy instead of strcat(), so a field sourced from untrusted
+ * input (ALM/CSV import — read via fgets/fread) can never write past buf_sz
+ * regardless of how cur_len was computed by an earlier call (CWE-120 /
+ * unbounded-write hardening).
+ */
 static size_t append_entry(char *buf, size_t buf_sz, size_t cur_len,
                             const char *id, const char *title,
                             const char *text, const char *standard,
@@ -259,11 +270,20 @@ static size_t append_entry(char *buf, size_t buf_sz, size_t cur_len,
         "\"standard\":\"%s\",\"level\":\"%s\"}",
         id, title, text, standard, level);
     if (n <= 0) return cur_len;
-    if (cur_len + (size_t)n + 4 >= buf_sz) return cur_len;
-    if (cur_len > 0) { strcat(buf, ",\n"); cur_len += 2; }
-    strcat(buf, entry);
+
+    size_t actual_len = strlen(buf);
+    if (actual_len >= buf_sz) return actual_len; /* defensive; should be unreachable */
+    size_t entry_len = strlen(entry); /* <= sizeof(entry)-1; may be < n if entry was truncated */
+    size_t sep_len = (actual_len > 0) ? 2 : 0; /* ",\n" */
+
+    if (actual_len + sep_len + entry_len + 1 > buf_sz) return actual_len;
+
+    if (sep_len) { buf[actual_len] = ','; buf[actual_len + 1] = '\n'; actual_len += sep_len; }
+    memcpy(buf + actual_len, entry, entry_len);
+    actual_len += entry_len;
+    buf[actual_len] = '\0';
     (*count)++;
-    return cur_len + (size_t)n;
+    return actual_len;
 }
 
 /* Polarion/DOORS ReqIF XML: extract <ATTRIBUTE-VALUE-XHTML> and

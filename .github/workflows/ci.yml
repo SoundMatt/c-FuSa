@@ -54,7 +54,7 @@ jobs:
 
       - name: Self-check (cfusa check on cfusa source)
         run: |
-          ./build/cfusa check --dir . --format json --output cfusa-self-check.json || true
+          ./build/cfusa check --dir . --format json --output cfusa-self-check.json
           ./build/cfusa version
 
       - name: Upload self-check report
@@ -124,7 +124,7 @@ jobs:
 
       - name: Generate SARIF report
         run: |
-          ./build/cfusa check --dir . --format sarif --output results.sarif || true
+          ./build/cfusa check --dir . --format sarif --output results.sarif
 
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
@@ -147,8 +147,13 @@ jobs:
 
       - name: Self-check via Docker
         run: |
+          # Check the whole mounted repo (matching the native "Self-check"
+          # step's `--dir .`), not just src/ — src/ alone can never contain
+          # the root-level .fusa.json/.fusa-hara.json/.fusa-reqs.json, so
+          # scoping to it made FUSA00x/HARA001 fail unconditionally once
+          # this step's exit code started being enforced.
           docker run --rm -v "$(pwd)":/workspace cfusa:ci check \
-            --dir /workspace/src --format json --output /workspace/cfusa-docker-check.json || true
+            --dir /workspace --format json --output /workspace/cfusa-docker-check.json
 
       - name: Upload Docker self-check
         uses: actions/upload-artifact@v4
@@ -175,23 +180,30 @@ jobs:
         run: ./build/cfusa qualify --binary ./build/cfusa --format json --output .cfusa_qualification.json
 
       - name: Run trace coverage check
-        run: ./build/cfusa trace --dir . --format json --output trace-report.json || true
+        run: ./build/cfusa trace --dir . --format json --output trace-report.json
 
       - name: Run ISO 26262 gap report
         run: |
+          # `iso26262` exits 1 whenever any §9.3 gap remains (by design — it's
+          # a strict evidence-completeness gate, not a check-engine Finding).
+          # Closing every long-standing documentation/process gap (e.g.
+          # "functional safety concept", "no multiple exit points") is a
+          # separate, much larger effort than this PR's security/ASIL-table
+          # remediation scope, so this step stays informational rather than
+          # build-breaking; see iso26262-gap-report.json for the current list.
           ./build/cfusa iso26262 --dir . --format json --output iso26262-gap-report.json || true
 
       - name: Run HARA validation
         run: |
-          ./build/cfusa hara show --dir . || true
+          ./build/cfusa hara show --dir .
 
       - name: docs — version consistency check
         run: |
           # Verify README and CHANGELOG mention current version
           VERSION=$(./build/cfusa version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
           echo "Checking version $VERSION in docs"
-          grep -q "$VERSION" CHANGELOG.md || echo "WARN: $VERSION not in CHANGELOG.md"
-          grep -q "$VERSION" README.md    || echo "WARN: $VERSION not in README.md"
+          grep -q "$VERSION" CHANGELOG.md || { echo "ERROR: $VERSION not in CHANGELOG.md"; exit 1; }
+          grep -q "$VERSION" README.md    || { echo "ERROR: $VERSION not in README.md"; exit 1; }
 
       - name: Upload qualification record
         uses: actions/upload-artifact@v4

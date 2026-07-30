@@ -30,7 +30,7 @@
         "severity": "S3",
         "exposure": "E4",
         "controllability": "C2",
-        "asil": "ASIL-D"
+        "asil": "ASIL-C"
       },
       "safetyGoals": ["SG-001"]
     },
@@ -43,7 +43,7 @@
         "severity": "S2",
         "exposure": "E4",
         "controllability": "C3",
-        "asil": "ASIL-D"
+        "asil": "ASIL-C"
       },
       "safetyGoals": ["SG-002"]
     },
@@ -56,7 +56,7 @@
         "severity": "S3",
         "exposure": "E2",
         "controllability": "C1",
-        "asil": "ASIL-B"
+        "asil": "QM"
       },
       "safetyGoals": ["SG-003"]
     },
@@ -69,7 +69,7 @@
         "severity": "S2",
         "exposure": "E3",
         "controllability": "C2",
-        "asil": "ASIL-B"
+        "asil": "ASIL-A"
       },
       "safetyGoals": ["SG-004"]
     },
@@ -82,7 +82,7 @@
         "severity": "S3",
         "exposure": "E3",
         "controllability": "C2",
-        "asil": "ASIL-D"
+        "asil": "ASIL-B"
       },
       "safetyGoals": ["SG-005"]
     }
@@ -92,7 +92,7 @@
       "id": "SG-001",
       "description": "cfusa shall not suppress or omit any finding for which the rule engine is configured to detect",
       "hazards": ["H-001"],
-      "asil": "ASIL-D",
+      "asil": "ASIL-C",
       "safeState": "Developer independently reviews code and uses additional static analysis tools",
       "fssrRefs": ["REQ-FSR-CHECK001"]
     },
@@ -100,7 +100,7 @@
       "id": "SG-002",
       "description": "cfusa shall limit its false-positive rate to a level that does not cause systematic check-disabling",
       "hazards": ["H-002"],
-      "asil": "ASIL-D",
+      "asil": "ASIL-C",
       "safeState": "Developer uses the disposition system to explicitly accept findings with rationale",
       "fssrRefs": ["REQ-FSR-CHECK002"]
     },
@@ -108,7 +108,7 @@
       "id": "SG-003",
       "description": "cfusa impact shall validate all git ref arguments before constructing shell commands",
       "hazards": ["H-003"],
-      "asil": "ASIL-B",
+      "asil": "QM",
       "safeState": "validate_git_ref() whitelist prevents injection; the tool exits 1 with an error message",
       "fssrRefs": ["REQ-IMP001"]
     },
@@ -116,7 +116,7 @@
       "id": "SG-004",
       "description": "cfusa release/qualify shall compute SHA-256 checksums deterministically and embed the correct project/version from .fusa.json",
       "hazards": ["H-004"],
-      "asil": "ASIL-B",
+      "asil": "ASIL-A",
       "safeState": "Reviewer independently verifies SBOM checksums against source",
       "fssrRefs": ["REQ-REL002", "REQ-UTIL015"]
     },
@@ -124,7 +124,7 @@
       "id": "SG-005",
       "description": "cfusa hara asil shall implement ISO 26262-3:2018 Table 4 correctly for all S/E/C combinations",
       "hazards": ["H-005"],
-      "asil": "ASIL-D",
+      "asil": "ASIL-B",
       "safeState": "Developer cross-checks the ASIL result with ISO 26262-3:2018 Table 4 directly",
       "fssrRefs": ["REQ-HARA009"]
     }

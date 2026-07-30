@@ -236,7 +236,7 @@ void test_json_location_omits_span_when_zero(void)
 
 //cfusa:req REQ-RPT-SPAN003
 //cfusa:test REQ-RPT-SPAN003
-void test_sarif_region_includes_end_line(void)
+void test_sarif_region_has_end_line_and_col(void)
 {
     cfusa_report_t rpt2;
     cfusa_report_init(&rpt2);
@@ -352,7 +352,7 @@ int main(void)
     RUN_TEST(test_format_parse_unknown);
     RUN_TEST(test_json_location_emits_end_line_end_column);
     RUN_TEST(test_json_location_omits_span_when_zero);
-    RUN_TEST(test_sarif_region_includes_end_line);
+    RUN_TEST(test_sarif_region_has_end_line_and_col);
     RUN_TEST(test_category_cyber_maps_to_security);
     RUN_TEST(test_category_analyze_maps_to_safety);
     RUN_TEST(test_category_lint_unchanged);
