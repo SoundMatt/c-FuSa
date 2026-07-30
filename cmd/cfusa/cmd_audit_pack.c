@@ -1,6 +1,10 @@
-/* popen/pclose are POSIX */
+/* popen/pclose are POSIX; nftw()/FTW_DEPTH/FTW_PHYS are XSI extensions that
+ * glibc hides unless _XOPEN_SOURCE >= 500 (or _DEFAULT_SOURCE) is defined
+ * before the first system header — _POSIX_C_SOURCE alone does not expose
+ * them (visible by default on macOS/BSD libc, hence Linux-only here). */
 #if defined(__linux__) || defined(__unix__)
 #  define _POSIX_C_SOURCE 200809L
+#  define _XOPEN_SOURCE 700
 #endif
 #include <stdio.h>
 #include <string.h>

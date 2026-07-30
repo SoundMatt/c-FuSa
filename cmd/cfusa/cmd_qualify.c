@@ -1,4 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
+/* nftw()/FTW_DEPTH/FTW_PHYS are XSI extensions glibc hides unless
+ * _XOPEN_SOURCE >= 500 (or _DEFAULT_SOURCE) is defined before the first
+ * system header — _POSIX_C_SOURCE alone does not expose them. */
+#define _XOPEN_SOURCE 700
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
