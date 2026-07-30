@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <time.h>
+#include <ftw.h>
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 #include "cfusa/engine.h"
@@ -93,37 +94,26 @@ static void qt_rm_file(const char *dir, const char *name)
     char p[512]; snprintf(p, sizeof(p), "%s/%s", dir, name); remove(p);
 }
 
+/* nftw() callback: remove() dispatches to unlink() or rmdir() as appropriate. */
+static int qt_rm_visitor(const char *fpath, const struct stat *sb,
+                          int typeflag, struct FTW *ftwbuf)
+{
+    (void)sb; (void)typeflag; (void)ftwbuf;
+    remove(fpath);
+    return 0;
+}
+
 /*
- * Recursively remove all regular files and sub-directories under path,
- * then remove path itself.  Uses only POSIX opendir/readdir/lstat/unlink/rmdir —
- * no system() or shell, so there is no CWE-78 / MISRA-C Rule 21.8 exposure
- * and no TOCTOU symlink-follow risk (symlinks are unlinked via unlink(), not
- * followed into their targets).
+ * Remove all regular files and sub-directories under path, then remove path
+ * itself. Uses POSIX nftw(FTW_DEPTH|FTW_PHYS) — an iterative library
+ * tree-walk (no user-code recursion, satisfying MISRA-C 2012 Rule 17.2) that
+ * visits children before their parent directory and never follows symlinks
+ * (FTW_PHYS) — no system()/shell (CWE-78 / MISRA-C Rule 21.8) and no TOCTOU
+ * symlink-follow risk.
  */
 static void qt_rmdir_recursive(const char *path)
 {
-    DIR *d = opendir(path);
-    if (!d) {
-        /* Not a directory — try plain unlink */
-        unlink(path);
-        return;
-    }
-    struct dirent *ent;
-    while ((ent = readdir(d)) != NULL) {
-        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
-            continue;
-        char child[512];
-        snprintf(child, sizeof(child), "%s/%s", path, ent->d_name);
-        /* Use lstat (not stat) so symlinks are never followed */
-        struct stat st;
-        if (lstat(child, &st) == 0 && S_ISDIR(st.st_mode)) {
-            qt_rmdir_recursive(child);
-        } else {
-            unlink(child);
-        }
-    }
-    closedir(d);
-    rmdir(path);
+    nftw(path, qt_rm_visitor, 16, FTW_DEPTH | FTW_PHYS);
 }
 
 static int qt_mkdir_p(const char *path)

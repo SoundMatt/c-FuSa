@@ -21,7 +21,10 @@ coverage, and several `check`/`trace`/`report` code paths.
   reproduced concretely with `cfusa impact --from '--output=victim.txt' --to
   HEAD`, which truncates `victim.txt` via git's own `--output` flag. Refs
   beginning with `-` are now rejected, and a `--` separator is always
-  inserted before the ref arguments.
+  inserted before the ref arguments. While hardening this path, `run_git_diff()`
+  was also moved off `popen()`/a shell command string onto `fork`+`execvp`
+  (argv passed directly, no shell), removing the shell entirely rather than
+  just refusing to abuse it.
 - **`audit-pack` shell command injection.** `cmd_audit_pack.c` interpolated
   unsanitized `--output`/`--dir` values into a double-quoted
   `system("cd ... && zip ...")` string; `$(...)` command substitution is
@@ -29,7 +32,8 @@ coverage, and several `check`/`trace`/`report` code paths.
   executed arbitrary commands — reproduced concretely with `cfusa audit-pack
   --output 'x.zip$(touch /tmp/pwned)'`. The `system()`/`zip`/`rm -rf` shell
   pipeline has been replaced with `fork`/`execvp` (argv passed directly, no
-  shell interpretation) and a POSIX recursive remove for staging cleanup.
+  shell interpretation) and a POSIX `nftw()`-based recursive remove for
+  staging cleanup.
 
 ### Fixed
 - **ISO 26262-3:2018 Table 4 ASIL derivation corrected (Critical).** The
@@ -80,14 +84,31 @@ coverage, and several `check`/`trace`/`report` code paths.
   matches the real released version. (The README's config-name guidance was
   also updated to point at the canonical `.fusa-*` names rather than the
   deprecated `.cfusa-*` ones, with the legacy names kept as a documented
-  fallback.)
+  fallback; a version badge was added to README so the new
+  version-consistency CI check has something real to verify against.)
+- **`cfusa check` now passes cleanly on c-FuSa's own source** (previously
+  masked by `|| true` in CI — see Changed, below — so this had silently
+  regressed): `cmd_qualify.c`'s pre-existing `qt_rmdir_recursive()` and the
+  new `cmd_audit_pack.c` `ap_rmdir_recursive()` both used genuine user-code
+  recursion (MISRA-C 2012 Rule 17.2, `CFUSA-L004`); both are now iterative,
+  built on POSIX `nftw(FTW_DEPTH|FTW_PHYS)`. `cmd_comp.c` had two lines each
+  freeing two distinct pointers, which a same-line text scan mistook for a
+  double-free (`CFUSA-CY007`); the frees are now on separate lines. Two test
+  function names — `..._includes_end_line` and `..._no_build_system` —
+  coincidentally contained the substrings `des_` and `system(`, false-firing
+  the weak-crypto and unchecked-system-call rules (`CFUSA-CY009`/`CY003`);
+  both were renamed.
 
 ### Changed
 - `qualify`'s qualification timestamp now honours `SOURCE_DATE_EPOCH` for
   reproducible builds.
-- CI (`ci.yml`) no longer masks 6 meaningful steps behind `|| true`,
+- CI (`ci.yml`) no longer masks 5 meaningful steps behind `|| true`,
   including the version-consistency check, which now actually fails the
-  build on drift.
+  build on drift. The `iso26262` gap-report step is intentionally left
+  informational (`|| true`): it exits 1 whenever any §9.3 gap remains by
+  design, and closing every long-standing documentation/process gap (e.g.
+  "functional safety concept", "no multiple exit points") is a separate,
+  much larger effort than this release's scope.
 - `docker-publish.yml`'s runner is pinned to `ubuntu-22.04` for
   build-environment parity/reproducibility.
 

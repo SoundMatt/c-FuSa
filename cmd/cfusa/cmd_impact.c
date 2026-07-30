@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/wait.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
@@ -35,14 +38,38 @@ static int validate_git_ref(const char *ref)
     return 1;
 }
 
+/*
+ * Runs `git diff --name-only <from> <to> --` with no shell: pipe() + fork() +
+ * execvp("git", argv). from/to are passed as separate argv entries (never
+ * concatenated into a shell command string), so even a validate_git_ref()
+ * bypass could never be interpreted as shell syntax (CWE-78). stderr is
+ * redirected to /dev/null in the child to match the previous "2>/dev/null"
+ * behaviour.
+ */
 static int run_git_diff(const char *from, const char *to,
                         char files[][512], int *nfiles)
 {
-    char cmd[256];
-    snprintf(cmd, sizeof(cmd), "git diff --name-only %s %s -- 2>/dev/null", from, to);
+    int fds[2];
+    if (pipe(fds) != 0) return -1;
 
-    FILE *p = popen(cmd, "r");
-    if (!p) return -1;
+    pid_t pid = fork();
+    if (pid < 0) { close(fds[0]); close(fds[1]); return -1; }
+
+    if (pid == 0) {
+        close(fds[0]);
+        dup2(fds[1], STDOUT_FILENO);
+        close(fds[1]);
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) { dup2(devnull, STDERR_FILENO); close(devnull); }
+        char *argvg[] = {"git", "diff", "--name-only",
+                          (char *)from, (char *)to, "--", NULL};
+        execvp("git", argvg);
+        _exit(127);
+    }
+
+    close(fds[1]);
+    FILE *p = fdopen(fds[0], "r");
+    if (!p) { close(fds[0]); waitpid(pid, NULL, 0); return -1; }
 
     *nfiles = 0;
     char line[512];
@@ -53,7 +80,8 @@ static int run_git_diff(const char *from, const char *to,
         files[*nfiles][511] = '\0';
         (*nfiles)++;
     }
-    pclose(p);
+    fclose(p);
+    waitpid(pid, NULL, 0);
     return 0;
 }
 

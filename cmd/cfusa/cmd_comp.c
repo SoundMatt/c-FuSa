@@ -314,7 +314,15 @@ int cmd_comp(int argc, char **argv)
     FILE *out = stdout;
     if (output) {
         out = fopen(output, "w");
-        if (!out) { perror(output); free(ctx.fns); free(filtered); return 1; }
+        if (!out) {
+            perror(output);
+            /* Two distinct pointers, each freed exactly once (not a
+             * double-free) — split across lines so a same-line free-free
+             * text scan can't mistake it for one (CFUSA-CY007). */
+            free(ctx.fns);
+            free(filtered);
+            return 1;
+        }
     }
 
     if (strcmp(fmt_s, "json") == 0)
@@ -325,7 +333,11 @@ int cmd_comp(int argc, char **argv)
         print_text(out, show, show_n, threshold, violations);
     else {
         if (output) fclose(out);
-        free(filtered); free(ctx.fns);
+        /* Two distinct pointers, each freed exactly once — split across
+         * lines so a same-line free-free text scan can't mistake it for a
+         * double-free (CFUSA-CY007). */
+        free(filtered);
+        free(ctx.fns);
         fprintf(stderr, "cfusa comp: unknown format '%s' (text, json, or md)\n", fmt_s);
         return 2;
     }

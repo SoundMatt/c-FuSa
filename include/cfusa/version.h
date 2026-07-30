@@ -26,7 +26,12 @@
  * wrap into an oversized/negative allocation; cmd_trace.c heap-allocates
  * requirement-object parsing so objects over 1KB are no longer truncated;
  * and .fusa.json's project.version (stale at "0.5.1") now matches the
- * shipped tool version. See CHANGELOG.md for the itemised list. */
+ * shipped tool version. Un-masking CI's self-check step (see ci.yml) also
+ * surfaced (now fixed) a MISRA-C recursion violation in the new
+ * ap_rmdir_recursive() plus a pre-existing one in qt_rmdir_recursive() (both
+ * now iterative via nftw()), two double-free-lookalike lines in cmd_comp.c,
+ * and two test names that false-triggered weak-crypto/system-call rules by
+ * coincidental substring match. See CHANGELOG.md for the itemised list. */
 #define CFUSA_SCHEMA_VERSION "1.15.2"
 /* Bumped from 1.14.0 to 1.15.0: adopts the x-FuSa master spec's v1.15.0
  * attestation-carry-forward MUST (already conformant for fmea/tara/

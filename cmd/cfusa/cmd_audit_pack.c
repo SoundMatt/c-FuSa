@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <dirent.h>
+#include <ftw.h>
 
 //cfusa:req REQ-AUDIT
 
@@ -22,26 +23,25 @@
  * Produces <output> (default: audit-pack.zip) with manifest.json at ZIP root.
  */
 
+/* nftw() callback: remove() dispatches to unlink() or rmdir() as appropriate. */
+static int ap_rm_visitor(const char *fpath, const struct stat *sb,
+                          int typeflag, struct FTW *ftwbuf)
+{
+    (void)sb; (void)typeflag; (void)ftwbuf;
+    remove(fpath);
+    return 0;
+}
+
 /*
- * Recursively remove path without any shell. Uses only POSIX
- * opendir/readdir/lstat/unlink/rmdir (no system()/rm -rf), so there is no
- * CWE-78 command-injection exposure and no symlink-follow risk (lstat + unlink).
+ * Remove path (file or directory tree) without any shell. Uses POSIX
+ * nftw(FTW_DEPTH|FTW_PHYS) — an iterative library tree-walk (no user-code
+ * recursion, satisfying MISRA-C 2012 Rule 17.2) that visits children before
+ * their parent directory and never follows symlinks (FTW_PHYS), so there is
+ * no CWE-78 command-injection exposure and no symlink-follow risk.
  */
 static void ap_rmdir_recursive(const char *path)
 {
-    DIR *d = opendir(path);
-    if (!d) { unlink(path); return; }
-    struct dirent *ent;
-    while ((ent = readdir(d)) != NULL) {
-        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) continue;
-        char child[1024];
-        snprintf(child, sizeof(child), "%s/%s", path, ent->d_name);
-        struct stat st;
-        if (lstat(child, &st) == 0 && S_ISDIR(st.st_mode)) ap_rmdir_recursive(child);
-        else unlink(child);
-    }
-    closedir(d);
-    rmdir(path);
+    nftw(path, ap_rm_visitor, 16, FTW_DEPTH | FTW_PHYS);
 }
 
 /*
