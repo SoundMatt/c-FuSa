@@ -3,9 +3,25 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  5
-#define CFUSA_VERSION_PATCH  50
-#define CFUSA_VERSION_STRING "0.5.50"
-/* v0.5.50 (previously landed as v0.5.49, but the tag/release "v0.5.49" had
+#define CFUSA_VERSION_PATCH  51
+#define CFUSA_VERSION_STRING "0.5.51"
+/* v0.5.51 — 2026-08-13 fixes issue #100: cmd_req.c/cmd_trace.c's
+ * requirements array (g_reqs, MAX_REQS=1024) and cmd_impact.c's
+ * requirement-id array (MAX_REQS=256) were fixed-size stack arrays whose
+ * parse loops silently stopped once full — no error, no warning, no
+ * truncation notice — so a .fusa-reqs.json catalog larger than the cap
+ * produced a false 100%-coverage / 0-errors reading from `trace`/`check`
+ * while the untracked tail could never be reported missing, untested, or
+ * dangling. All three now grow dynamically via realloc with no fixed cap;
+ * a genuine allocation failure (OOM) is a hard ERROR with a non-zero exit
+ * rather than a silent partial load. The same fixed-cap truncation bug was
+ * also present in g_tags (MAX_TAGS=4096, cmd_req.c/cmd_trace.c) — since
+ * real catalogs are annotated with both //cfusa:req and //cfusa:test tags,
+ * tag count grows faster than requirement count and this cap could
+ * silently under-report coverage well before the requirements array
+ * itself filled up; fixed the same way.
+ *
+ * v0.5.50 (previously landed as v0.5.49, but the tag/release "v0.5.49" had
  * already been published against a stale commit whose version.h still read
  * "0.5.48" — see the PR that introduced this bump for the full story;
  * renumbered to v0.5.50 to avoid re-using an already-shipped version
