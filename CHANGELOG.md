@@ -5,6 +5,61 @@ All notable changes to c-FuSa are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.52 — 2026-08-13
+
+ASIL-scaling initiative (issue #103, sub-issues #104-#109). c-FuSa correctly
+derived ASIL but didn't scale the rigor ISO 26262 actually escalates at
+higher ASIL levels — MC/DC coverage, independent review/test, and
+complexity/rule strictness were either DO-178C-DAL-only or inert metadata.
+Checked against both the x-FuSa master spec and its Go reference
+implementation (FuSaOps) before starting: neither mandates or implements
+this either, so this is c-FuSa leading the tool family, not catching up
+to a spec requirement.
+
+### Added
+- **Shared ASIL/DAL severity helper** (`include/cfusa/severity.h`,
+  `src/severity.c`, #104): `cfusa_dal_rank()`, `cfusa_asil_rank()`, and
+  `cfusa_required_severity(enforce, dal, asil, &sev)` — one canonical
+  "how strict should this gate be" derivation (an `--enforce
+  auto|error|warn|off` convention), modeled on FuSaOps'
+  `trace.SeverityForDecomposition`. `cmd_safety_rules.c`'s local
+  `asil_rank()` (HARA005) migrated onto it as a proof of the API shape.
+- **`cfusa qualify --project-asil` / `--enforce`** (#105): `achievableAsil`
+  is now *computed* from `--implementation-author`/`--independent-reviewer`/
+  `--independent-test-executor` (ISO 26262-8 §11 ceiling logic: no
+  independent reviewer → ASIL-B, reviewer only → ASIL-C, reviewer +
+  test executor → ASIL-D; self-attestation doesn't count) instead of
+  accepted as a free-input string, and the command now **fails** when the
+  computed ceiling is below a declared `--project-asil`. **Breaking:**
+  removes the previously-inert `--achievable-asil` flag.
+- **`cfusa coverage --asil QM|ASIL-A|ASIL-B|ASIL-C|ASIL-D`** (#106):
+  ISO 26262-6 Table 12 structural-coverage/MC/DC gate, mirroring `--dal`'s
+  four-tier shape (ASIL-D requires MC/DC, ASIL-C requires full branch
+  coverage, ASIL-A/B require full line coverage, QM has no requirement).
+  When both `--dal` and `--asil` are given, the stricter of the two
+  applies to each of line/branch/MC/DC independently.
+- **`CFUSA-L011`/`CFUSA-L012` lint rules** (#108): octal constants
+  (MISRA-C 2012 Rule 7.1) and macros named the same as a C keyword
+  (Rule 20.4). `cfusa misra`'s accredited-third-party-tool recommendation
+  now escalates to `REQUIRED` (not `RECOMMENDED`) when the project
+  declares ISO 26262 ASIL-C/D — the recommendation itself is unchanged,
+  only its stated strength scales with declared criticality.
+- **`docs/standards/iso26262.md`** (#109): command mapping, ASIL
+  derivation, what scales by ASIL today, and an explicit statement of
+  what doesn't — no programmatic Tool Confidence Level (TCL, ISO 26262-8
+  Tables 4-5) determination exists anywhere in c-FuSa (or the wider
+  x-FuSa family) yet. Every command in its workflow example was run
+  against a real build before being written down.
+
+### Fixed
+- **`check`'s automatic `COMP001` gate now recognizes ISO 26262 ASIL**
+  (#107): previously only DO-178C DAL tags in `.fusa.json`'s
+  `standards[]` were recognized, so an ISO-26262-only project silently
+  got the unscaled default complexity threshold instead of the
+  ASIL-appropriate one (matching `cfusa comp --asil-d/c/b/a`'s existing
+  table), unless it separately ran `cfusa comp` by hand. When both a DAL
+  and an ASIL are declared, the stricter threshold wins.
+
 ## v0.5.51 — 2026-08-13
 
 Fixes issue #100: silent, uncapped-looking data loss in the three commands
