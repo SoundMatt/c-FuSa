@@ -5,7 +5,7 @@
 [![CI](https://github.com/SoundMatt/c-FuSa/actions/workflows/ci.yml/badge.svg)](https://github.com/SoundMatt/c-FuSa/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/SoundMatt/c-FuSa/actions/workflows/codeql.yml/badge.svg)](https://github.com/SoundMatt/c-FuSa/actions/workflows/codeql.yml)
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.5.50-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.51-blue.svg)](CHANGELOG.md)
 
 > **c-FuSa is not a certification product.** It is an engineering accelerator — helping you produce and maintain safety evidence faster.
 
