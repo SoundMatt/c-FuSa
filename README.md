@@ -15,11 +15,11 @@
 
 | Standard | Coverage |
 |---|---|
-| ISO 26262 | HARA, FMEA, safety case, traceability |
+| [ISO 26262](docs/standards/iso26262.md) | HARA, ASIL derivation, ASIL-scaled gates, FMEA, safety case, traceability |
 | IEC 61508 | Functional safety lifecycle |
 | ISO 21434 | TARA, CWE-mapped cyber rules |
-| DO-178C | Annex A objectives, SAS, SCI, problem reports |
-| MISRA-C:2012 | Lint rules (L001–L010) |
+| [DO-178C](docs/standards/do178c.md) | Annex A objectives, SAS, SCI, problem reports |
+| [MISRA-C:2012](docs/standards/misra-c.md) | Lint rules (L001–L012) |
 | CERT-C | Static analysis and cybersecurity rules |
 | SLSA | Build provenance (SLSA v0.2), SPDX-3.0.1 SBOM |
 | IEC 62443-4-2 | Component Security Requirements (CR) gap report by Security Level |
