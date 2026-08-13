@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../vendor/unity/unity.h"
+#include "cfusa/utils.h"
 
 extern int cmd_init(int argc, char **argv);
 extern int cmd_sas(int argc, char **argv);
@@ -390,7 +391,7 @@ void test_misra_note_strong_at_asil_d(void)
     (void)mkdir(MISRA_ASIL_DIR, 0700);
     char cfgpath[256];
     snprintf(cfgpath, sizeof(cfgpath), "%s/.fusa.json", MISRA_ASIL_DIR);
-    FILE *cf = fopen(cfgpath, "w");
+    FILE *cf = cfusa_fopen_write(cfgpath);
     TEST_ASSERT_NOT_NULL(cf);
     if (cf) {
         fputs("{\"configVersion\":\"1.0\",\"standards\":[\"iso26262:ASIL-D\"]}\n", cf);
