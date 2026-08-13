@@ -468,6 +468,109 @@ void test_comp001_passes_simple_function(void)
     rm_file("simple.c");
 }
 
+/* ── COMP001/COMP002: ASIL-scaled threshold via .fusa.json (issue #107) ── */
+
+/* V(G)=5 (1 base + 4 "if" decisions): above ASIL-D's threshold (4), at or
+ * below the unscaled default (10) and DAL-D's threshold (20) — a probe
+ * that only fires when the ASIL-D threshold is actually the one in
+ * effect. */
+static void make_vg5_function(void)
+{
+    make_file("vg5.c",
+        "int mid(int a, int b, int c, int d) {\n"
+        "  if (a > 0) { return 1; }\n"
+        "  if (b > 0) { return 2; }\n"
+        "  if (c > 0) { return 3; }\n"
+        "  if (d > 0) { return 4; }\n"
+        "  return 0;\n"
+        "}\n");
+}
+
+static int run_comp001_warning_count(void)
+{
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "COMP001") == 0) r->run(SR_DIR, &cfg, &rpt);
+    }
+    int n = rpt.warning_count;
+    cfusa_report_free(&rpt);
+    return n;
+}
+
+//cfusa:req REQ-COMPTHR001
+//cfusa:test REQ-COMPTHR001
+void test_comp_threshold_default_passes_vg5(void)
+{
+    /* No .fusa.json -> unscaled default threshold (10) -> V(G)=5 is clean. */
+    make_vg5_function();
+    TEST_ASSERT_EQUAL_INT(0, run_comp001_warning_count());
+    rm_file("vg5.c");
+}
+
+//cfusa:req REQ-COMPTHR001
+//cfusa:test REQ-COMPTHR001
+void test_comp_threshold_iso26262_asil_d_fails_vg5(void)
+{
+    /* standards[] declares ISO 26262 ASIL-D (threshold 4, same as
+     * cfusa comp --asil-d) -> V(G)=5 exceeds it -> warns. Previously this
+     * gate only recognized DO-178C DAL tags and would have silently used
+     * the unscaled default (10) instead. */
+    make_file(".fusa.json",
+        "{\"configVersion\":\"1.0\",\"standards\":[\"iso26262:ASIL-D\"]}\n");
+    make_vg5_function();
+    TEST_ASSERT_TRUE(run_comp001_warning_count() > 0);
+    rm_file("vg5.c");
+    rm_file(".fusa.json");
+}
+
+//cfusa:req REQ-COMPTHR001
+//cfusa:test REQ-COMPTHR001
+void test_comp_threshold_dal_and_asil_combine_to_stricter(void)
+{
+    /* Both DO-178C DAL-D (threshold 20, would alone pass V(G)=5) and ISO
+     * 26262 ASIL-D (threshold 4) declared together -> the stricter of the
+     * two (ASIL-D) must win, not DAL-D silently suppressing it. */
+    make_file(".fusa.json",
+        "{\"configVersion\":\"1.0\","
+        "\"standards\":[\"do178:DAL-D\",\"iso26262:ASIL-D\"]}\n");
+    make_vg5_function();
+    TEST_ASSERT_TRUE(run_comp001_warning_count() > 0);
+    rm_file("vg5.c");
+    rm_file(".fusa.json");
+}
+
+//cfusa:req REQ-COMPTHR001
+//cfusa:test REQ-COMPTHR001
+void test_comp_threshold_asil_d_matches_comp_command_asil_d(void)
+{
+    /* cfusa comp --asil-d already uses threshold 4 (aliased to
+     * THRESHOLD_DAL_A) -- this proves check's automatic gate now derives
+     * the identical threshold from an ISO 26262 ASIL-D declaration
+     * without needing a separate `cfusa comp --asil-d` invocation. */
+    make_file(".fusa.json",
+        "{\"configVersion\":\"1.0\",\"standards\":[\"iso26262:ASIL-D\"]}\n");
+    /* V(G)=4 exactly at the ASIL-D/threshold=4 boundary: COMP001 only
+     * warns when complexity strictly exceeds the threshold, so this one
+     * function must NOT warn while the vg5 (V(G)=5) case above does. */
+    make_file("vg4.c",
+        "int lo(int a, int b, int c) {\n"
+        "  if (a > 0) { return 1; }\n"
+        "  if (b > 0) { return 2; }\n"
+        "  if (c > 0) { return 3; }\n"
+        "  return 0;\n"
+        "}\n");
+    TEST_ASSERT_EQUAL_INT(0, run_comp001_warning_count());
+    rm_file("vg4.c");
+    rm_file(".fusa.json");
+}
+
 /* ── Rule count sanity ──────────────────────────────────────────────── */
 
 void test_safety_rules_register_count(void)
@@ -502,6 +605,10 @@ int main(void)
     /* Complexity rule */
     RUN_TEST(test_comp001_detects_complex_function);
     RUN_TEST(test_comp001_passes_simple_function);
+    RUN_TEST(test_comp_threshold_default_passes_vg5);
+    RUN_TEST(test_comp_threshold_iso26262_asil_d_fails_vg5);
+    RUN_TEST(test_comp_threshold_dal_and_asil_combine_to_stricter);
+    RUN_TEST(test_comp_threshold_asil_d_matches_comp_command_asil_d);
     /* Sanity */
     RUN_TEST(test_safety_rules_register_count);
     return UNITY_END();

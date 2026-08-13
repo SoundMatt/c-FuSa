@@ -50,6 +50,7 @@
     {"id":"REQ-COUPLING003","title":"COUP003 warns when coupling-report.json absent","standard":"DO-178C","level":"DAL-A"},
     {"id":"REQ-DISP001","title":"DISP001 warns on undispositioned ERROR findings","standard":"ISO 26262","level":"ASIL-B"},
     {"id":"REQ-COMP001","title":"COMP001 detects cyclomatic complexity violations","standard":"DO-178C","level":"DAL-A"},
+    {"id":"REQ-COMPTHR001","title":"COMP001's automatic check-engine threshold recognizes an ISO 26262 ASIL declaration in .fusa.json standards[] (not just DO-178C DAL), using the same threshold table as cfusa comp --asil-d/c/b/a; when both a DAL and ASIL are declared the stricter threshold wins","standard":"ISO 26262","level":"ASIL-D"},
     {"id":"REQ-DUPREQ001","title":"DUPREQ001 fails check on duplicate requirement ids in .fusa-reqs.json","standard":"ISO 26262","level":"ASIL-B"},
     {"id":"REQ-SEV001","title":"cfusa_dal_rank ranks DAL-A..DAL-E from most (4) to least (0) stringent, case-insensitively, returning -1 for unrecognized input","standard":"c-FuSa CLI","level":"ASIL-B"},
     {"id":"REQ-SEV002","title":"cfusa_asil_rank ranks QM/ASIL-A..ASIL-D from least (0) to most (4) stringent, case-insensitively, returning -1 for unrecognized input","standard":"c-FuSa CLI","level":"ASIL-B"},
