@@ -21,6 +21,7 @@
 #include "cfusa/engine.h"
 #include "cfusa/report.h"
 #include "cfusa/config.h"
+#include "cfusa/severity.h"
 #include "cfusa/utils.h"
 
 //cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA010
@@ -310,16 +311,9 @@ static int rule_hara004(const char *dir, const cfusa_config_t *cfg,
 
 /* ── HARA005 — max hazard ASIL must not exceed project ASIL ─────────── */
 
-static int asil_rank(const char *s)
-{
-    if (!s) return -1;
-    if (strcmp(s,"QM")==0)     return 0;
-    if (strcmp(s,"ASIL-A")==0) return 1;
-    if (strcmp(s,"ASIL-B")==0) return 2;
-    if (strcmp(s,"ASIL-C")==0) return 3;
-    if (strcmp(s,"ASIL-D")==0) return 4;
-    return -1;
-}
+/* ASIL ranking is the shared cfusa_asil_rank() (include/cfusa/severity.h)
+ * — previously a local copy here, consolidated so this and every other
+ * ASIL/DAL-scaled gate (see issue #104) rank ASIL strings identically. */
 
 static int rule_hara005(const char *dir, const cfusa_config_t *cfg,
                          cfusa_report_t *rpt)
@@ -338,7 +332,7 @@ static int rule_hara005(const char *dir, const cfusa_config_t *cfg,
             const char *colon = strchr(s, ':');
             if (colon) {
                 snprintf(proj_asil, sizeof(proj_asil), "%s", colon + 1);
-                proj_rank = asil_rank(proj_asil);
+                proj_rank = cfusa_asil_rank(proj_asil);
             }
         }
     }
@@ -354,7 +348,7 @@ static int rule_hara005(const char *dir, const cfusa_config_t *cfg,
         while (*fp == ':' || *fp == ' ') fp++;
         if (*fp == '"') fp++;
         sscanf(fp, "%31[^\"]", asil);
-        int r = asil_rank(asil);
+        int r = cfusa_asil_rank(asil);
         if (r > max_haz_rank) {
             max_haz_rank = r;
             strncpy(max_haz_asil, asil, sizeof(max_haz_asil) - 1);
