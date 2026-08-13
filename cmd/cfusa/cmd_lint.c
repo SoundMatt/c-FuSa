@@ -524,6 +524,113 @@ static int rule_l010(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+//cfusa:req REQ-LINT015
+/* L011 — octal constant (MISRA-C 2012 Rule 7.1) — c-FuSa issue #108.
+ *
+ * A '0' immediately followed by another digit, with no identifier/'.'
+ * character directly before it, is an octal integer constant in C (e.g.
+ * 0755). The boundary-before check alone is enough to reject the leading
+ * '0' of a hex literal too: in "0x0A" the second '0' is preceded by 'x'
+ * (alnum), so it never matches; a bare "0" or a float like "0.5" also
+ * never matches since the character right after '0' isn't a digit. */
+static void l011_line(const char *path, int lineno, const char *line, void *vctx)
+{
+    line_scan_ctx_t *ctx = vctx;
+    const char *p = line;
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p == '/' || *p == '*') return; /* comment-only line */
+
+    int in_str = 0;
+    for (const char *q = line; *q; q++) {
+        if (*q == '"' && (q == line || q[-1] != '\\')) { in_str = !in_str; continue; }
+        if (in_str) continue;
+        if (*q == '0' && q[1] >= '0' && q[1] <= '9') {
+            int boundary_ok = (q == line) ||
+                !(isalnum((unsigned char)q[-1]) || q[-1] == '.' || q[-1] == '_');
+            if (boundary_ok) {
+                cfusa_report_add(ctx->rpt,
+                    "CFUSA-L011", CFUSA_CATEGORY_LINT, SEV_WARNING,
+                    path, lineno,
+                    "octal constant — MISRA-C 2012 Rule 7.1: octal "
+                    "constants (other than zero) shall not be used");
+                return; /* one finding per line is enough */
+            }
+        }
+    }
+}
+
+static int l011_file(const char *path, void *v)
+{
+    cfusa_scan_lines(path, l011_line, v); return 0;
+}
+
+static int rule_l011(const char *dir, const cfusa_config_t *cfg,
+                      cfusa_report_t *rpt)
+{
+    (void)cfg;
+    static const char * const exts[] = {".c", ".h"};
+    line_scan_ctx_t ctx = {rpt};
+    cfusa_walk_sources(dir, exts, 2, l011_file, &ctx);
+    return 0;
+}
+
+//cfusa:req REQ-LINT016
+/* L012 — macro defined with the same name as a C keyword
+ * (MISRA-C 2012 Rule 20.4) — c-FuSa issue #108. */
+static const char * const c_keywords[] = {
+    "auto","break","case","char","const","continue","default","do",
+    "double","else","enum","extern","float","for","goto","if",
+    "inline","int","long","register","restrict","return","short",
+    "signed","sizeof","static","struct","switch","typedef","union",
+    "unsigned","void","volatile","while",
+    "_Bool","_Complex","_Imaginary",
+    NULL
+};
+
+static void l012_line(const char *path, int lineno, const char *line, void *vctx)
+{
+    line_scan_ctx_t *ctx = vctx;
+    const char *p = line;
+    while (*p == ' ' || *p == '\t') p++;
+    if (strncmp(p, "#define", 7) != 0) return;
+    p += 7;
+    while (*p == ' ' || *p == '\t') p++;
+
+    const char *start = p;
+    while (isalnum((unsigned char)*p) || *p == '_') p++;
+    size_t len = (size_t)(p - start);
+    if (len == 0) return;
+
+    for (int i = 0; c_keywords[i]; i++) {
+        size_t klen = strlen(c_keywords[i]);
+        if (klen == len && strncmp(start, c_keywords[i], klen) == 0) {
+            cfusa_report_add(ctx->rpt,
+                "CFUSA-L012", CFUSA_CATEGORY_LINT, SEV_ERROR,
+                path, lineno,
+                "macro '%s' has the same name as a C keyword — MISRA-C "
+                "2012 Rule 20.4: a macro shall not be defined with a "
+                "reserved keyword identifier",
+                c_keywords[i]);
+            return;
+        }
+    }
+}
+
+static int l012_file(const char *path, void *v)
+{
+    cfusa_scan_lines(path, l012_line, v); return 0;
+}
+
+static int rule_l012(const char *dir, const cfusa_config_t *cfg,
+                      cfusa_report_t *rpt)
+{
+    (void)cfg;
+    static const char * const exts[] = {".c", ".h"};
+    line_scan_ctx_t ctx = {rpt};
+    cfusa_walk_sources(dir, exts, 2, l012_file, &ctx);
+    return 0;
+}
+
 /* ---- rule table ---- */
 
 static const cfusa_rule_t lint_rules[] = {
@@ -547,6 +654,10 @@ static const cfusa_rule_t lint_rules[] = {
      "#pragma reduces portability","misra-c","R20.10",rule_l009},
     {"CFUSA-L010","lint","errno usage",
      "errno must be zeroed before use","misra-c","R22.8",rule_l010},
+    {"CFUSA-L011","lint","No octal constants",
+     "Octal constants (other than zero) shall not be used","misra-c","R7.1",rule_l011},
+    {"CFUSA-L012","lint","No keyword-named macros",
+     "A macro shall not be defined with the same name as a keyword","misra-c","R20.4",rule_l012},
 };
 #define N_LINT_RULES ((int)(sizeof(lint_rules)/sizeof(lint_rules[0])))
 
@@ -588,7 +699,7 @@ int cmd_lint(int argc, char **argv)
             printf("Usage: cfusa lint [--dir <path>] [--format text|json|sarif|html|md]\n"
                    "                  [--output <file>] [--strict] [--list]\n\n"
                    "Checks C source for MISRA-C and CERT-C coding standard violations.\n\n"
-                   "Rules: CFUSA-L001 through CFUSA-L010\n");
+                   "Rules: CFUSA-L001 through CFUSA-L012\n");
             return 0;
         default: return 2;
         }

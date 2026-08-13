@@ -192,6 +192,94 @@ void test_l010_errno_include_silent(void)
     cfusa_report_free(&rpt);
 }
 
+/* ---- L011: octal constant (MISRA-C 2012 Rule 7.1) — issue #108 ---- */
+
+//cfusa:req REQ-LINT015
+//cfusa:test REQ-LINT015
+void test_l011_octal_literal_fires(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("void fn(void) { int mode = 0755; (void)mode; }\n", &rpt);
+    TEST_ASSERT_TRUE(count_rule(&rpt,"CFUSA-L011") > 0);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT015
+//cfusa:test REQ-LINT015
+void test_l011_hex_literal_silent(void)
+{
+    /* The '0' in 0x0A is never checked in isolation: the boundary-before
+     * check on the second '0' (preceded by 'x') rejects it, and the first
+     * '0' is followed by 'x' (not a digit) so it never matches either. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("void fn(void) { int mode = 0x0A; (void)mode; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-L011"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT015
+//cfusa:test REQ-LINT015
+void test_l011_plain_zero_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("void fn(void) { int z = 0; (void)z; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-L011"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT015
+//cfusa:test REQ-LINT015
+void test_l011_float_literal_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("void fn(void) { double d = 0.5; (void)d; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-L011"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT015
+//cfusa:test REQ-LINT015
+void test_l011_octal_in_string_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("void fn(void) { const char *s = \"mode 0755\"; (void)s; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-L011"));
+    cfusa_report_free(&rpt);
+}
+
+/* ---- L012: keyword-named macro (MISRA-C 2012 Rule 20.4) — issue #108 ---- */
+
+//cfusa:req REQ-LINT016
+//cfusa:test REQ-LINT016
+void test_l012_keyword_macro_fires(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("#define int short\nvoid fn(void) {}\n", &rpt);
+    TEST_ASSERT_TRUE(count_rule(&rpt,"CFUSA-L012") > 0);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT016
+//cfusa:test REQ-LINT016
+void test_l012_non_keyword_macro_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("#define MAX_SIZE 128\nvoid fn(void) {}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-L012"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT016
+//cfusa:test REQ-LINT016
+void test_l012_keyword_prefixed_identifier_silent(void)
+{
+    /* "integer" is not the keyword "int" -- exact-length match only. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("#define integer long\nvoid fn(void) {}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-L012"));
+    cfusa_report_free(&rpt);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -208,5 +296,13 @@ int main(void)
     RUN_TEST(test_l009_pragma_comment_silent);
     RUN_TEST(test_l009_pragma_pack_fires);
     RUN_TEST(test_l010_errno_include_silent);
+    RUN_TEST(test_l011_octal_literal_fires);
+    RUN_TEST(test_l011_hex_literal_silent);
+    RUN_TEST(test_l011_plain_zero_silent);
+    RUN_TEST(test_l011_float_literal_silent);
+    RUN_TEST(test_l011_octal_in_string_silent);
+    RUN_TEST(test_l012_keyword_macro_fires);
+    RUN_TEST(test_l012_non_keyword_macro_silent);
+    RUN_TEST(test_l012_keyword_prefixed_identifier_silent);
     return UNITY_END();
 }

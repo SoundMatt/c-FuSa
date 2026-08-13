@@ -2,6 +2,7 @@
 #include <string.h>
 #include <getopt.h>
 #include "cfusa/config.h"
+#include "cfusa/severity.h"
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
@@ -29,7 +30,7 @@ static const misra_row_t MISRA_RULES[] = {
     {"R5.1",  "required",  "External identifiers shall be distinct",             NULL},
     {"R5.7",  "required",  "A tag name shall be a unique identifier",            NULL},
     {"R6.1",  "required",  "Bit-fields shall only be of essential Boolean type", NULL},
-    {"R7.1",  "required",  "Octal constants shall not be used",                  NULL},
+    {"R7.1",  "required",  "Octal constants shall not be used",                  "CFUSA-L011"},
     {"R7.2",  "required",  "A suffix shall be applied to all integer constants", NULL},
     {"R7.4",  "required",  "A string literal shall not be assigned to an object with non-const type", NULL},
     {"R8.1",  "required",  "Types shall be explicitly specified",                NULL},
@@ -48,7 +49,7 @@ static const misra_row_t MISRA_RULES[] = {
     {"R17.2", "required",  "Functions shall not call themselves, directly or indirectly","CFUSA-L004"},
     {"R17.4", "mandatory", "All exit paths from a function with non-void return shall have explicit return","CFUSA-L006"},
     {"R18.4", "advisory",  "The +, -, += and -= operators should not be applied to pointer-type expressions","CFUSA-A006"},
-    {"R20.4", "required",  "A macro shall not be defined with the same name as a keyword",NULL},
+    {"R20.4", "required",  "A macro shall not be defined with the same name as a keyword","CFUSA-L012"},
     {"R20.5", "advisory",  "#undef should not be used",                          "CFUSA-L005"},
     {"R20.10","advisory",  "The # and ## preprocessor operators should not be used","CFUSA-L009"},
     {"R21.3", "required",  "Memory allocation and deallocation from stdlib shall not be used","CFUSA-L003"},
@@ -56,6 +57,30 @@ static const misra_row_t MISRA_RULES[] = {
     {"R22.8", "required",  "The value of errno shall be set to zero before call", "CFUSA-L010"},
     {NULL,NULL,NULL,NULL}
 };
+
+//cfusa:req REQ-MISRA002
+/*
+ * Extracts a declared ISO 26262 ASIL from cfg->standards[] (same
+ * "iso26262:ASIL-X" convention comp_threshold()/HARA005 already use),
+ * returning its cfusa_asil_rank() or -1 if none is declared — c-FuSa
+ * issue #108: the accredited-third-party-tool recommendation below is
+ * scaled to a hard requirement at ASIL-C/D rather than a uniform
+ * soft note regardless of declared criticality.
+ */
+static int declared_asil_rank(const cfusa_config_t *cfg)
+{
+    for (int i = 0; i < cfg->standards_count; i++) {
+        const char *s = cfg->standards[i];
+        if (strncmp(s, "iso26262", 8) == 0 || strncmp(s, "ISO 26262", 9) == 0) {
+            const char *colon = strchr(s, ':');
+            if (colon) {
+                int r = cfusa_asil_rank(colon + 1);
+                if (r >= 0) return r;
+            }
+        }
+    }
+    return -1;
+}
 
 int cmd_misra(int argc, char **argv)
 {
@@ -99,6 +124,10 @@ int cmd_misra(int argc, char **argv)
         if (MISRA_RULES[i].cfusa_rule) covered++; else not_covered++;
     }
 
+    /* ASIL-C/D: the accredited-third-party-tool note below is a hard
+     * requirement, not a soft recommendation (issue #108). */
+    int strong_note = declared_asil_rank(&cfg) >= 3;
+
     FILE *out = stdout;
     if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 3; } }
 
@@ -134,9 +163,13 @@ int cmd_misra(int argc, char **argv)
         }
         fprintf(out,
             "\n  ],\n"
-            "  \"summary\": {\"total\": %d, \"satisfied\": %d, \"partial\": 0, \"gaps\": %d}\n"
+            "  \"summary\": {\"total\": %d, \"satisfied\": %d, \"partial\": 0, \"gaps\": %d},\n"
+            "  \"accreditedToolNote\": \"%s\"\n"
             "}\n",
-            covered + not_covered, covered, not_covered);
+            covered + not_covered, covered, not_covered,
+            strong_note
+              ? "REQUIRED: project declares ASIL-C/D — cfusa's pattern-based MISRA-C subset is not sufficient for a production ASIL-C/D compliance claim; an accredited MISRA-C tool is required"
+              : "RECOMMENDED: cfusa covers MISRA checking at the pattern/lint level; supplement with an accredited MISRA-C tool for full compliance analysis");
     } else {
         fprintf(out, "MISRA C:2012 Rule Coverage\n");
         fprintf(out, "==========================\n\n");
@@ -154,8 +187,16 @@ int cmd_misra(int argc, char **argv)
         }
 
         fprintf(out, "\n%d rules covered by cfusa, %d gap(s).\n", covered, not_covered);
-        fprintf(out, "Note: cfusa covers MISRA checking at the pattern/lint level.\n"
+        if (strong_note) {
+            fprintf(out,
+               "REQUIRED: this project declares ASIL-C/D. cfusa's pattern-based\n"
+               "MISRA-C subset is NOT sufficient for a production ASIL-C/D MISRA-C\n"
+               "compliance claim — an accredited MISRA-C tool (e.g. LDRA, PC-lint\n"
+               "Plus, Polyspace) is required, not merely recommended.\n");
+        } else {
+            fprintf(out, "Note: cfusa covers MISRA checking at the pattern/lint level.\n"
                "Full MISRA-C:2012 conformance requires compiler/static-analyser integration.\n");
+        }
     }
 
     if (output && out != stdout) fclose(out);
