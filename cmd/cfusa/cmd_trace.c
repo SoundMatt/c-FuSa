@@ -21,8 +21,6 @@
 
 #define REQS_FILE        ".fusa-reqs.json"
 #define REQS_FILE_LEGACY ".cfusa-reqs.json"
-#define MAX_REQS   1024
-#define MAX_TAGS   4096
 #define MAX_ID     64
 #define MAX_TITLE  128
 
@@ -36,9 +34,49 @@ typedef struct { char id[MAX_ID]; char title[MAX_TITLE];
 typedef struct { char req_id[MAX_ID]; char file[256];
                  int line; int kind; } tag_t;
 
-static req_t g_reqs[MAX_REQS];  static int g_req_count;
-static tag_t g_tags[MAX_TAGS];  static int g_tag_count;
-static char  g_dir_abs[512];    /* resolved absolute project root for path relativization */
+static req_t *g_reqs; static int g_req_count; static int g_req_cap;
+static tag_t *g_tags; static int g_tag_count; static int g_tag_cap;
+/* Set when a tag fails to grow g_tags (OOM) — checked by the caller after
+ * the source scan so a partial tag set is never mistaken for a complete
+ * one (same rationale as reqs_reserve() below). */
+static int g_tag_alloc_failed;
+static char g_dir_abs[512];    /* resolved absolute project root for path relativization */
+
+/*
+ * Requirements and tags arrays both grow dynamically via realloc — neither
+ * has a fixed cap. Compile-time array sizes here previously caused
+ * .fusa-reqs.json files (or source trees with many //cfusa:req/test tags)
+ * larger than the cap to be silently truncated mid-parse/mid-scan, which
+ * let genuinely-incomplete data read as fully loaded (false 100% coverage)
+ * to every downstream consumer (project issue #100). A growth failure
+ * (OOM) is reported to the caller instead of silently dropping entries.
+ */
+#define REQS_INITIAL_CAP 128
+#define TAGS_INITIAL_CAP 256
+
+static int reqs_reserve(int need)
+{
+    if (need <= g_req_cap) return 1;
+    int new_cap = g_req_cap ? g_req_cap : REQS_INITIAL_CAP;
+    while (new_cap < need) new_cap *= 2;
+    req_t *tmp = realloc(g_reqs, (size_t)new_cap * sizeof(req_t));
+    if (!tmp) return 0;
+    g_reqs = tmp;
+    g_req_cap = new_cap;
+    return 1;
+}
+
+static int tags_reserve(int need)
+{
+    if (need <= g_tag_cap) return 1;
+    int new_cap = g_tag_cap ? g_tag_cap : TAGS_INITIAL_CAP;
+    while (new_cap < need) new_cap *= 2;
+    tag_t *tmp = realloc(g_tags, (size_t)new_cap * sizeof(tag_t));
+    if (!tmp) return 0;
+    g_tags = tmp;
+    g_tag_cap = new_cap;
+    return 1;
+}
 
 /* ---- HLR/LLR decomposition state (REQ-HLR001) ---- */
 #define MAX_HLR_LLR 512
@@ -66,8 +104,10 @@ static void jfield(const char *obj, const char *key, char *out, size_t sz)
     out[i] = '\0';
 }
 
-/* Load requirements — try .fusa-reqs.json first, fall back to legacy .cfusa-reqs.json */
-static void load_reqs(const char *dir)
+/* Load requirements — try .fusa-reqs.json first, fall back to legacy
+ * .cfusa-reqs.json. Returns 1 on a complete parse, 0 if the catalog could
+ * not be loaded in full (allocation failure) — never truncates silently. */
+static int load_reqs(const char *dir)
 {
     char path[512]; cfusa_path_join(path, sizeof(path), dir, REQS_FILE);
     size_t len; char *json = cfusa_read_file(path, &len);
@@ -78,19 +118,28 @@ static void load_reqs(const char *dir)
             fprintf(stderr, "cfusa trace: WARNING: %s is deprecated; rename to %s\n",
                     REQS_FILE_LEGACY, REQS_FILE);
     }
-    if (!json) return;
+    if (!json) return 1;
 
     /* §1.2.2: check for duplicate requirement ids and emit ERRORs */
     /* (collected after loading; detected via second pass below) */
 
     const char *p = strstr(json, "\"requirements\"");
     if (p) p = strchr(p, '[');
-    if (!p) { free(json); return; }
+    if (!p) { free(json); return 1; }
     p++;
 
-    while (*p && *p != ']' && g_req_count < MAX_REQS) {
+    int ok = 1;
+    while (*p && *p != ']') {
         const char *bs = strchr(p, '{'); if (!bs) break;
         const char *be = strchr(bs, '}'); if (!be) break;
+        if (!reqs_reserve(g_req_count + 1)) {
+            fprintf(stderr,
+                    "cfusa trace: out of memory loading %s — only %d "
+                    "requirement(s) loaded; results are INCOMPLETE\n",
+                    REQS_FILE, g_req_count);
+            ok = 0;
+            break;
+        }
         /* Heap-allocate to the exact object length so requirement objects
          * longer than a fixed stack buffer are no longer silently truncated
          * (which dropped id/title/parent fields past ~1KB). */
@@ -124,6 +173,7 @@ static void load_reqs(const char *dir)
                         g_reqs[i].id, REQS_FILE);
         }
     }
+    return ok;
 }
 
 /* ---- annotation scanner ---- */
@@ -143,7 +193,7 @@ static void add_tag(const char *path, int lineno, const char *ids, int kind)
     char buf[512]; strncpy(buf, ids, sizeof(buf) - 1);
     char *end = strpbrk(buf, "\n\r\""); if (end) *end = '\0';
     char *tok = strtok(buf, " \t,");
-    while (tok && g_tag_count < MAX_TAGS) {
+    while (tok) {
         char *t = cfusa_str_trim(tok);
         /* Only accept valid IDs: non-empty, alphanumeric + '-'/'_' */
         int valid = t[0] != '\0';
@@ -152,11 +202,15 @@ static void add_tag(const char *path, int lineno, const char *ids, int kind)
             if (!isalnum(c) && c != '-' && c != '_') valid = 0;
         }
         if (valid) {
-            strncpy(g_tags[g_tag_count].req_id, t,       MAX_ID - 1);
-            strncpy(g_tags[g_tag_count].file,   relpath, 255);
-            g_tags[g_tag_count].line = lineno;
-            g_tags[g_tag_count].kind = kind;
-            g_tag_count++;
+            if (!tags_reserve(g_tag_count + 1)) {
+                g_tag_alloc_failed = 1;
+            } else {
+                strncpy(g_tags[g_tag_count].req_id, t,       MAX_ID - 1);
+                strncpy(g_tags[g_tag_count].file,   relpath, 255);
+                g_tags[g_tag_count].line = lineno;
+                g_tags[g_tag_count].kind = kind;
+                g_tag_count++;
+            }
         }
         tok = strtok(NULL, " \t,");
     }
@@ -181,7 +235,7 @@ static void trace_line_cb(const char *path, int lineno,
         char buf[512]; strncpy(buf, p, sizeof(buf) - 1);
         char *e = strpbrk(buf, "*/\n"); if (e) *e = '\0';
         char *tok = strtok(buf, ", \t");
-        while (tok && g_tag_count < MAX_TAGS) {
+        while (tok) {
             char *t = cfusa_str_trim(tok);
             if (*t) add_tag(path, lineno, t, KIND_IMPL);
             tok = strtok(NULL, ", \t");
@@ -407,6 +461,7 @@ int cmd_trace(int argc, char **argv)
     }
 
     g_req_count = g_tag_count = 0;
+    g_tag_alloc_failed = 0;
     g_dir_abs[0] = '\0';
     g_hlr_count = g_llr_count = g_orphaned_count = g_uncovered_count = 0;
     {
@@ -414,11 +469,24 @@ int cmd_trace(int argc, char **argv)
         if (tmp) { strncpy(g_dir_abs, tmp, sizeof(g_dir_abs) - 1); free(tmp); }
         else strncpy(g_dir_abs, dir, sizeof(g_dir_abs) - 1);
     }
-    load_reqs(dir);
+    if (!load_reqs(dir)) {
+        fprintf(stderr,
+                "cfusa trace: ERROR: requirement catalog failed to load in "
+                "full (out of memory) — refusing to report a coverage "
+                "result that could be mistaken for complete\n");
+        return 1;
+    }
 
     scan_ctx_t sctx = {legacy};
     static const char * const exts[] = {".c", ".h"};
     cfusa_walk_sources(dir, exts, 2, trace_file_cb, &sctx);
+    if (g_tag_alloc_failed) {
+        fprintf(stderr,
+                "cfusa trace: ERROR: annotation scan failed to complete in "
+                "full (out of memory) — refusing to report a coverage "
+                "result that could be mistaken for complete\n");
+        return 1;
+    }
 
     //cfusa:req REQ-TESTDANGLE001
     /* §1.4.1 item 3 (REQ-TESTDANGLE001): a //cfusa:test or //cfusa:sec-test
