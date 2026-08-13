@@ -16,6 +16,8 @@ MISRA-C:2012 (Motor Industry Software Reliability Association) defines mandatory
 | CFUSA-L008 | Rule 11.5 | Advisory |
 | CFUSA-L009 | Rule 20.10 | Advisory |
 | CFUSA-L010 | Rule 22.8 | Required |
+| CFUSA-L011 | Rule 7.1 | Required |
+| CFUSA-L012 | Rule 20.4 | Required |
 
 ## Deviations
 
@@ -24,3 +26,5 @@ MISRA-C deviations must be formally documented. c-FuSa's `check` exit code refle
 ## Note
 
 c-FuSa implements a pattern-based subset of MISRA-C rules. For full compliance analysis at production ASIL level, supplement with an accredited MISRA-C tool (e.g., LDRA, PC-lint Plus, Polyspace).
+
+**At ASIL-C/D this is not optional.** `cfusa misra` scales its own note accordingly: a project declaring `iso26262:ASIL-C` or `iso26262:ASIL-D` in `.fusa.json`'s `standards[]` gets a `REQUIRED` (not `RECOMMENDED`) accredited-tool note in both text and JSON (`accreditedToolNote`) output — c-FuSa's pattern-based subset alone is not sufficient evidence for a production ASIL-C/D MISRA-C compliance claim.

@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../vendor/unity/unity.h"
+#include "cfusa/utils.h"
 
 extern int cmd_init(int argc, char **argv);
 extern int cmd_sas(int argc, char **argv);
@@ -337,6 +338,80 @@ void test_misra_json_format(void)
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"objectives\""));
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"summary\""));
     }
+}
+
+//cfusa:req REQ-MISRA002
+//cfusa:test REQ-MISRA002
+void test_misra_l011_l012_covered_not_gaps(void)
+{
+    /* CFUSA-L011 (R7.1) and CFUSA-L012 (R20.4) were added by issue #108 —
+     * confirm cmd_misra's coverage table now reports both as satisfied,
+     * not GAP. */
+    char out[256];
+    snprintf(out, sizeof(out), "%s/misra_l0112.txt", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--output", out, NULL};
+    cmd_misra(5, argv);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "CFUSA-L011"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "CFUSA-L012"));
+        (void)remove(out);
+    }
+}
+
+#define MISRA_ASIL_DIR "/tmp/cfusa_misra_asil_testdir"
+
+//cfusa:req REQ-MISRA002
+//cfusa:test REQ-MISRA002
+void test_misra_note_soft_without_asil_declared(void)
+{
+    (void)mkdir(MISRA_ASIL_DIR, 0700);
+    char out[256];
+    snprintf(out, sizeof(out), "%s/misra_soft.json", MISRA_ASIL_DIR);
+    char *argv[] = {"cfusa", "--dir", MISRA_ASIL_DIR,
+                    "--format", "json", "--output", out, NULL};
+    cmd_misra(7, argv);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"accreditedToolNote\": \"RECOMMENDED:"));
+        (void)remove(out);
+    }
+}
+
+//cfusa:req REQ-MISRA002
+//cfusa:test REQ-MISRA002
+void test_misra_note_strong_at_asil_d(void)
+{
+    (void)mkdir(MISRA_ASIL_DIR, 0700);
+    char cfgpath[256];
+    snprintf(cfgpath, sizeof(cfgpath), "%s/.fusa.json", MISRA_ASIL_DIR);
+    FILE *cf = cfusa_fopen_write(cfgpath);
+    TEST_ASSERT_NOT_NULL(cf);
+    if (cf) {
+        fputs("{\"configVersion\":\"1.0\",\"standards\":[\"iso26262:ASIL-D\"]}\n", cf);
+        fclose(cf);
+    }
+
+    char out[256];
+    snprintf(out, sizeof(out), "%s/misra_strong.json", MISRA_ASIL_DIR);
+    char *argv[] = {"cfusa", "--dir", MISRA_ASIL_DIR,
+                    "--format", "json", "--output", out, NULL};
+    cmd_misra(7, argv);
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"accreditedToolNote\": \"REQUIRED:"));
+        (void)remove(out);
+    }
+    (void)remove(cfgpath);
 }
 
 void test_do178_json_format(void)
@@ -983,6 +1058,9 @@ int main(void)
     RUN_TEST(test_iec61508_json_format);
     RUN_TEST(test_misra_help_returns_zero);
     RUN_TEST(test_misra_json_format);
+    RUN_TEST(test_misra_l011_l012_covered_not_gaps);
+    RUN_TEST(test_misra_note_soft_without_asil_declared);
+    RUN_TEST(test_misra_note_strong_at_asil_d);
     RUN_TEST(test_do178_json_format);
     RUN_TEST(test_iso21434_json_format);
     RUN_TEST(test_iec62443_json_format);
