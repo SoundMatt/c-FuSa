@@ -163,6 +163,7 @@ cfusa_test(test_gap_coverage)
 cfusa_test(test_xfusa_v114)
 cfusa_test(test_xfusa_audit_20260728)
 cfusa_test(test_severity)
+cfusa_test(test_coverage_asil)
 
 # ---- Installation ----
 include(GNUInstallDirs)

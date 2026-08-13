@@ -6,6 +6,7 @@
 #include <string.h>
 #include <getopt.h>
 #include "cfusa/report.h"
+#include "cfusa/severity.h"
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
@@ -170,6 +171,48 @@ static void apply_dal(const char *dal, double *threshold_line,
     }
 }
 
+//cfusa:req REQ-COV020
+/*
+ * asil_thresholds: line_pct, branch_pct, mcdc_required — the ISO 26262-6
+ * counterpart to apply_dal() above, c-FuSa issue #106.
+ *
+ * ISO 26262-6:2018 Table 12 rates statement/branch/MC/DC coverage
+ * "+" (recommended) through "++" (highly recommended) by ASIL rather than
+ * DO-178C's binary "required at Level A" framing — this mapping treats
+ * Table 12's "++" MC/DC rating at ASIL-D as a hard requirement, mirroring
+ * how this command already treats DO-178C's own recommendation levels as
+ * hard gates via --dal: ASIL-D requires MC/DC (same tier as DAL-A);
+ * ASIL-C requires full branch coverage but not yet MC/DC (same tier as
+ * DAL-B); ASIL-A/B require full statement coverage only (same tier as
+ * DAL-C); QM has no coverage requirement (same tier as DAL-D).
+ *
+ * Uses the shared cfusa_asil_rank() (include/cfusa/severity.h, #104)
+ * rather than its own string table, so this and every other ASIL-scaled
+ * gate rank ASIL strings identically.
+ */
+static void apply_asil(const char *asil, double *threshold_line,
+                        double *threshold_branch, int *need_mcdc)
+{
+    int rank = cfusa_asil_rank(asil); /* 0=QM .. 4=ASIL-D, -1=invalid */
+    if (rank == 4) {                       /* ASIL-D */
+        *threshold_line   = 100.0;
+        *threshold_branch = 100.0;
+        *need_mcdc        = 1;
+    } else if (rank == 3) {                /* ASIL-C */
+        *threshold_line   = 100.0;
+        *threshold_branch = 100.0;
+        *need_mcdc        = 0;
+    } else if (rank == 1 || rank == 2) {   /* ASIL-A / ASIL-B */
+        *threshold_line   = 100.0;
+        *threshold_branch = 0.0;
+        *need_mcdc        = 0;
+    }
+    /* QM (rank 0) or invalid (-1): leave outputs unchanged — caller only
+     * raises its existing thresholds when this function's outputs exceed
+     * them (see the --asil max-combine below), so QM contributes nothing
+     * rather than lowering an already-stricter --dal/--threshold. */
+}
+
 //cfusa:req REQ-COV001 REQ-COV002 REQ-COV003 REQ-COV004
 int cmd_coverage(int argc, char **argv)
 {
@@ -178,9 +221,11 @@ int cmd_coverage(int argc, char **argv)
     const char *fmt_s        = "text";
     const char *output       = NULL;
     const char *dal          = NULL;
+    const char *asil         = NULL;  /* REQ-COV020 (issue #106) */
     double threshold         = 80.0;
-    double threshold_branch  = 0.0;   /* 0 = not enforced unless set by DAL */
+    double threshold_branch  = 0.0;   /* 0 = not enforced unless set by DAL/ASIL */
     int    dal_explicit      = 0;
+    int    asil_explicit     = 0;
     int    mcdc              = 0;
     int    mutate            = 0;
     double mutate_score      = -1.0;  /* <0 = not provided */
@@ -195,6 +240,7 @@ int cmd_coverage(int argc, char **argv)
         {"format",         required_argument, NULL, 'f'},
         {"output",         required_argument, NULL, 'o'},
         {"dal",            required_argument, NULL, 'D'},
+        {"asil",           required_argument, NULL, 'A'}, /* REQ-COV020 */
         {"threshold",      required_argument, NULL, 't'},
         {"mcdc",           no_argument,       NULL, 'm'},
         {"mcdc-file",      required_argument, NULL, 'C'}, /* REQ-COV015 */
@@ -212,7 +258,7 @@ int cmd_coverage(int argc, char **argv)
 #elif defined(__linux__)
     optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
 #endif
-    while ((c = getopt_long(argc, argv, "d:L:f:o:D:t:mC:T:MS:h", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:L:f:o:D:A:t:mC:T:MS:h", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir          = optarg;          break;
         case 'L': lcov_in      = optarg;          break;
@@ -220,6 +266,8 @@ int cmd_coverage(int argc, char **argv)
         case 'o': output       = optarg;          break;
         case 'D': dal          = optarg;
                   dal_explicit = 1;               break;
+        case 'A': asil          = optarg;
+                  asil_explicit = 1;              break; /* REQ-COV020 */
         case 't': threshold    = atof(optarg);    break;
         case 'm': mcdc         = 1;               break;
         case 'C': mcdc_file    = optarg;
@@ -232,6 +280,7 @@ int cmd_coverage(int argc, char **argv)
             printf("Usage: cfusa coverage [--dir <path>] [--lcov <file.info>]\n"
                    "                      [--format text|json] [--output <file>]\n"
                    "                      [--dal DAL-A|DAL-B|DAL-C|DAL-D]\n"
+                   "                      [--asil QM|ASIL-A|ASIL-B|ASIL-C|ASIL-D]\n"
                    "                      [--threshold <pct>] [--mcdc]\n"
                    "                      [--mcdc-file <llvm.json>] [--mcdc-threshold <pct>]\n"
                    "                      [--mutate] [--mutate-score <pct>]\n\n"
@@ -241,11 +290,18 @@ int cmd_coverage(int argc, char **argv)
                    "  DAL-B: 100%% line + branch\n"
                    "  DAL-C: 100%% line (statement)\n"
                    "  DAL-D: no coverage threshold\n"
+                   "--asil sets ISO 26262-6 Table 12 structural-coverage requirements:\n"
+                   "  ASIL-D: 100%% line + branch + MC/DC (same tier as DAL-A)\n"
+                   "  ASIL-C: 100%% line + branch (same tier as DAL-B)\n"
+                   "  ASIL-A/B: 100%% line (same tier as DAL-C)\n"
+                   "  QM: no coverage threshold (same tier as DAL-D)\n"
+                   "--dal and --asil may both be given; the stricter requirement of the two\n"
+                   "applies to each of line/branch/MC/DC independently.\n"
                    "--mcdc flags decision coverage <100%%.\n"
                    "--mcdc-file parses an LLVM coverage JSON export for MC/DC analysis.\n"
                    "--mcdc-threshold N sets the minimum %% of conditions covered (default 100).\n"
                    "--mutate reads mutation-report.json (or --mutate-score N) as\n"
-                   "MC/DC mutation-testing evidence for DO-178C DAL A/B.\n"
+                   "MC/DC mutation-testing evidence for DO-178C DAL A/B / ISO 26262 ASIL C/D.\n"
                    "Generate lcov data with: lcov --capture --directory . -o coverage.info\n");
             return 0;
         default: return 2;
@@ -260,6 +316,26 @@ int cmd_coverage(int argc, char **argv)
             return 2;
         }
         apply_dal(dal, &threshold, &threshold_branch, &mcdc);
+    }
+
+    /* Validate and apply ASIL if specified (REQ-COV020, issue #106).
+     * Combined with --dal (if also given) by taking the stricter of the
+     * two requirements for each of line/branch/MC/DC independently,
+     * rather than one overriding the other — a project declaring both
+     * standards must satisfy whichever is more demanding. */
+    if (asil_explicit) {
+        if (cfusa_asil_rank(asil) < 0) {
+            fprintf(stderr,
+                "cfusa coverage: invalid --asil %s "
+                "(use QM|ASIL-A|ASIL-B|ASIL-C|ASIL-D)\n", asil);
+            return 2;
+        }
+        double asil_line = 0.0, asil_branch = 0.0;
+        int asil_mcdc = 0;
+        apply_asil(asil, &asil_line, &asil_branch, &asil_mcdc);
+        if (asil_line   > threshold)        threshold        = asil_line;
+        if (asil_branch > threshold_branch) threshold_branch = asil_branch;
+        if (asil_mcdc)                      mcdc              = 1;
     }
 
     /* Locate lcov file if not specified.
@@ -356,6 +432,8 @@ int cmd_coverage(int argc, char **argv)
             lcov_in ? lcov_in : "");
         if (dal)
             fprintf(out_f, "  \"dal\": \"%s\",\n", dal);
+        if (asil)
+            fprintf(out_f, "  \"asil\": \"%s\",\n", asil);
         fprintf(out_f,
             "  \"lineCoverage\":     {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
             "  \"functionCoverage\": {\"hit\": %ld, \"found\": %ld, \"pct\": %.2f},\n"
@@ -404,6 +482,8 @@ int cmd_coverage(int argc, char **argv)
             fprintf(out_f, "Coverage report  (mutation-only mode)\n\n");
         if (dal)
             fprintf(out_f, "  Design Assurance Level: %s\n\n", dal);
+        if (asil)
+            fprintf(out_f, "  ASIL:                    %s\n\n", asil);
         if (lcov_in) {
             fprintf(out_f, "  Line      coverage: %6.2f%%  (%ld / %ld)  %s\n",
                     line_pct,   state.lines_hit,    state.lines_found,
