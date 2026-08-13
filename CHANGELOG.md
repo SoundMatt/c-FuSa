@@ -5,6 +5,40 @@ All notable changes to c-FuSa are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.51 — 2026-08-13
+
+Fixes issue #100: silent, uncapped-looking data loss in the three commands
+`check`/CI treat as the safety-traceability source of truth.
+
+### Fixed
+- **`cmd_req`/`cmd_trace`: silent requirement-catalog truncation
+  (`MAX_REQS`).** `.fusa-reqs.json`'s `requirements` array was parsed into a
+  fixed 1024-entry stack array (`g_reqs`); the parse loop simply stopped
+  once it was full, with no error, warning, or truncation notice of any
+  kind. A project whose requirement catalog grew past 1024 entries got a
+  **false 100% coverage / 0-errors reading** from `cfusa trace`/`cfusa
+  check`, because every requirement past the cap was never loaded at all —
+  it could never be reported missing, untested, or dangling. Reproduced
+  concretely against a 1075-entry catalog: `cfusa trace` reported
+  `1024/1024 requirements traced` (should be `1075/1075`), and a real,
+  correctly-tagged requirement past the cap was flagged as a dangling test
+  reference despite existing in the file.
+- **`cmd_impact`: same bug, `MAX_REQS=256`.** `load_req_ids()` capped the
+  requirement-id list at a fixed 256 entries with the same silent-stop
+  behavior, so a requirement past the cap could never be matched against
+  changed files in `cfusa impact`'s change-impact analysis.
+- **`cmd_req`/`cmd_trace`: same bug, `MAX_TAGS=4096`.** The `//cfusa:req`/
+  `//cfusa:test`/`//cfusa:sec-test` annotation array (`g_tags`) had the
+  identical fixed-cap/silent-stop pattern. Since a fully-traced requirement
+  needs at least one (usually two) tags, tag count grows faster than
+  requirement count — this cap could silently under-report coverage well
+  before the (now-uncapped) requirements array itself filled up.
+- All four arrays now grow dynamically via `realloc` with no fixed cap,
+  bounded only by available memory. A genuine allocation failure (OOM) —
+  the only way a load can now be incomplete — is reported as a hard
+  `ERROR` to stderr with a non-zero exit code, so a truncated run can never
+  be silently mistaken for a complete one.
+
 ## v0.5.50 — 2026-07-30
 
 _Renumbered from v0.5.49: the tag/release `v0.5.49` had already been
