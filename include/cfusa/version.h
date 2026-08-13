@@ -3,9 +3,28 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  5
-#define CFUSA_VERSION_PATCH  51
-#define CFUSA_VERSION_STRING "0.5.51"
-/* v0.5.51 — 2026-08-13 fixes issue #100: cmd_req.c/cmd_trace.c's
+#define CFUSA_VERSION_PATCH  52
+#define CFUSA_VERSION_STRING "0.5.52"
+/* v0.5.52 — 2026-08-13 ASIL-scaling initiative (issue #103, #104-#109):
+ * c-FuSa correctly derived ASIL but didn't scale the rigor ISO 26262
+ * actually escalates at higher ASIL levels — MC/DC coverage, independent
+ * review/test, and complexity/rule strictness were either DO-178C-DAL-only
+ * or inert metadata. Adds a shared cfusa_dal_rank()/cfusa_asil_rank()/
+ * cfusa_required_severity() helper (include/cfusa/severity.h, #104);
+ * `cfusa qualify` now computes achievableAsil from real V&V independence
+ * declarations instead of accepting it as a free-input string, and
+ * `--project-asil`/`--enforce` gate the command on it (#105, breaking:
+ * removes `--achievable-asil`); `cfusa coverage --asil` adds an
+ * ISO 26262-6 Table 12 MC/DC/coverage gate that composes with `--dal` via
+ * stricter-wins (#106); `check`'s automatic COMP001 threshold now agrees
+ * with `cfusa comp --asil-*` for ISO-26262-only projects (#107); two new
+ * MISRA-C rules (CFUSA-L011 octal constants, CFUSA-L012 keyword-named
+ * macros) and an ASIL-scaled accredited-third-party-tool note in
+ * `cfusa misra` (#108); new docs/standards/iso26262.md documenting what
+ * is and isn't ASIL-scaled, including the explicit non-goal of Tool
+ * Confidence Level (TCL) determination (#109).
+ *
+ * v0.5.51 — 2026-08-13 fixes issue #100: cmd_req.c/cmd_trace.c's
  * requirements array (g_reqs, MAX_REQS=1024) and cmd_impact.c's
  * requirement-id array (MAX_REQS=256) were fixed-size stack arrays whose
  * parse loops silently stopped once full — no error, no warning, no
