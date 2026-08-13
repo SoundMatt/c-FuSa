@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../vendor/unity/unity.h"
+#include "cfusa/utils.h"
 
 extern int cmd_req(int argc, char **argv);
 extern int cmd_trace(int argc, char **argv);
@@ -796,7 +797,7 @@ void test_trace_more_than_1024_reqs_not_truncated(void)
     snprintf(impl_path, sizeof(impl_path), "%s/big_impl.c", RTC_DIR);
     snprintf(out_path,  sizeof(out_path),  "%s/big_trace_out.txt", RTC_DIR);
 
-    FILE *rf = fopen(reqs_path, "w");
+    FILE *rf = cfusa_fopen_write(reqs_path);
     TEST_ASSERT_NOT_NULL(rf);
     fprintf(rf, "{\n  \"requirements\": [\n");
     for (int i = 1; i <= n; i++)
@@ -805,7 +806,7 @@ void test_trace_more_than_1024_reqs_not_truncated(void)
     fprintf(rf, "  ]\n}\n");
     fclose(rf);
 
-    FILE *cf = fopen(impl_path, "w");
+    FILE *cf = cfusa_fopen_write(impl_path);
     TEST_ASSERT_NOT_NULL(cf);
     for (int i = 1; i <= n; i++)
         fprintf(cf,
@@ -850,7 +851,7 @@ void test_req_more_than_1024_reqs_not_truncated(void)
     char reqs_path[300];
     snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
 
-    FILE *rf = fopen(reqs_path, "w");
+    FILE *rf = cfusa_fopen_write(reqs_path);
     TEST_ASSERT_NOT_NULL(rf);
     fprintf(rf, "{\n  \"requirements\": [\n");
     for (int i = 1; i <= n; i++)
@@ -884,7 +885,7 @@ void test_trace_more_than_4096_tags_not_truncated(void)
     snprintf(impl_path, sizeof(impl_path), "%s/tagcap_impl.c", RTC_DIR);
     snprintf(out_path,  sizeof(out_path),  "%s/tagcap_trace_out.txt", RTC_DIR);
 
-    FILE *rf = fopen(reqs_path, "w");
+    FILE *rf = cfusa_fopen_write(reqs_path);
     TEST_ASSERT_NOT_NULL(rf);
     fprintf(rf, "{\n  \"requirements\": [\n");
     for (int i = 1; i <= n; i++)
@@ -893,7 +894,7 @@ void test_trace_more_than_4096_tags_not_truncated(void)
     fprintf(rf, "  ]\n}\n");
     fclose(rf);
 
-    FILE *cf = fopen(impl_path, "w");
+    FILE *cf = cfusa_fopen_write(impl_path);
     TEST_ASSERT_NOT_NULL(cf);
     for (int i = 1; i <= n; i++) {
         for (int d = 0; d < 10; d++)

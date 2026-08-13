@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "../vendor/unity/unity.h"
+#include "cfusa/utils.h"
 
 extern int cmd_impact(int argc, char **argv);
 
@@ -126,7 +127,7 @@ void test_impact_loads_more_than_256_reqs_not_truncated(void)
 
     char path[300];
     snprintf(path, sizeof(path), "%s/.fusa-reqs.json", IMPACT_BIG_DIR);
-    FILE *rf = fopen(path, "w");
+    FILE *rf = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(rf);
     fprintf(rf, "{\n  \"requirements\": [\n");
     for (int i = 1; i <= 300; i++)
@@ -136,7 +137,7 @@ void test_impact_loads_more_than_256_reqs_not_truncated(void)
     fclose(rf);
 
     snprintf(path, sizeof(path), "%s/impl.c", IMPACT_BIG_DIR);
-    FILE *cf = fopen(path, "w");
+    FILE *cf = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(cf);
     fprintf(cf, "void f(void) {}\n");
     fclose(cf);
@@ -155,10 +156,13 @@ void test_impact_loads_more_than_256_reqs_not_truncated(void)
         "&& git -c user.email=t@t -c user.name=t commit -qm init"));
 
     /* Touch impl.c with a tag for the very last requirement (past the old
-     * 256-entry cap) and commit the change so `git diff` reports it. */
-    FILE *cf2 = fopen(path, "a");
+     * 256-entry cap) and commit the change so `git diff` reports it.
+     * Rewritten in full (rather than opened in append mode) so file
+     * creation always goes through cfusa_fopen_write()'s explicit 0600
+     * permissions. */
+    FILE *cf2 = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(cf2);
-    fprintf(cf2, "//cfusa:req REQ-BIGIMP-300\nvoid g(void) {}\n");
+    fprintf(cf2, "void f(void) {}\n//cfusa:req REQ-BIGIMP-300\nvoid g(void) {}\n");
     fclose(cf2);
 
     TEST_ASSERT_EQUAL(0, system("git -c user.email=t@t -c user.name=t commit -aqm change"));
