@@ -866,6 +866,69 @@ void test_req_more_than_1024_reqs_not_truncated(void)
      * before the next test runs, so no explicit cleanup is required here. */
 }
 
+//cfusa:req REQ-REQCAP001
+//cfusa:test REQ-REQCAP001
+void test_trace_more_than_4096_tags_not_truncated(void)
+{
+    /* Regression for issue #100 follow-up: g_tags used to be a fixed
+     * 4096-entry array in both cmd_req and cmd_trace, and add_tag()
+     * silently stopped appending once full — so a source tree with many
+     * annotations could under-report traced coverage even when every
+     * requirement itself loaded fine. Tag 500 requirements with 10
+     * duplicate impl tags each (5000 tags total, past the old 4096 cap)
+     * and confirm cmd_trace still reports full traced coverage for all of
+     * them. */
+    const int n = 500;
+    char reqs_path[300], impl_path[300], out_path[300];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", RTC_DIR);
+    snprintf(impl_path, sizeof(impl_path), "%s/tagcap_impl.c", RTC_DIR);
+    snprintf(out_path,  sizeof(out_path),  "%s/tagcap_trace_out.txt", RTC_DIR);
+
+    FILE *rf = fopen(reqs_path, "w");
+    TEST_ASSERT_NOT_NULL(rf);
+    fprintf(rf, "{\n  \"requirements\": [\n");
+    for (int i = 1; i <= n; i++)
+        fprintf(rf, "    {\"id\":\"REQ-TAG-%04d\",\"title\":\"r%d\"}%s\n",
+                i, i, (i < n) ? "," : "");
+    fprintf(rf, "  ]\n}\n");
+    fclose(rf);
+
+    FILE *cf = fopen(impl_path, "w");
+    TEST_ASSERT_NOT_NULL(cf);
+    for (int i = 1; i <= n; i++) {
+        for (int d = 0; d < 10; d++)
+            fprintf(cf, "//cfusa:req REQ-TAG-%04d\n", i);
+        fprintf(cf, "void f%d(void) {}\n", i);
+    }
+    fclose(cf);
+
+    char *argv2[] = {"cfusa", "--dir", RTC_DIR, "--output", out_path, NULL};
+    int rc = cmd_trace(5, argv2);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *of = fopen(out_path, "r");
+    TEST_ASSERT_NOT_NULL(of);
+    fseek(of, 0, SEEK_END);
+    long sz = ftell(of);
+    fseek(of, 0, SEEK_SET);
+    char *buf = malloc((size_t)sz + 1);
+    TEST_ASSERT_NOT_NULL(buf);
+    size_t nread = fread(buf, 1, (size_t)sz, of);
+    buf[nread] = '\0';
+    fclose(of);
+
+    /* Only impl tags were written (no test tags), so traced==n, tested==0 */
+    char expect[128];
+    snprintf(expect, sizeof(expect),
+             "Coverage: %d/%d requirements traced, 0/%d tested", n, n, n);
+    TEST_ASSERT_NOT_NULL(strstr(buf, expect));
+    free(buf);
+
+    remove(reqs_path);
+    remove(impl_path);
+    remove(out_path);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -909,5 +972,8 @@ int main(void)
     RUN_TEST(test_trace_func_coverage_zero_disabled);
     RUN_TEST(test_trace_func_coverage_na_empty);
     RUN_TEST(test_trace_dangling_test_tag_warning);
+    RUN_TEST(test_trace_more_than_1024_reqs_not_truncated);
+    RUN_TEST(test_req_more_than_1024_reqs_not_truncated);
+    RUN_TEST(test_trace_more_than_4096_tags_not_truncated);
     return UNITY_END();
 }

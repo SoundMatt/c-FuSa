@@ -14,7 +14,6 @@
 #include "cfusa/utils.h"
 
 #define REQS_FILE  ".cfusa-reqs.json"
-#define MAX_TAGS   4096
 #define MAX_ID     64
 #define MAX_TITLE  128
 
@@ -28,18 +27,24 @@ typedef struct { char id[MAX_ID]; char title[MAX_TITLE];
 typedef struct { char req_id[MAX_ID]; char file[256];
                  int  line; int kind; } tag_t;
 
-static req_t *g_reqs;          static int g_req_count; static int g_req_cap;
-static tag_t g_tags[MAX_TAGS]; static int g_tag_count;
+static req_t *g_reqs; static int g_req_count; static int g_req_cap;
+static tag_t *g_tags; static int g_tag_count; static int g_tag_cap;
+/* Set when a tag fails to grow g_tags (OOM) — checked by the caller after
+ * the source scan so a partial tag set is never mistaken for a complete
+ * one (same rationale as reqs_reserve() below). */
+static int g_tag_alloc_failed;
 
 /*
- * Requirements array grows dynamically via realloc — there is no fixed cap.
- * A compile-time array size here previously caused .fusa-reqs.json files
- * with more entries than the cap to be silently truncated mid-parse, which
- * let a genuinely-incomplete catalog read as fully loaded to every caller
+ * Requirements and tags arrays both grow dynamically via realloc — neither
+ * has a fixed cap. Compile-time array sizes here previously caused
+ * .fusa-reqs.json files (or source trees with many //cfusa:req/test tags)
+ * larger than the cap to be silently truncated mid-parse/mid-scan, which
+ * let genuinely-incomplete data read as fully loaded to every caller
  * (project issue #100). A growth failure (OOM) is reported to the caller
- * via load_reqs()'s return value instead of silently dropping entries.
+ * instead of silently dropping entries.
  */
 #define REQS_INITIAL_CAP 128
+#define TAGS_INITIAL_CAP 256
 
 static int reqs_reserve(int need)
 {
@@ -50,6 +55,18 @@ static int reqs_reserve(int need)
     if (!tmp) return 0;
     g_reqs = tmp;
     g_req_cap = new_cap;
+    return 1;
+}
+
+static int tags_reserve(int need)
+{
+    if (need <= g_tag_cap) return 1;
+    int new_cap = g_tag_cap ? g_tag_cap : TAGS_INITIAL_CAP;
+    while (new_cap < need) new_cap *= 2;
+    tag_t *tmp = realloc(g_tags, (size_t)new_cap * sizeof(tag_t));
+    if (!tmp) return 0;
+    g_tags = tmp;
+    g_tag_cap = new_cap;
     return 1;
 }
 
@@ -124,14 +141,18 @@ static void add_tag(const char *path, int lineno, const char *ids, int kind)
     char buf[512]; strncpy(buf, ids, sizeof(buf) - 1);
     char *end = strpbrk(buf, "\n\r\""); if (end) *end = '\0';
     char *tok = strtok(buf, " \t,");
-    while (tok && g_tag_count < MAX_TAGS) {
+    while (tok) {
         char *t = cfusa_str_trim(tok);
         if (is_valid_req_id(t)) {
-            strncpy(g_tags[g_tag_count].req_id, t,    MAX_ID - 1);
-            strncpy(g_tags[g_tag_count].file,   path, 255);
-            g_tags[g_tag_count].line = lineno;
-            g_tags[g_tag_count].kind = kind;
-            g_tag_count++;
+            if (!tags_reserve(g_tag_count + 1)) {
+                g_tag_alloc_failed = 1;
+            } else {
+                strncpy(g_tags[g_tag_count].req_id, t,    MAX_ID - 1);
+                strncpy(g_tags[g_tag_count].file,   path, 255);
+                g_tags[g_tag_count].line = lineno;
+                g_tags[g_tag_count].kind = kind;
+                g_tag_count++;
+            }
         }
         tok = strtok(NULL, " \t,");
     }
@@ -155,7 +176,7 @@ static void scan_line(const char *path, int lineno,
         char buf[512]; strncpy(buf, p, sizeof(buf) - 1);
         char *e = strpbrk(buf, "*/\n"); if (e) *e = '\0';
         char *tok = strtok(buf, ", \t");
-        while (tok && g_tag_count < MAX_TAGS) {
+        while (tok) {
             char *t = cfusa_str_trim(tok);
             if (*t) add_tag(path, lineno, t, KIND_IMPL);
             tok = strtok(NULL, ", \t");
@@ -869,6 +890,7 @@ int cmd_req(int argc, char **argv)
     }
 
     g_req_count = g_tag_count = 0;
+    g_tag_alloc_failed = 0;
     if (!load_reqs(dir)) {
         fprintf(stderr, "cfusa req: aborting — requirement catalog failed "
                 "to load in full (see above)\n");
@@ -877,6 +899,11 @@ int cmd_req(int argc, char **argv)
 
     static const char * const exts[] = {".c", ".h"};
     cfusa_walk_sources(dir, exts, 2, scan_file, NULL);
+    if (g_tag_alloc_failed) {
+        fprintf(stderr, "cfusa req: aborting — annotation scan failed to "
+                "complete in full (out of memory)\n");
+        return 3;
+    }
 
     /* build filter set from remaining args */
     int nfilter = argc - optind;
