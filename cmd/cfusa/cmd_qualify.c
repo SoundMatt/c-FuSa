@@ -19,6 +19,7 @@
 #include "cfusa/engine.h"
 #include "cfusa/report.h"
 #include "cfusa/config.h"
+#include "cfusa/severity.h"
 
 /*
  * Tool qualification self-test (DO-178C §12 / ISO 26262-8 §11).
@@ -451,6 +452,46 @@ static const char *independence_status(const char *author, const char *reviewer)
     return "independent";
 }
 
+/* Returns 1 if `candidate` counts as independent from `author`: non-empty
+ * and not the same identity. Shared by compute_achievable_asil() below —
+ * same self-attestation guard independence_status() already applies to
+ * the reviewer alone, extended to the test executor too. */
+static int is_independent_of(const char *author, const char *candidate)
+{
+    if (!candidate || !candidate[0]) return 0;
+    if (author && author[0] && !strcmp(author, candidate)) return 0;
+    return 1;
+}
+
+//cfusa:req REQ-VV005
+/*
+ * Computes the ASIL this qualification record can credibly claim to
+ * demonstrate, purely from the declared V&V independence roles — c-FuSa
+ * issue #105. Previously `--achievable-asil` accepted arbitrary user
+ * input and was echoed verbatim with no relationship to the
+ * author/reviewer/tester fields, so a record could claim ASIL-D with zero
+ * independent review or test execution.
+ *
+ * Mirrors FuSaOps' vv.AchievableASIL() ceiling logic (ISO 26262-8 Section
+ * 11's confirmation-review / independent-verification intent): no
+ * independent reviewer -> ASIL-B ceiling (ordinary development, no
+ * special independence); independent reviewer only -> ASIL-C; independent
+ * reviewer AND independent test executor -> ASIL-D. A reviewer or tester
+ * sharing the implementation author's identity does not count as
+ * independent (self-attestation guard).
+ */
+static const char *compute_achievable_asil(const char *author,
+                                            const char *reviewer,
+                                            const char *tester)
+{
+    int reviewer_ok = is_independent_of(author, reviewer);
+    int tester_ok   = is_independent_of(author, tester);
+
+    if (reviewer_ok && tester_ok) return "ASIL-D";
+    if (reviewer_ok)              return "ASIL-C";
+    return "ASIL-B";
+}
+
 /* ── Option constants for new long-only flags ── */
 enum {
     OPT_QUAL_METHOD    = 256,
@@ -459,7 +500,8 @@ enum {
     OPT_IMPL_AUTHOR,
     OPT_IND_REVIEWER,
     OPT_IND_TEST_EXEC,
-    OPT_ACHIEVE_ASIL
+    OPT_PROJECT_ASIL,
+    OPT_ENFORCE
 };
 
 /* ── Main command ─────────────────────────────────────────────────────── */
@@ -482,7 +524,12 @@ int cmd_qualify(int argc, char **argv)
     const char *impl_author     = NULL;
     const char *ind_reviewer    = NULL;
     const char *ind_test_exec   = NULL;
-    const char *achievable_asil = NULL;
+    /* REQ-VV006: the project's declared target ASIL, gated against the
+     * computed achievable ASIL below (issue #105). NULL/unset -> gate is
+     * off entirely, same "not applicable at this integrity level"
+     * semantics cfusa_required_severity() already uses for QM. */
+    const char *project_asil    = NULL;
+    const char *enforce         = NULL; /* auto|error|warn|off, default auto */
 
     static const struct option long_opts[] = {
         {"dir",                       required_argument, NULL, 'd'},
@@ -499,7 +546,8 @@ int cmd_qualify(int argc, char **argv)
         {"implementation-author",     required_argument, NULL, OPT_IMPL_AUTHOR},
         {"independent-reviewer",      required_argument, NULL, OPT_IND_REVIEWER},
         {"independent-test-executor", required_argument, NULL, OPT_IND_TEST_EXEC},
-        {"achievable-asil",           required_argument, NULL, OPT_ACHIEVE_ASIL},
+        {"project-asil",              required_argument, NULL, OPT_PROJECT_ASIL},
+        {"enforce",                   required_argument, NULL, OPT_ENFORCE},
         {NULL,0,NULL,0}
     };
 
@@ -521,7 +569,8 @@ int cmd_qualify(int argc, char **argv)
         case OPT_IMPL_AUTHOR:    impl_author     = optarg; break;
         case OPT_IND_REVIEWER:   ind_reviewer    = optarg; break;
         case OPT_IND_TEST_EXEC:  ind_test_exec   = optarg; break;
-        case OPT_ACHIEVE_ASIL:   achievable_asil = optarg; break;
+        case OPT_PROJECT_ASIL:   project_asil    = optarg; break;
+        case OPT_ENFORCE:        enforce         = optarg; break;
         case 'h':
             printf("Usage: cfusa qualify [--dir <path>] [--binary <path>] [--format text|json]\n"
                    "                     [--output <file>] [--verbose]\n"
@@ -530,9 +579,17 @@ int cmd_qualify(int argc, char **argv)
                    "                     [--implementation-author <name>]\n"
                    "                     [--independent-reviewer <name>]\n"
                    "                     [--independent-test-executor <name>]\n"
-                   "                     [--achievable-asil <level>]\n\n"
+                   "                     [--project-asil <QM|ASIL-A|ASIL-B|ASIL-C|ASIL-D>]\n"
+                   "                     [--enforce auto|error|warn|off]\n\n"
                    "Tool qualification self-test per DO-178C §12 / ISO 26262-8 §11.\n"
-                   "Runs SHA-256/HMAC known-answer tests and FUSA rule exercise cases.\n");
+                   "Runs SHA-256/HMAC known-answer tests and FUSA rule exercise cases.\n\n"
+                   "achievableAsil is computed from --implementation-author/\n"
+                   "--independent-reviewer/--independent-test-executor (ISO 26262-8 §11):\n"
+                   "no independent reviewer -> ASIL-B ceiling; independent reviewer only ->\n"
+                   "ASIL-C; independent reviewer AND independent test executor -> ASIL-D.\n"
+                   "With --project-asil set, the command fails (--enforce auto: ERROR at\n"
+                   "ASIL-C/D, WARNING at ASIL-A/B, off at QM) when the computed ceiling is\n"
+                   "below the declared project ASIL.\n");
             return 0;
         default: return 2;
         }
@@ -598,6 +655,34 @@ int cmd_qualify(int argc, char **argv)
 
     const char *badge  = qualification_badge(qual_method);          /* REQ-QUAL006 */
     const char *indep  = independence_status(impl_author, ind_reviewer); /* REQ-VV004 */
+    /* REQ-VV005: always computed now, never a raw pass-through. */
+    const char *achievable_asil =
+        compute_achievable_asil(impl_author, ind_reviewer, ind_test_exec);
+
+    //cfusa:req REQ-VV006
+    /* Independence gate (issue #105): fails (or warns) when the declared
+     * project ASIL demands more V&V independence than was demonstrated.
+     * cfusa_required_severity() also decides whether the gate is active at
+     * all — "off" at QM/undeclared, matching its DAL-E/QM convention. */
+    int indep_gate_failed = 0;
+    const char *indep_gate_sev_str = NULL;
+    if (project_asil && project_asil[0]) {
+        cfusa_severity_t sev;
+        if (cfusa_required_severity(enforce, NULL, project_asil, &sev)) {
+            int achieved_rank = cfusa_asil_rank(achievable_asil);
+            int project_rank  = cfusa_asil_rank(project_asil);
+            if (achieved_rank >= 0 && project_rank >= 0 &&
+                achieved_rank < project_rank) {
+                indep_gate_sev_str = (sev == SEV_ERROR) ? "ERROR" : "WARNING";
+                if (sev == SEV_ERROR) indep_gate_failed = 1;
+                fprintf(stderr,
+                    "cfusa qualify: %s: declared project ASIL %s requires "
+                    "more V&V independence than demonstrated (achievable: "
+                    "%s) — ISO 26262-8 Section 11\n",
+                    indep_gate_sev_str, project_asil, achievable_asil);
+            }
+        }
+    }
 
     if (!strcmp(fmt_s, "json")) {
         fprintf(out,
@@ -633,8 +718,12 @@ int cmd_qualify(int argc, char **argv)
             fprintf(out, ",\n  \"independentReviewer\": \"%s\"", ind_reviewer);
         if (ind_test_exec && ind_test_exec[0])
             fprintf(out, ",\n  \"independentTestExecutor\": \"%s\"", ind_test_exec);
-        if (achievable_asil && achievable_asil[0])
-            fprintf(out, ",\n  \"achievableAsil\": \"%s\"", achievable_asil);
+        fprintf(out, ",\n  \"achievableAsil\": \"%s\"", achievable_asil);
+        if (project_asil && project_asil[0]) {
+            fprintf(out, ",\n  \"projectAsil\": \"%s\"", project_asil);
+            fprintf(out, ",\n  \"independenceGate\": \"%s\"",
+                    indep_gate_sev_str ? indep_gate_sev_str : "pass");
+        }
         fprintf(out, ",\n  \"results\": [\n");
         for (int i = 0; g_kat[i].name; i++)
             fprintf(out,
@@ -683,13 +772,17 @@ int cmd_qualify(int argc, char **argv)
             fprintf(out, "Independent reviewer:     %s\n", ind_reviewer);
         if (ind_test_exec && ind_test_exec[0])
             fprintf(out, "Independent test exec:    %s\n", ind_test_exec);
-        if (achievable_asil && achievable_asil[0])
-            fprintf(out, "Achievable ASIL:          %s\n", achievable_asil);
+        fprintf(out, "Achievable ASIL:          %s\n", achievable_asil);
+        if (project_asil && project_asil[0]) {
+            fprintf(out, "Project ASIL:             %s\n", project_asil);
+            fprintf(out, "Independence gate:        %s\n",
+                    indep_gate_sev_str ? indep_gate_sev_str : "pass");
+        }
     }
 
     if (output && out != stdout) fclose(out);
     /* Drop any engine state accumulated during the rule-exercise suite so
      * callers in the test harness begin with a clean global rule table. */
     cfusa_engine_reset();
-    return total_fail > 0 ? 1 : 0;
+    return (total_fail > 0 || indep_gate_failed) ? 1 : 0;
 }

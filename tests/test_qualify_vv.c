@@ -181,7 +181,10 @@ void test_qualify_independence_unqualified(void)
     }
 }
 
-/* All V&V independence fields appear in JSON output */
+/* All V&V independence fields appear in JSON output; achievableAsil is
+ * computed (issue #105) rather than accepted as free input — an
+ * independent reviewer and independent test executor together yield the
+ * ASIL-D ceiling. */
 //cfusa:req REQ-VV001
 //cfusa:test REQ-VV001
 void test_qualify_vv_fields_in_json(void)
@@ -190,9 +193,8 @@ void test_qualify_vv_fields_in_json(void)
                     "--implementation-author", "Alice",
                     "--independent-reviewer", "Bob",
                     "--independent-test-executor", "Carol",
-                    "--achievable-asil", "ASIL-D",
                     "--output", "/tmp/cfusa_qualify_vv.json", NULL};
-    int rc = cmd_qualify(12, argv);
+    int rc = cmd_qualify(10, argv);
     TEST_ASSERT_EQUAL(0, rc);
 
     FILE *f = fopen("/tmp/cfusa_qualify_vv.json", "r");
@@ -205,7 +207,7 @@ void test_qualify_vv_fields_in_json(void)
         TEST_ASSERT_NOT_NULL(strstr(buf, "implementationAuthor"));
         TEST_ASSERT_NOT_NULL(strstr(buf, "independentReviewer"));
         TEST_ASSERT_NOT_NULL(strstr(buf, "independentTestExecutor"));
-        TEST_ASSERT_NOT_NULL(strstr(buf, "achievableAsil"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"achievableAsil\": \"ASIL-D\""));
         (void)remove("/tmp/cfusa_qualify_vv.json");
     }
 }
@@ -220,6 +222,137 @@ void test_qualify_vv_help_returns_zero(void)
     TEST_ASSERT_EQUAL(0, rc);
 }
 
+/* ---- achievableAsil computation (issue #105) ---- */
+
+static void assert_achievable_asil(char **argv, int argc, const char *expect)
+{
+    int rc = cmd_qualify(argc, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen("/tmp/cfusa_qualify_vv2.json", "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192] = "";
+        size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        fclose(f);
+        char expected_field[64];
+        snprintf(expected_field, sizeof(expected_field),
+                 "\"achievableAsil\": \"%s\"", expect);
+        TEST_ASSERT_NOT_NULL(strstr(buf, expected_field));
+        (void)remove("/tmp/cfusa_qualify_vv2.json");
+    }
+}
+
+/* No independence declared at all -> ASIL-B floor, not empty/unqualified. */
+//cfusa:req REQ-VV005
+//cfusa:test REQ-VV005
+void test_achievable_asil_no_independence_is_floor_b(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--output", "/tmp/cfusa_qualify_vv2.json", NULL};
+    assert_achievable_asil(argv, 4, "ASIL-B");
+}
+
+/* Independent reviewer only (no independent test executor) -> ASIL-C. */
+//cfusa:req REQ-VV005
+//cfusa:test REQ-VV005
+void test_achievable_asil_reviewer_only_is_c(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--implementation-author", "Alice",
+                    "--independent-reviewer", "Bob",
+                    "--output", "/tmp/cfusa_qualify_vv2.json", NULL};
+    assert_achievable_asil(argv, 8, "ASIL-C");
+}
+
+/* Reviewer sharing the author's identity does not count as independent
+ * (self-attestation guard) -> stays at the ASIL-B floor, not ASIL-C/D. */
+//cfusa:req REQ-VV005
+//cfusa:test REQ-VV005
+void test_achievable_asil_self_attested_reviewer_is_floor_b(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--implementation-author", "Alice",
+                    "--independent-reviewer", "Alice",
+                    "--independent-test-executor", "Alice",
+                    "--output", "/tmp/cfusa_qualify_vv2.json", NULL};
+    assert_achievable_asil(argv, 10, "ASIL-B");
+}
+
+/* ---- independence gate: --project-asil / --enforce (issue #105) ---- */
+
+/* Declaring project ASIL-D with zero independent review fails the gate. */
+//cfusa:req REQ-VV006
+//cfusa:test REQ-VV006
+void test_independence_gate_fails_asil_d_with_no_independence(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--project-asil", "ASIL-D",
+                    "--output", "/tmp/cfusa_qualify_gate1.json", NULL};
+    int rc = cmd_qualify(6, argv);
+    TEST_ASSERT_EQUAL(1, rc);
+    (void)remove("/tmp/cfusa_qualify_gate1.json");
+}
+
+/* Full independence (reviewer + test executor) satisfies an ASIL-D
+ * project declaration. */
+//cfusa:req REQ-VV006
+//cfusa:test REQ-VV006
+void test_independence_gate_passes_asil_d_with_full_independence(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--implementation-author", "Alice",
+                    "--independent-reviewer", "Bob",
+                    "--independent-test-executor", "Carol",
+                    "--project-asil", "ASIL-D",
+                    "--output", "/tmp/cfusa_qualify_gate2.json", NULL};
+    int rc = cmd_qualify(12, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+    (void)remove("/tmp/cfusa_qualify_gate2.json");
+}
+
+/* project-asil QM never gates, regardless of independence. */
+//cfusa:req REQ-VV006
+//cfusa:test REQ-VV006
+void test_independence_gate_off_at_qm(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--project-asil", "QM",
+                    "--output", "/tmp/cfusa_qualify_gate3.json", NULL};
+    int rc = cmd_qualify(6, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+    (void)remove("/tmp/cfusa_qualify_gate3.json");
+}
+
+/* --enforce warn downgrades an otherwise-failing gate to a non-fatal
+ * warning. */
+//cfusa:req REQ-VV006
+//cfusa:test REQ-VV006
+void test_independence_gate_enforce_warn_does_not_fail(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--project-asil", "ASIL-D", "--enforce", "warn",
+                    "--output", "/tmp/cfusa_qualify_gate4.json", NULL};
+    int rc = cmd_qualify(8, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+    (void)remove("/tmp/cfusa_qualify_gate4.json");
+}
+
+/* --enforce off disables the gate entirely, even at ASIL-D with zero
+ * independence. */
+//cfusa:req REQ-VV006
+//cfusa:test REQ-VV006
+void test_independence_gate_enforce_off_disables_gate(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--project-asil", "ASIL-D", "--enforce", "off",
+                    "--output", "/tmp/cfusa_qualify_gate5.json", NULL};
+    int rc = cmd_qualify(8, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+    (void)remove("/tmp/cfusa_qualify_gate5.json");
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -232,5 +365,13 @@ int main(void)
     RUN_TEST(test_qualify_independence_unqualified);
     RUN_TEST(test_qualify_vv_fields_in_json);
     RUN_TEST(test_qualify_vv_help_returns_zero);
+    RUN_TEST(test_achievable_asil_no_independence_is_floor_b);
+    RUN_TEST(test_achievable_asil_reviewer_only_is_c);
+    RUN_TEST(test_achievable_asil_self_attested_reviewer_is_floor_b);
+    RUN_TEST(test_independence_gate_fails_asil_d_with_no_independence);
+    RUN_TEST(test_independence_gate_passes_asil_d_with_full_independence);
+    RUN_TEST(test_independence_gate_off_at_qm);
+    RUN_TEST(test_independence_gate_enforce_warn_does_not_fail);
+    RUN_TEST(test_independence_gate_enforce_off_disables_gate);
     return UNITY_END();
 }
