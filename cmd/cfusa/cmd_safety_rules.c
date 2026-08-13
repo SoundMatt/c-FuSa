@@ -782,19 +782,45 @@ typedef struct {
     const cfusa_config_t *cfg;
 } comp_ctx_t;
 
-/* Threshold by DAL: A=4, B=10, C=15, D=20, default=10 */
+//cfusa:req REQ-COMPTHR001
+/*
+ * Threshold by declared standard: DO-178C DAL A=4,B=10,C=15,D=20 (matches
+ * cmd_comp.c's --dal-a/b/c/d); ISO 26262 ASIL D=4,C=10,B=15,A=20 (matches
+ * cmd_comp.c's --asil-d/c/b/a aliases). Default 10 when neither is
+ * declared.
+ *
+ * c-FuSa issue #107: this automatic `check` gate previously only
+ * recognized DO-178C DAL tags in .fusa.json's standards[], so a project
+ * declaring only ISO 26262 (e.g. "iso26262:ASIL-D") silently got the
+ * unscaled default threshold instead of the ASIL-appropriate one, unless
+ * it separately ran `cfusa comp --asil-d`. When both a DAL and an ASIL
+ * tag are declared, the stricter (lower/more demanding) threshold wins —
+ * a project claiming both standards must satisfy whichever is more
+ * demanding, same combination rule as --dal/--asil in cfusa coverage
+ * (#106).
+ */
 static int comp_threshold(const cfusa_config_t *cfg)
 {
+    int dal_t = -1, asil_t = -1;
     for (int i = 0; i < cfg->standards_count; i++) {
         const char *s = cfg->standards[i];
         if (strncmp(s, "do178", 5) == 0 || strncmp(s, "DO-178", 6) == 0) {
-            if (strstr(s, "dal-a") || strstr(s, "DAL-A")) return 4;
-            if (strstr(s, "dal-b") || strstr(s, "DAL-B")) return 10;
-            if (strstr(s, "dal-c") || strstr(s, "DAL-C")) return 15;
-            if (strstr(s, "dal-d") || strstr(s, "DAL-D")) return 20;
+            if (strstr(s, "dal-a") || strstr(s, "DAL-A")) dal_t = 4;
+            else if (strstr(s, "dal-b") || strstr(s, "DAL-B")) dal_t = 10;
+            else if (strstr(s, "dal-c") || strstr(s, "DAL-C")) dal_t = 15;
+            else if (strstr(s, "dal-d") || strstr(s, "DAL-D")) dal_t = 20;
+        }
+        if (strncmp(s, "iso26262", 8) == 0 || strncmp(s, "ISO 26262", 9) == 0) {
+            if (strstr(s, "asil-d") || strstr(s, "ASIL-D")) asil_t = 4;
+            else if (strstr(s, "asil-c") || strstr(s, "ASIL-C")) asil_t = 10;
+            else if (strstr(s, "asil-b") || strstr(s, "ASIL-B")) asil_t = 15;
+            else if (strstr(s, "asil-a") || strstr(s, "ASIL-A")) asil_t = 20;
         }
     }
-    return 10; /* default */
+    if (dal_t < 0 && asil_t < 0) return 10;              /* default */
+    if (dal_t < 0)  return asil_t;
+    if (asil_t < 0) return dal_t;
+    return (dal_t < asil_t) ? dal_t : asil_t;             /* stricter wins */
 }
 
 /* Count decision points in a single line of C source. */
