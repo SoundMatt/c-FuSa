@@ -19,7 +19,6 @@
  */
 
 #define MAX_FILES  512
-#define MAX_REQS   256
 
 //cfusa:req REQ-IMP001 REQ-IMP002 REQ-IMP003
 static int validate_git_ref(const char *ref)
@@ -105,8 +104,22 @@ static int file_has_annotation(const char *filepath, const char *req_id)
     return found;
 }
 
-static int load_req_ids(const char *dir, char ids[][64], int max_ids)
+typedef char req_id_t[64];
+
+/*
+ * Requirement id array grows dynamically via realloc — there is no fixed
+ * cap. A compile-time array size here previously caused .fusa-reqs.json
+ * files with more entries than the cap to be silently truncated, so
+ * requirements past the cap could never be matched against changed files
+ * (project issue #100). *out_truncated is set on allocation failure so the
+ * caller can refuse to report a partial result as complete; the returned
+ * pointer must be free()d by the caller.
+ */
+static req_id_t *load_req_ids(const char *dir, int *out_n, int *out_truncated)
 {
+    *out_n = 0;
+    *out_truncated = 0;
+
     char path[512];
     cfusa_path_join(path, sizeof(path), dir, ".fusa-reqs.json");
 
@@ -116,14 +129,22 @@ static int load_req_ids(const char *dir, char ids[][64], int max_ids)
         cfusa_path_join(path, sizeof(path), dir, ".cfusa-reqs.json");
         content = cfusa_read_file(path, &len);
     }
-    if (!content) return 0;
+    if (!content) return NULL;
 
-    int n = 0;
+    req_id_t *ids = NULL;
+    int n = 0, cap = 0;
     char *p = content;
-    while ((p = strstr(p, "\"id\"")) != NULL && n < max_ids) {
+    while ((p = strstr(p, "\"id\"")) != NULL) {
         char id[64] = "";
         sscanf(p, "\"id\":\"%63[^\"]", id);
         if (id[0]) {
+            if (n >= cap) {
+                int new_cap = cap ? cap * 2 : 128;
+                req_id_t *tmp = realloc(ids, (size_t)new_cap * sizeof(req_id_t));
+                if (!tmp) { *out_truncated = 1; break; }
+                ids = tmp;
+                cap = new_cap;
+            }
             strncpy(ids[n], id, 63);
             ids[n][63] = '\0';
             n++;
@@ -131,7 +152,8 @@ static int load_req_ids(const char *dir, char ids[][64], int max_ids)
         p++;
     }
     free(content);
-    return n;
+    *out_n = n;
+    return ids;
 }
 
 int cmd_impact(int argc, char **argv)
@@ -192,8 +214,16 @@ int cmd_impact(int argc, char **argv)
     }
 
     /* Load requirement IDs */
-    static char req_ids[MAX_REQS][64];
-    int nreqs = load_req_ids(dir, req_ids, MAX_REQS);
+    int nreqs = 0, req_ids_truncated = 0;
+    req_id_t *req_ids = load_req_ids(dir, &nreqs, &req_ids_truncated);
+    if (req_ids_truncated) {
+        fprintf(stderr,
+                "cfusa impact: ERROR: requirement catalog failed to load in "
+                "full (out of memory) — refusing to report an impact result "
+                "that could be mistaken for complete\n");
+        free(req_ids);
+        return 1;
+    }
 
     printf("Change Impact Analysis — %s\n", cfg.project);
     printf("  From: %s\n", from);
@@ -228,5 +258,6 @@ int cmd_impact(int argc, char **argv)
             printf("Review impacted requirements and update tests as needed.\n");
     }
 
+    free(req_ids);
     return 0;
 }

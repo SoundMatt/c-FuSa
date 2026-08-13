@@ -14,7 +14,6 @@
 #include "cfusa/utils.h"
 
 #define REQS_FILE  ".cfusa-reqs.json"
-#define MAX_REQS   1024
 #define MAX_TAGS   4096
 #define MAX_ID     64
 #define MAX_TITLE  128
@@ -29,8 +28,30 @@ typedef struct { char id[MAX_ID]; char title[MAX_TITLE];
 typedef struct { char req_id[MAX_ID]; char file[256];
                  int  line; int kind; } tag_t;
 
-static req_t g_reqs[MAX_REQS]; static int g_req_count;
+static req_t *g_reqs;          static int g_req_count; static int g_req_cap;
 static tag_t g_tags[MAX_TAGS]; static int g_tag_count;
+
+/*
+ * Requirements array grows dynamically via realloc — there is no fixed cap.
+ * A compile-time array size here previously caused .fusa-reqs.json files
+ * with more entries than the cap to be silently truncated mid-parse, which
+ * let a genuinely-incomplete catalog read as fully loaded to every caller
+ * (project issue #100). A growth failure (OOM) is reported to the caller
+ * via load_reqs()'s return value instead of silently dropping entries.
+ */
+#define REQS_INITIAL_CAP 128
+
+static int reqs_reserve(int need)
+{
+    if (need <= g_req_cap) return 1;
+    int new_cap = g_req_cap ? g_req_cap : REQS_INITIAL_CAP;
+    while (new_cap < need) new_cap *= 2;
+    req_t *tmp = realloc(g_reqs, (size_t)new_cap * sizeof(req_t));
+    if (!tmp) return 0;
+    g_reqs = tmp;
+    g_req_cap = new_cap;
+    return 1;
+}
 
 static void jfield(const char *obj, const char *key, char *out, size_t sz)
 {
@@ -49,18 +70,28 @@ static void jfield(const char *obj, const char *key, char *out, size_t sz)
     out[i] = '\0';
 }
 
-static void load_reqs(const char *dir)
+/* Returns 1 on a complete parse, 0 if the catalog could not be loaded in
+ * full (allocation failure) — never truncates silently. */
+static int load_reqs(const char *dir)
 {
     char path[512]; cfusa_path_join(path, sizeof(path), dir, REQS_FILE);
     size_t len; char *json = cfusa_read_file(path, &len);
-    if (!json) return;
+    if (!json) return 1;
     const char *p = strstr(json, "\"requirements\"");
     if (p) p = strchr(p, '[');
-    if (!p) { free(json); return; }
+    if (!p) { free(json); return 1; }
     p++;
-    while (*p && *p != ']' && g_req_count < MAX_REQS) {
+    while (*p && *p != ']') {
         const char *bs = strchr(p, '{'); if (!bs) break;
         const char *be = strchr(bs, '}'); if (!be) break;
+        if (!reqs_reserve(g_req_count + 1)) {
+            fprintf(stderr,
+                    "cfusa req: out of memory loading %s — only %d "
+                    "requirement(s) loaded; results are INCOMPLETE\n",
+                    REQS_FILE, g_req_count);
+            free(json);
+            return 0;
+        }
         char obj[2048] = "";
         size_t ol = (size_t)(be - bs + 1);
         if (ol > sizeof(obj) - 1) ol = sizeof(obj) - 1;
@@ -74,6 +105,7 @@ static void load_reqs(const char *dir)
         p = be + 1;
     }
     free(json);
+    return 1;
 }
 
 /* Valid req IDs are non-empty alphanumeric + '-'/'_' (e.g. REQ-LINT001) */
@@ -148,19 +180,23 @@ static void xml_escape(FILE *f, const char *s)
     }
 }
 
-static void do_req_export(const char *dir, const char *output, const char *fmt)
+static int do_req_export(const char *dir, const char *output, const char *fmt)
 {
     g_req_count = g_tag_count = 0;
-    load_reqs(dir);
+    if (!load_reqs(dir)) {
+        fprintf(stderr, "cfusa req export: aborting — requirement catalog "
+                "failed to load in full (see above)\n");
+        return 3;
+    }
 
     if (g_req_count == 0) {
         fprintf(stderr, "cfusa req export: no requirements in %s/%s\n",
                 dir, REQS_FILE);
-        return;
+        return 1;
     }
 
     FILE *f = output ? fopen(output, "w") : stdout;
-    if (!f) { perror(output); return; }
+    if (!f) { perror(output); return 3; }
 
     if (fmt && !strcmp(fmt, "doors")) {
         /* ReqIF XML (minimal) */
@@ -243,6 +279,7 @@ static void do_req_export(const char *dir, const char *output, const char *fmt)
 
     if (output) fclose(f);
     if (output) printf("Exported %d requirement(s) to %s\n", g_req_count, output);
+    return 0;
 }
 
 /* ---- ALM format parsers ------------------------------------------ */
@@ -820,8 +857,7 @@ int cmd_req(int argc, char **argv)
     }
 
     if (subcmd && !strcmp(subcmd, "export")) {
-        do_req_export(dir, output, fmt);
-        return 0;
+        return do_req_export(dir, output, fmt);
     }
     if (subcmd && !strcmp(subcmd, "import")) {
         const char *infile = (optind < argc) ? argv[optind] : NULL;
@@ -833,7 +869,11 @@ int cmd_req(int argc, char **argv)
     }
 
     g_req_count = g_tag_count = 0;
-    load_reqs(dir);
+    if (!load_reqs(dir)) {
+        fprintf(stderr, "cfusa req: aborting — requirement catalog failed "
+                "to load in full (see above)\n");
+        return 3;
+    }
 
     static const char * const exts[] = {".c", ".h"};
     cfusa_walk_sources(dir, exts, 2, scan_file, NULL);

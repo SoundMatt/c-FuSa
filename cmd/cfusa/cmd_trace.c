@@ -21,7 +21,6 @@
 
 #define REQS_FILE        ".fusa-reqs.json"
 #define REQS_FILE_LEGACY ".cfusa-reqs.json"
-#define MAX_REQS   1024
 #define MAX_TAGS   4096
 #define MAX_ID     64
 #define MAX_TITLE  128
@@ -36,9 +35,32 @@ typedef struct { char id[MAX_ID]; char title[MAX_TITLE];
 typedef struct { char req_id[MAX_ID]; char file[256];
                  int line; int kind; } tag_t;
 
-static req_t g_reqs[MAX_REQS];  static int g_req_count;
+static req_t *g_reqs;           static int g_req_count; static int g_req_cap;
 static tag_t g_tags[MAX_TAGS];  static int g_tag_count;
 static char  g_dir_abs[512];    /* resolved absolute project root for path relativization */
+
+/*
+ * Requirements array grows dynamically via realloc — there is no fixed cap.
+ * A compile-time array size here previously caused .fusa-reqs.json files
+ * with more entries than the cap to be silently truncated mid-parse, which
+ * let a genuinely-incomplete catalog read as fully loaded (false 100%
+ * coverage) to every downstream consumer (project issue #100). A growth
+ * failure (OOM) is reported via load_reqs()'s return value instead of
+ * silently dropping entries.
+ */
+#define REQS_INITIAL_CAP 128
+
+static int reqs_reserve(int need)
+{
+    if (need <= g_req_cap) return 1;
+    int new_cap = g_req_cap ? g_req_cap : REQS_INITIAL_CAP;
+    while (new_cap < need) new_cap *= 2;
+    req_t *tmp = realloc(g_reqs, (size_t)new_cap * sizeof(req_t));
+    if (!tmp) return 0;
+    g_reqs = tmp;
+    g_req_cap = new_cap;
+    return 1;
+}
 
 /* ---- HLR/LLR decomposition state (REQ-HLR001) ---- */
 #define MAX_HLR_LLR 512
@@ -66,8 +88,10 @@ static void jfield(const char *obj, const char *key, char *out, size_t sz)
     out[i] = '\0';
 }
 
-/* Load requirements — try .fusa-reqs.json first, fall back to legacy .cfusa-reqs.json */
-static void load_reqs(const char *dir)
+/* Load requirements — try .fusa-reqs.json first, fall back to legacy
+ * .cfusa-reqs.json. Returns 1 on a complete parse, 0 if the catalog could
+ * not be loaded in full (allocation failure) — never truncates silently. */
+static int load_reqs(const char *dir)
 {
     char path[512]; cfusa_path_join(path, sizeof(path), dir, REQS_FILE);
     size_t len; char *json = cfusa_read_file(path, &len);
@@ -78,19 +102,28 @@ static void load_reqs(const char *dir)
             fprintf(stderr, "cfusa trace: WARNING: %s is deprecated; rename to %s\n",
                     REQS_FILE_LEGACY, REQS_FILE);
     }
-    if (!json) return;
+    if (!json) return 1;
 
     /* §1.2.2: check for duplicate requirement ids and emit ERRORs */
     /* (collected after loading; detected via second pass below) */
 
     const char *p = strstr(json, "\"requirements\"");
     if (p) p = strchr(p, '[');
-    if (!p) { free(json); return; }
+    if (!p) { free(json); return 1; }
     p++;
 
-    while (*p && *p != ']' && g_req_count < MAX_REQS) {
+    int ok = 1;
+    while (*p && *p != ']') {
         const char *bs = strchr(p, '{'); if (!bs) break;
         const char *be = strchr(bs, '}'); if (!be) break;
+        if (!reqs_reserve(g_req_count + 1)) {
+            fprintf(stderr,
+                    "cfusa trace: out of memory loading %s — only %d "
+                    "requirement(s) loaded; results are INCOMPLETE\n",
+                    REQS_FILE, g_req_count);
+            ok = 0;
+            break;
+        }
         /* Heap-allocate to the exact object length so requirement objects
          * longer than a fixed stack buffer are no longer silently truncated
          * (which dropped id/title/parent fields past ~1KB). */
@@ -124,6 +157,7 @@ static void load_reqs(const char *dir)
                         g_reqs[i].id, REQS_FILE);
         }
     }
+    return ok;
 }
 
 /* ---- annotation scanner ---- */
@@ -414,7 +448,13 @@ int cmd_trace(int argc, char **argv)
         if (tmp) { strncpy(g_dir_abs, tmp, sizeof(g_dir_abs) - 1); free(tmp); }
         else strncpy(g_dir_abs, dir, sizeof(g_dir_abs) - 1);
     }
-    load_reqs(dir);
+    if (!load_reqs(dir)) {
+        fprintf(stderr,
+                "cfusa trace: ERROR: requirement catalog failed to load in "
+                "full (out of memory) — refusing to report a coverage "
+                "result that could be mistaken for complete\n");
+        return 1;
+    }
 
     scan_ctx_t sctx = {legacy};
     static const char * const exts[] = {".c", ".h"};

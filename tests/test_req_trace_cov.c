@@ -778,6 +778,94 @@ void test_trace_dangling_test_tag_warning(void)
     rm_file("dangling.c");
 }
 
+/* ---- catalogs larger than the old fixed-array caps (issue #100) ---- */
+
+//cfusa:req REQ-REQCAP001
+//cfusa:test REQ-REQCAP001
+void test_trace_more_than_1024_reqs_not_truncated(void)
+{
+    /* Regression for issue #100: g_reqs used to be a fixed 1024-entry
+     * array, and load_reqs() silently stopped parsing once it was full —
+     * so a catalog with more than 1024 entries reported false 100%
+     * coverage while the tail past the cap was never loaded at all. Write
+     * 1030 requirements, each traced and tested, and confirm cmd_trace
+     * reports all 1030 rather than capping at 1024. */
+    const int n = 1030;
+    char reqs_path[300], impl_path[300], out_path[300];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", RTC_DIR);
+    snprintf(impl_path, sizeof(impl_path), "%s/big_impl.c", RTC_DIR);
+    snprintf(out_path,  sizeof(out_path),  "%s/big_trace_out.txt", RTC_DIR);
+
+    FILE *rf = fopen(reqs_path, "w");
+    TEST_ASSERT_NOT_NULL(rf);
+    fprintf(rf, "{\n  \"requirements\": [\n");
+    for (int i = 1; i <= n; i++)
+        fprintf(rf, "    {\"id\":\"REQ-BIG-%04d\",\"title\":\"r%d\"}%s\n",
+                i, i, (i < n) ? "," : "");
+    fprintf(rf, "  ]\n}\n");
+    fclose(rf);
+
+    FILE *cf = fopen(impl_path, "w");
+    TEST_ASSERT_NOT_NULL(cf);
+    for (int i = 1; i <= n; i++)
+        fprintf(cf,
+                "//cfusa:req REQ-BIG-%04d\n//cfusa:test REQ-BIG-%04d\n"
+                "void f%d(void) {}\n", i, i, i);
+    fclose(cf);
+
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--output", out_path, NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *of = fopen(out_path, "r");
+    TEST_ASSERT_NOT_NULL(of);
+    fseek(of, 0, SEEK_END);
+    long sz = ftell(of);
+    fseek(of, 0, SEEK_SET);
+    char *buf = malloc((size_t)sz + 1);
+    TEST_ASSERT_NOT_NULL(buf);
+    size_t nread = fread(buf, 1, (size_t)sz, of);
+    buf[nread] = '\0';
+    fclose(of);
+
+    TEST_ASSERT_NOT_NULL(strstr(buf,
+        "Coverage: 1030/1030 requirements traced, 1030/1030 tested"));
+    /* the tail entry, past the old 1024-entry cap, must be present */
+    TEST_ASSERT_NOT_NULL(strstr(buf, "REQ-BIG-1030"));
+    free(buf);
+
+    remove(reqs_path);
+    remove(impl_path);
+    remove(out_path);
+}
+
+//cfusa:req REQ-REQCAP001
+//cfusa:test REQ-REQCAP001
+void test_req_more_than_1024_reqs_not_truncated(void)
+{
+    /* Regression for issue #100: cmd_req's requirements array was capped
+     * at a fixed 1024 entries; entries past the cap were silently dropped
+     * by load_reqs() and could never be found via 'cfusa req <id>'. */
+    const int n = 1030;
+    char reqs_path[300];
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+
+    FILE *rf = fopen(reqs_path, "w");
+    TEST_ASSERT_NOT_NULL(rf);
+    fprintf(rf, "{\n  \"requirements\": [\n");
+    for (int i = 1; i <= n; i++)
+        fprintf(rf, "    {\"id\":\"REQ-BIG-%04d\",\"title\":\"r%d\"}%s\n",
+                i, i, (i < n) ? "," : "");
+    fprintf(rf, "  ]\n}\n");
+    fclose(rf);
+
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "REQ-BIG-1030", NULL};
+    int rc = cmd_req(4, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+    /* setUp() rewrites .cfusa-reqs.json to its standard 2-entry fixture
+     * before the next test runs, so no explicit cleanup is required here. */
+}
+
 int main(void)
 {
     UNITY_BEGIN();
