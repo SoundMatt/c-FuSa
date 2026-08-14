@@ -144,7 +144,8 @@ static int qt_write_file(const char *dir, const char *relpath, const char *conte
     FILE *f = fopen(path, "w");
     if (!f) return -1;
     if (content) fputs(content, f);
-    fclose(f); return 0;
+    if (fclose(f) != 0) return -1;
+    return 0;
 }
 
 static void qt_setup(void)

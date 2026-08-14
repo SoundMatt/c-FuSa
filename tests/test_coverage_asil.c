@@ -28,7 +28,7 @@ static void write_lcov(const char *fname, long lines_found, long lines_hit,
         "BRF:%ld\nBRH:%ld\n"
         "end_of_record\n",
         lines_found, lines_hit, branches_found, branches_hit);
-    fclose(f);
+    if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
 }
 
 static void write_mcdc(const char *fname, const char *content)
@@ -38,7 +38,7 @@ static void write_mcdc(const char *fname, const char *content)
     FILE *f = cfusa_fopen_write(path);
     if (!f) return;
     fputs(content, f);
-    fclose(f);
+    if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
 }
 
 /* ---- validation ---- */
@@ -187,7 +187,7 @@ void test_coverage_asil_appears_in_json_output(void)
         char buf[4096] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"asil\": \"ASIL-B\""));
         (void)remove(out);
     }

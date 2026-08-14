@@ -151,7 +151,7 @@ static void parse_lcov(const char *path, lcov_state_t *s)
             s->branches_hit += atol(line + 4);
         }
     }
-    fclose(f);
+    if (fclose(f) != 0) perror(path);
 }
 
 static double pct(long hit, long found)

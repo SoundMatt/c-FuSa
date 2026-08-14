@@ -920,7 +920,8 @@ static int comp001_file(const char *path, void *vctx)
         }
     }
 
-    fclose(f);
+    if (fclose(f) != 0)
+        fprintf(stderr, "cfusa: warning: fclose failed for %s\n", path);
     return 0;
 }
 

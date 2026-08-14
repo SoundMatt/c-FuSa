@@ -134,13 +134,13 @@ void test_impact_loads_more_than_256_reqs_not_truncated(void)
         fprintf(rf, "    {\"id\":\"REQ-BIGIMP-%03d\",\"title\":\"r%d\"}%s\n",
                 i, i, (i < 300) ? "," : "");
     fprintf(rf, "  ]\n}\n");
-    fclose(rf);
+    if (fclose(rf) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     snprintf(path, sizeof(path), "%s/impl.c", IMPACT_BIG_DIR);
     FILE *cf = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(cf);
     fprintf(cf, "void f(void) {}\n");
-    fclose(cf);
+    if (fclose(cf) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     /* cmd_impact's git-diff step runs in the process's current directory,
      * not --dir (that flag only controls where the requirements registry
@@ -163,7 +163,7 @@ void test_impact_loads_more_than_256_reqs_not_truncated(void)
     FILE *cf2 = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(cf2);
     fprintf(cf2, "void f(void) {}\n//cfusa:req REQ-BIGIMP-300\nvoid g(void) {}\n");
-    fclose(cf2);
+    if (fclose(cf2) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     TEST_ASSERT_EQUAL(0, system("git -c user.email=t@t -c user.name=t commit -aqm change"));
 
@@ -195,7 +195,7 @@ void test_impact_loads_more_than_256_reqs_not_truncated(void)
     TEST_ASSERT_NOT_NULL(buf);
     size_t nread = fread(buf, 1, (size_t)sz, of);
     buf[nread] = '\0';
-    fclose(of);
+    if (fclose(of) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     TEST_ASSERT_NOT_NULL(strstr(buf, "REQ-BIGIMP-300"));
     TEST_ASSERT_NOT_NULL(strstr(buf, "impacted"));
