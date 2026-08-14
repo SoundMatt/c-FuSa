@@ -78,10 +78,23 @@ static void parse_mcdc_json(const char *path, int threshold, mcdc_report_t *rep)
 
     free(json);
 
+    /* A --mcdc-file that parses to zero condition objects is never treated
+     * as a vacuous pass: it can't be distinguished from a wrong/empty/
+     * malformed export (bad path, truncated file, an LLVM export-format
+     * change the string-scan above no longer recognizes) purely from
+     * content, and "found nothing, so nothing to fail" is exactly the
+     * silent-incomplete-data-reads-as-complete failure mode this tool
+     * spent real effort eliminating elsewhere (see MAX_REQS, issue #100).
+     * A genuinely branch-free file the caller doesn't want MC/DC-gated at
+     * all should simply not pass --mcdc-file, not rely on this parsing to
+     * a harmless-looking pass. */
     if (rep->total_conditions == 0) {
         snprintf(rep->note, sizeof(rep->note),
-                 "no MC/DC records found in coverage export");
-        rep->passed = 1;
+                 "no MC/DC condition records found in %s — cannot verify "
+                 "MC/DC coverage from this file (check the path and that "
+                 "it is a genuine LLVM MC/DC JSON export)", path);
+        rep->coverage_pct = 0.0; /* not "100.0% covered, but FAIL" */
+        rep->passed = 0;
         return;
     }
 
@@ -298,8 +311,14 @@ int cmd_coverage(int argc, char **argv)
                    "--dal and --asil may both be given; the stricter requirement of the two\n"
                    "applies to each of line/branch/MC/DC independently.\n"
                    "--mcdc flags decision coverage <100%%.\n"
-                   "--mcdc-file parses an LLVM coverage JSON export for MC/DC analysis.\n"
+                   "--mcdc-file parses an LLVM coverage JSON export for a verified MC/DC gate.\n"
                    "--mcdc-threshold N sets the minimum %% of conditions covered (default 100).\n"
+                   "NOTE: when MC/DC is required (--mcdc, or implied by --dal DAL-A /\n"
+                   "--asil ASIL-D) but --mcdc-file is not given, the gate falls back to\n"
+                   "100%% branch coverage as a proxy — this is NOT verified MC/DC evidence\n"
+                   "(100%% branch coverage does not establish that every condition within\n"
+                   "each decision independently affects its outcome). Provide --mcdc-file\n"
+                   "for a real MC/DC gate.\n"
                    "--mutate reads mutation-report.json (or --mutate-score N) as\n"
                    "MC/DC mutation-testing evidence for DO-178C DAL A/B / ISO 26262 ASIL C/D.\n"
                    "Generate lcov data with: lcov --capture --directory . -o coverage.info\n");
@@ -418,6 +437,25 @@ int cmd_coverage(int argc, char **argv)
     int mut_pass    = !mutate  || mutate_score < 0.0 || mutate_score >= 100.0;
     int overall_pass = line_pass && branch_pass && mcdc_pass && mut_pass;
 
+    /* MC/DC is required at this level (--mcdc, or implied by --dal/--asil)
+     * but no --mcdc-file was given: the gate above falls back to treating
+     * 100% branch coverage as a proxy for MC/DC. That is NOT the same
+     * thing — 100% branch/decision coverage does not establish that every
+     * condition within each decision independently affects its outcome
+     * (e.g. `if (a && b && c)` reaches 100% branch coverage with 2 test
+     * vectors; MC/DC needs enough vectors to isolate each condition).
+     * Say so loudly rather than let a proxy pass read as verified MC/DC
+     * evidence. */
+    if (mcdc && lcov_in && !have_mcdc_rep) {
+        fprintf(stderr,
+            "cfusa coverage: WARNING: MC/DC is required at this DAL/ASIL "
+            "level, but no --mcdc-file was given — falling back to 100%% "
+            "branch coverage as a proxy. Branch/decision coverage does NOT "
+            "establish MC/DC coverage; this is not verified MC/DC evidence. "
+            "Provide --mcdc-file <llvm-mcdc.json> (e.g. from "
+            "clang -fcoverage-mcdc) for a real MC/DC gate.\n");
+    }
+
     if (fmt == FMT_JSON) {
         fprintf(out_f,
             "{\n"
@@ -473,6 +511,22 @@ int cmd_coverage(int argc, char **argv)
             if (mcdc_rep.note[0])
                 fprintf(out_f, ",\n    \"note\": \"%s\"", mcdc_rep.note);
             fprintf(out_f, "\n  }");
+        } else if (mcdc && lcov_in) {
+            /* REQ-COV021: machine-readable flag that the MC/DC gate above
+             * was satisfied by the branch-coverage proxy, not a verified
+             * LLVM MC/DC export — a consumer parsing this JSON for
+             * certification evidence must not read mcdcPass/passed here as
+             * genuine MC/DC coverage. */
+            fprintf(out_f,
+                ",\n"
+                "  \"mcdcProxy\": {\n"
+                "    \"verified\": false,\n"
+                "    \"branchCoveragePct\": %.2f,\n"
+                "    \"note\": \"MC/DC required at this level but no "
+                "--mcdc-file given; branch coverage is NOT equivalent to "
+                "verified MC/DC coverage\"\n"
+                "  }",
+                branch_pct);
         }
         fprintf(out_f, "\n}\n");
     } else {
@@ -495,10 +549,14 @@ int cmd_coverage(int argc, char **argv)
                     branch_pass ? "PASS" : "FAIL");
         }
         if (mcdc && lcov_in && !have_mcdc_rep) {
-            fprintf(out_f, "\n  MC/DC analysis: branch coverage %.2f%%", branch_pct);
+            fprintf(out_f,
+                "\n  MC/DC gate (branch-coverage proxy — NOT verified "
+                "MC/DC): %.2f%%", branch_pct);
             if (!mcdc_pass)
                 fprintf(out_f, "  [FAIL — DO-178C requires 100%%]");
-            fprintf(out_f, "\n");
+            fprintf(out_f, "\n  NOTE: no --mcdc-file was given; this result "
+                "is NOT verified MC/DC evidence — provide --mcdc-file "
+                "<llvm-mcdc.json> for a real MC/DC gate.\n");
         }
         /* REQ-COV015: LLVM MC/DC structured report */
         if (have_mcdc_rep) {
