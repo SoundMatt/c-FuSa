@@ -21,7 +21,9 @@ MISRA-C:2012 (Motor Industry Software Reliability Association) defines mandatory
 
 ## Deviations
 
-MISRA-C deviations must be formally documented. c-FuSa's `check` exit code reflects whether deviations are acceptable under your safety plan.
+MISRA-C deviations must be formally documented. `cfusa disposition add --rule <ID> --action accept|fix|mitigate --rationale <text> --reviewer <name>` records one in `.fusa-dispositions.json` (rationale, reviewer, timestamp — `cfusa disposition list`/`show` read it back).
+
+**This is a log, not a gate today.** `cfusa check`/`cfusa lint` do not read `.fusa-dispositions.json` — logging a deviation does not suppress the finding on the next run or change the exit code. Tracked in [issue #122](https://github.com/SoundMatt/c-FuSa/issues/122).
 
 ## Note
 
