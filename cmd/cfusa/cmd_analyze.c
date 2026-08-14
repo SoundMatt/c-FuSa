@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <getopt.h>
 #include "cfusa/engine.h"
 #include "cfusa/report.h"
@@ -7,6 +8,15 @@
 #include "cfusa/utils.h"
 
 typedef struct { cfusa_report_t *rpt; } a_ctx_t;
+
+/* Written as a numeric constant rather than the char literal '\\' to
+ * avoid a known limitation in this file's own recursion scanner
+ * (CFUSA-L004's file-wide brace tracker doesn't count consecutive
+ * backslashes before a closing quote/apostrophe, so a '\\' literal can
+ * desynchronize its brace count and misattribute later code to whichever
+ * function it was last tracking). Same value, spelled to avoid tripping
+ * an unrelated tool limitation, not a behavior change. */
+#define A006_BACKSLASH ((char)0x5C)
 
 //cfusa:req REQ-ANA001
 /* A001 — dangerous string functions (potential buffer overflow) */
@@ -187,22 +197,120 @@ static int rule_a005(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+/* Copies the identifier (alnum/underscore run) touching position `at`:
+ * dir<0 scans backward from `at` (the operand of a postfix ++/--/+=/-=,
+ * e.g. the "ptr" in "ptr++"); dir>0 scans forward from `at` (the operand
+ * of a prefix ++/--, e.g. the "ptr" in "++ptr"). Returns the identifier's
+ * length, or 0 if none touches `at` (e.g. "5++" — no identifier, not a
+ * candidate). */
+static size_t a006_ident_touching(const char *line, const char *at, int dir,
+                                   char *out, size_t out_sz)
+{
+    if (dir < 0) {
+        const char *e = at;
+        const char *s = e;
+        while (s > line && (isalnum((unsigned char)s[-1]) || s[-1] == '_')) s--;
+        size_t n = (size_t)(e - s);
+        if (n == 0 || n >= out_sz) return 0;
+        memcpy(out, s, n); out[n] = '\0';
+        return n;
+    }
+    const char *s = at;
+    const char *b = s;
+    while (isalnum((unsigned char)*s) || *s == '_') s++;
+    size_t n = (size_t)(s - b);
+    if (n == 0 || n >= out_sz) return 0;
+    memcpy(out, b, n); out[n] = '\0';
+    return n;
+}
+
+/* Does `*<ident>` (asterisk immediately followed by `ident`, i.e. a
+ * dereference of it or a "<type> *ident" declaration of it, with a word
+ * boundary after) appear outside string/char literals anywhere on `line`?
+ * Used to confirm the identifier next to an arithmetic operator is
+ * plausibly a pointer, rather than an unrelated variable that merely
+ * shares the line with an unrelated '*'. */
+static int a006_has_star_ident(const char *line, const char *ident)
+{
+    size_t ilen = strlen(ident);
+    int in_str = 0, in_chr = 0, in_cmt = 0;
+    for (const char *p = line; *p; p++) {
+        if (in_cmt) { if (p[0]=='*' && p[1]=='/') { in_cmt = 0; p++; } continue; }
+        if (in_str) { if (*p == '"' && p[-1] != A006_BACKSLASH) in_str = 0; continue; }
+        if (in_chr) { if (*p == '\'' && p[-1] != A006_BACKSLASH) in_chr = 0; continue; }
+        if (p[0] == '/' && p[1] == '*') { in_cmt = 1; p++; continue; }
+        if (*p == '"') { in_str = 1; continue; }
+        if (*p == '\'') { in_chr = 1; continue; }
+        if (*p == '*' && strncmp(p + 1, ident, ilen) == 0) {
+            unsigned char after = (unsigned char)p[1 + ilen];
+            if (!(isalnum(after) || after == '_')) return 1;
+        }
+    }
+    return 0;
+}
+
 //cfusa:req REQ-ANA006
-/* A006 — pointer arithmetic (MISRA-C Rule 18.4) */
+/*
+ * A006 — pointer arithmetic (MISRA-C Rule 18.4).
+ *
+ * Previously flagged any line containing (loosely) a "++"/"--"/" += "/
+ * " -= " token together with any "*" character anywhere on the line, with
+ * no string-literal awareness and no requirement that the two relate to
+ * the same variable — so e.g. an argv literal like
+ * `char *argv[] = {"cfusa", "--lcov", ...};` matched purely by
+ * coincidence: the "--" inside the "--lcov" string literal, and the
+ * unrelated "*" in the pointer declaration.
+ *
+ * Tightened to require both: (1) the operator occurrence is outside a
+ * string/char literal or a block comment, and (2) the
+ * identifier immediately touching that operator also appears elsewhere on
+ * the line as "*<same identifier>" (a dereference, or a pointer
+ * declaration of that name) — i.e. the arithmetic and the pointer-ness
+ * plausibly apply to the SAME variable, not just two unrelated tokens
+ * that happen to share a line. Still a line-based heuristic (no real
+ * symbol table, and block-comment tracking doesn't persist across lines
+ * like the rest of this file's rules), not a false-positive-proof
+ * parser.
+ */
 static void a006_line(const char *path,int lineno,const char *line,void *vctx)
 {
     a_ctx_t *ctx=vctx;
     const char *p=line;
     while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
-    /* Very rough: pointer +/- arithmetic (ptr + n, ptr - n, ptr++, ptr--) */
-    if((strstr(line," += ") || strstr(line," -= ")
-      || strstr(line,"++") || strstr(line,"--"))
-      && strstr(line,"*") && !strstr(line,"//"))
-        cfusa_report_add(ctx->rpt,
-            "CFUSA-A006", CFUSA_CATEGORY_ANALYZE, SEV_INFO,
-            path, lineno,
-            "pointer arithmetic detected — verify bounds (MISRA-C:2012 R18.4)");
+    if (strstr(line,"//")) return; /* preserves the prior line-comment exclusion */
+
+    int in_str = 0, in_chr = 0, in_cmt = 0;
+    for (const char *q = line; *q; q++) {
+        if (in_cmt) { if (q[0]=='*' && q[1]=='/') { in_cmt = 0; q++; } continue; }
+        if (in_str) { if (*q == '"' && q[-1] != A006_BACKSLASH) in_str = 0; continue; }
+        if (in_chr) { if (*q == '\'' && q[-1] != A006_BACKSLASH) in_chr = 0; continue; }
+        if (q[0] == '/' && q[1] == '*') { in_cmt = 1; q++; continue; }
+        if (*q == '"') { in_str = 1; continue; }
+        if (*q == '\'') { in_chr = 1; continue; }
+
+        char ident[128]; size_t ilen = 0;
+        if ((q[0]=='+' && q[1]=='+') || (q[0]=='-' && q[1]=='-')) {
+            /* postfix (ptr++) takes priority; fall back to prefix (++ptr) */
+            ilen = a006_ident_touching(line, q, -1, ident, sizeof ident);
+            if (ilen == 0)
+                ilen = a006_ident_touching(line, q + 2, +1, ident, sizeof ident);
+        } else if (q[0]==' ' && (q[1]=='+' || q[1]=='-') && q[2]=='=' && q[3]==' ') {
+            ilen = a006_ident_touching(line, q, -1, ident, sizeof ident);
+        } else {
+            continue;
+        }
+        if (ilen == 0) continue;
+
+        if (a006_has_star_ident(line, ident)) {
+            cfusa_report_add(ctx->rpt,
+                "CFUSA-A006", CFUSA_CATEGORY_ANALYZE, SEV_INFO,
+                path, lineno,
+                "pointer arithmetic on '%s' detected — verify bounds "
+                "(MISRA-C:2012 R18.4)", ident);
+            return; /* one finding per line is enough */
+        }
+    }
 }
 
 static int a006_file(const char *path, void *v)

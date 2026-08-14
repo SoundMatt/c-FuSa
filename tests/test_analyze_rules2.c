@@ -269,8 +269,7 @@ void test_a006_ptr_increment_fires(void)
 {
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_analyze_on("void fn(int *p) { p++; (void)p; }\n", &rpt);
-    /* A006 needs `*` on same line as `++` — confirm behavior */
-    (void)count_rule(&rpt, "CFUSA-A006"); /* no crash required */
+    TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-A006") > 0);
     cfusa_report_free(&rpt);
 }
 
@@ -290,6 +289,56 @@ void test_a006_simple_add_silent(void)
 {
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_analyze_on("void fn(int a, int b) { int c = a + b; (void)c; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-A006"));
+    cfusa_report_free(&rpt);
+}
+
+/* Regression: a "--flag"-style string literal (e.g. CLI argv arrays) must
+ * not coincidentally match the "--" decrement-operator check just because
+ * an unrelated pointer declaration also appears on the line. */
+//cfusa:req REQ-ANA006
+//cfusa:test REQ-ANA006
+void test_a006_dashdash_in_string_literal_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_analyze_on(
+        "void fn(void) {\n"
+        "    char *argv[] = {\"cfusa\", \"--lcov\", \"x\", NULL};\n"
+        "    (void)argv;\n"
+        "}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-A006"));
+    cfusa_report_free(&rpt);
+}
+
+/* Regression: an unrelated ++/-- on one variable must not fire just
+ * because a *different* pointer happens to be declared on the same line
+ * (the arithmetic and the pointer must be the SAME identifier). */
+//cfusa:req REQ-ANA006
+//cfusa:test REQ-ANA006
+void test_a006_unrelated_increment_and_pointer_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_analyze_on(
+        "void fn(int *out, int count) {\n"
+        "    if (*out == 1) { count++; }\n"
+        "    (void)count;\n"
+        "}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-A006"));
+    cfusa_report_free(&rpt);
+}
+
+/* Regression: "--"/"++" text inside a block comment, on the same line as
+ * an unrelated pointer, must not fire either. */
+//cfusa:req REQ-ANA006
+//cfusa:test REQ-ANA006
+void test_a006_dashdash_in_block_comment_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_analyze_on(
+        "void fn(int *p) {\n"
+        "    int mode = 1; /* --verbose implies --debug */\n"
+        "    (void)p; (void)mode;\n"
+        "}\n", &rpt);
     TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-A006"));
     cfusa_report_free(&rpt);
 }
@@ -373,6 +422,9 @@ int main(void)
     RUN_TEST(test_a006_ptr_increment_fires);
     RUN_TEST(test_a006_ptr_plus_assign_fires);
     RUN_TEST(test_a006_simple_add_silent);
+    RUN_TEST(test_a006_dashdash_in_string_literal_silent);
+    RUN_TEST(test_a006_unrelated_increment_and_pointer_silent);
+    RUN_TEST(test_a006_dashdash_in_block_comment_silent);
     RUN_TEST(test_a007_fopen_unchecked_fires);
     RUN_TEST(test_a007_fclose_unchecked_fires);
     RUN_TEST(test_a007_fopen_checked_silent);
