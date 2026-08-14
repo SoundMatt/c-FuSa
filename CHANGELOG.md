@@ -5,6 +5,41 @@ All notable changes to c-FuSa are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.54 — 2026-08-14
+
+Three fixes from a direct quality review: unchecked `fclose()` return values,
+a CFUSA-A006 false-positive class, and CFUSA-L003 precision + ASIL-scaled
+severity.
+
+### Fixed
+- **All previously-flagged CFUSA-A007 (`unchecked fclose()`) sites now check
+  the return value.** 39 sites across 9 files touched this session; product
+  code gets real error handling (`perror`/`fprintf(stderr, ...)`), test code
+  fails loudly via `TEST_FAIL_MESSAGE`.
+- **CFUSA-A006 ("pointer arithmetic") no longer fires on coincidental,
+  unrelated `*`/`++`/`--`/`+=`/`-=` co-occurrence on the same line.** Was a
+  same-line-proximity heuristic with no correlation check between the
+  dereferenced/declared pointer and the incremented variable; now requires
+  the same identifier on both sides. Project-wide: 545 → 141 findings (a 74%
+  reduction), each verified by hand as a genuine unrelated-token coincidence,
+  not a missed real finding.
+- **CFUSA-L003 ("dynamic memory") no longer fires on custom `_free()`-suffixed
+  functions or string-literal text.** Was a plain substring match, so
+  `free(` also matched inside e.g. `cfusa_report_free()`. Project-wide:
+  464 → 133 findings (61% were this false-positive class).
+- **CFUSA-L003 severity is now ASIL-scaled.** ISO 26262-6 lists avoiding
+  dynamic memory allocation as "highly recommended" at ASIL-C/D but only
+  "recommended" at QM/A/B; a declared ASIL-C/D project now gets a hard
+  `SEV_ERROR` instead of the uniform `SEV_WARNING` every project got before.
+  Shared `cfusa_declared_asil_rank()` (moved from a `cmd_misra.c`-local
+  helper into `severity.h`) so this and the accredited-tool note (v0.5.52)
+  don't drift independently.
+
+### Logged, not yet built
+- Issue #122: wire `.fusa-dispositions.json` into `cfusa check`/`lint`
+  enforcement. Dispositions are currently a standalone audit log — logging
+  one doesn't suppress the finding or affect the exit-code gate.
+
 ## v0.5.53 — 2026-08-13
 
 Two MC/DC gate honesty fixes, found during a direct quality review of c-FuSa's

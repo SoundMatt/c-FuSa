@@ -5,7 +5,7 @@
 [![CI](https://github.com/SoundMatt/c-FuSa/actions/workflows/ci.yml/badge.svg)](https://github.com/SoundMatt/c-FuSa/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/SoundMatt/c-FuSa/actions/workflows/codeql.yml/badge.svg)](https://github.com/SoundMatt/c-FuSa/actions/workflows/codeql.yml)
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.5.53-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.54-blue.svg)](CHANGELOG.md)
 
 > **c-FuSa is not a certification product.** It is an engineering accelerator — helping you produce and maintain safety evidence faster.
 
@@ -292,7 +292,7 @@ cfusa disposition list
 cfusa disposition show DISP-0001
 ```
 
-Dispositions are stored in `.cfusa-dispositions.json`.
+Dispositions are stored in `.fusa-dispositions.json` (`.cfusa-dispositions.json` is still read as a legacy fallback). This is a log, not a gate today — `cfusa check`/`cfusa lint` don't read it back, so recording a disposition doesn't suppress the finding or change the exit code yet ([issue #122](https://github.com/SoundMatt/c-FuSa/issues/122)).
 
 ---
 

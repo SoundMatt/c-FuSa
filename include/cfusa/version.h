@@ -3,9 +3,28 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  5
-#define CFUSA_VERSION_PATCH  53
-#define CFUSA_VERSION_STRING "0.5.53"
-/* v0.5.53 — 2026-08-13 MC/DC gate honesty fixes, found during a direct
+#define CFUSA_VERSION_PATCH  54
+#define CFUSA_VERSION_STRING "0.5.54"
+/* v0.5.54 — 2026-08-14 three fixes from a direct quality review: (1) all
+ * previously-flagged CFUSA-A007 (unchecked fclose()) sites now check the
+ * return value — 39 sites across 9 files, product code gets real error
+ * handling, test code fails loudly via TEST_FAIL_MESSAGE. (2) CFUSA-A006
+ * ("pointer arithmetic") no longer fires on coincidental, unrelated
+ * `*`/`++`/`--`/`+=`/`-=` co-occurrence on the same line — now requires
+ * the same identifier on both sides; project-wide 545 -> 141 findings
+ * (74% reduction), each verified by hand as a genuine unrelated-token
+ * coincidence. (3) CFUSA-L003 ("dynamic memory") no longer fires on
+ * custom `_free()`-suffixed functions or string-literal text — was a
+ * plain substring match, so `free(` also matched inside e.g.
+ * cfusa_report_free(); project-wide 464 -> 133 findings (61% were this
+ * false-positive class). L003 severity is also now ASIL-scaled (ISO
+ * 26262-6: dynamic memory avoidance is "highly recommended" at ASIL-C/D,
+ * only "recommended" at QM/A/B) via a new shared
+ * cfusa_declared_asil_rank() (severity.h), moved out of a cmd_misra.c-
+ * local helper so it doesn't drift independently from the accredited-
+ * tool note (v0.5.52) that already used it.
+ *
+ * v0.5.53 — 2026-08-13 MC/DC gate honesty fixes, found during a direct
  * quality review of c-FuSa's MC/DC support: (1) `cfusa coverage
  * --mcdc-file` parsing to zero condition records used to silently PASS
  * ("nothing to fail") — indistinguishable from a wrong/empty/malformed
