@@ -59,28 +59,13 @@ static const misra_row_t MISRA_RULES[] = {
 };
 
 //cfusa:req REQ-MISRA002
-/*
- * Extracts a declared ISO 26262 ASIL from cfg->standards[] (same
- * "iso26262:ASIL-X" convention comp_threshold()/HARA005 already use),
- * returning its cfusa_asil_rank() or -1 if none is declared — c-FuSa
- * issue #108: the accredited-third-party-tool recommendation below is
- * scaled to a hard requirement at ASIL-C/D rather than a uniform
- * soft note regardless of declared criticality.
- */
-static int declared_asil_rank(const cfusa_config_t *cfg)
-{
-    for (int i = 0; i < cfg->standards_count; i++) {
-        const char *s = cfg->standards[i];
-        if (strncmp(s, "iso26262", 8) == 0 || strncmp(s, "ISO 26262", 9) == 0) {
-            const char *colon = strchr(s, ':');
-            if (colon) {
-                int r = cfusa_asil_rank(colon + 1);
-                if (r >= 0) return r;
-            }
-        }
-    }
-    return -1;
-}
+/* c-FuSa issue #108: the accredited-third-party-tool recommendation below
+ * is scaled to a hard requirement at ASIL-C/D rather than a uniform soft
+ * note regardless of declared criticality. Declared-ASIL extraction now
+ * lives in cfusa_declared_asil_rank() (severity.h) — moved out of here so
+ * cmd_lint.c's ASIL-scaled L003 severity can share it instead of
+ * re-deriving it locally, the exact drift severity.h's own header
+ * comment warns against. */
 
 int cmd_misra(int argc, char **argv)
 {
@@ -126,7 +111,7 @@ int cmd_misra(int argc, char **argv)
 
     /* ASIL-C/D: the accredited-third-party-tool note below is a hard
      * requirement, not a soft recommendation (issue #108). */
-    int strong_note = declared_asil_rank(&cfg) >= 3;
+    int strong_note = cfusa_declared_asil_rank(&cfg) >= 3;
 
     FILE *out = stdout;
     if (output) { out = fopen(output, "w"); if (!out) { perror(output); return 3; } }

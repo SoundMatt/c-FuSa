@@ -2,6 +2,7 @@
 #define CFUSA_SEVERITY_H
 
 #include "cfusa/report.h"
+#include "cfusa/config.h"
 
 /*
  * Shared DAL/ASIL integrity-level ranking and gate-severity derivation.
@@ -57,5 +58,17 @@ int cfusa_asil_rank(const char *asil);
  */
 int cfusa_required_severity(const char *enforce, const char *dal,
                              const char *asil, cfusa_severity_t *out_sev);
+
+/*
+ * Extracts a declared ISO 26262 ASIL from cfg->standards[] (the
+ * "iso26262:ASIL-X" convention comp_threshold(), HARA005, and
+ * cmd_misra.c's accredited-tool note already use), returning its
+ * cfusa_asil_rank() or -1 if none is declared. Centralized here (moved
+ * out of cmd_misra.c, c-FuSa issue #108) so any rule that wants to scale
+ * strictness by declared ASIL — not just the qualify/coverage/comp
+ * --enforce gates cfusa_required_severity() covers — shares one
+ * extraction instead of re-deriving it locally per file.
+ */
+int cfusa_declared_asil_rank(const cfusa_config_t *cfg);
 
 #endif /* CFUSA_SEVERITY_H */

@@ -8,6 +8,7 @@
 #include "../include/cfusa/report.h"
 #include "../include/cfusa/config.h"
 #include "../include/cfusa/engine.h"
+#include "../include/cfusa/utils.h"
 
 extern void cfusa_lint_register_rules(void);
 
@@ -22,10 +23,10 @@ static void run_lint_on(const char *code, cfusa_report_t *rpt)
     cfg.max_function_lines = 5;
 
     (void)mkdir(L2_DIR, 0700);
-    FILE *f = fopen(L2_FILE, "w");
+    FILE *f = cfusa_fopen_write(L2_FILE);
     if (!f) { TEST_FAIL_MESSAGE("could not create temp file"); return; }
     fputs(code, f);
-    fclose(f);
+    if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     cfusa_engine_run_category(CFUSA_CATEGORY_LINT, L2_DIR, &cfg, rpt);
 }
@@ -36,6 +37,37 @@ static int count_rule(const cfusa_report_t *rpt, const char *id)
     for (int i = 0; i < rpt->count; i++)
         if (strcmp(rpt->findings[i].rule_id, id) == 0) n++;
     return n;
+}
+
+/* Same as run_lint_on() but declares an "iso26262:<asil>" standard on the
+ * config first, for exercising L003's ASIL-scaled severity. asil == NULL
+ * leaves no standard declared (matches run_lint_on()'s behavior). */
+static void run_lint_on_with_asil(const char *code, const char *asil, cfusa_report_t *rpt)
+{
+    cfusa_engine_reset();
+    cfusa_lint_register_rules();
+    cfusa_config_t cfg; cfusa_config_defaults(&cfg);
+    cfg.max_function_lines = 5;
+    if (asil) {
+        snprintf(cfg.standards[0], sizeof(cfg.standards[0]), "iso26262:%s", asil);
+        cfg.standards_count = 1;
+    }
+
+    (void)mkdir(L2_DIR, 0700);
+    FILE *f = cfusa_fopen_write(L2_FILE);
+    if (!f) { TEST_FAIL_MESSAGE("could not create temp file"); return; }
+    fputs(code, f);
+    if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
+
+    cfusa_engine_run_category(CFUSA_CATEGORY_LINT, L2_DIR, &cfg, rpt);
+}
+
+static cfusa_severity_t first_severity(const cfusa_report_t *rpt, const char *id)
+{
+    for (int i = 0; i < rpt->count; i++)
+        if (strcmp(rpt->findings[i].rule_id, id) == 0) return rpt->findings[i].severity;
+    TEST_FAIL_MESSAGE("rule id not found in report");
+    return SEV_INFO;
 }
 
 void setUp(void)  {}
@@ -166,6 +198,82 @@ void test_l003_realloc_fires_once(void)
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_lint_on("void fn(void *p) { p = realloc(p, 100); (void)p; }\n", &rpt);
     TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L003") > 0);
+    cfusa_report_free(&rpt);
+}
+
+/* ---- L003: boundary/ASIL precision ---- */
+
+//cfusa:req REQ-LINT017
+//cfusa:test REQ-LINT017
+void test_l003_custom_free_suffixed_function_silent(void)
+{
+    /* "cfusa_report_free(" contains "free(" as a substring but is not a
+     * call to stdlib free() — must not fire. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("void fn(void *p) { cfusa_report_free(p); }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L003"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT017
+//cfusa:test REQ-LINT017
+void test_l003_string_literal_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("void fn(void) { puts(\"call malloc(10) to allocate\"); }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L003"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT017
+//cfusa:test REQ-LINT017
+void test_l003_genuine_call_still_fires_beside_custom_free(void)
+{
+    /* Same line as a custom _free()-suffixed call plus a genuine free() —
+     * the genuine call must still be caught, not masked by the skip. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("void fn(void *p) { cfusa_report_free(p); free(p); }\n", &rpt);
+    TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L003") > 0);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT017
+//cfusa:test REQ-LINT017
+void test_l003_severity_warning_when_asil_undeclared(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on_with_asil("void fn(void) { void *p = malloc(8); (void)p; }\n", NULL, &rpt);
+    TEST_ASSERT_EQUAL(SEV_WARNING, first_severity(&rpt, "CFUSA-L003"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT017
+//cfusa:test REQ-LINT017
+void test_l003_severity_warning_at_asil_b(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on_with_asil("void fn(void) { void *p = malloc(8); (void)p; }\n", "ASIL-B", &rpt);
+    TEST_ASSERT_EQUAL(SEV_WARNING, first_severity(&rpt, "CFUSA-L003"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT017
+//cfusa:test REQ-LINT017
+void test_l003_severity_error_at_asil_c(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on_with_asil("void fn(void) { void *p = malloc(8); (void)p; }\n", "ASIL-C", &rpt);
+    TEST_ASSERT_EQUAL(SEV_ERROR, first_severity(&rpt, "CFUSA-L003"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT017
+//cfusa:test REQ-LINT017
+void test_l003_severity_error_at_asil_d(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on_with_asil("void fn(void) { void *p = malloc(8); (void)p; }\n", "ASIL-D", &rpt);
+    TEST_ASSERT_EQUAL(SEV_ERROR, first_severity(&rpt, "CFUSA-L003"));
     cfusa_report_free(&rpt);
 }
 
@@ -371,10 +479,10 @@ static void run_lint_on_cfg(const char *code, cfusa_config_t *cfg,
     cfusa_engine_reset();
     cfusa_lint_register_rules();
     (void)mkdir(L2_DIR, 0700);
-    FILE *f = fopen(L2_FILE, "w");
+    FILE *f = cfusa_fopen_write(L2_FILE);
     if (!f) { TEST_FAIL_MESSAGE("could not create temp file"); return; }
     fputs(code, f);
-    fclose(f);
+    if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     cfusa_engine_run_category(CFUSA_CATEGORY_LINT, L2_DIR, cfg, rpt);
 }
 
@@ -477,6 +585,13 @@ int main(void)
     RUN_TEST(test_l003_malloc_fires);
     RUN_TEST(test_l003_calloc_alone_fires);
     RUN_TEST(test_l003_realloc_fires_once);
+    RUN_TEST(test_l003_custom_free_suffixed_function_silent);
+    RUN_TEST(test_l003_string_literal_silent);
+    RUN_TEST(test_l003_genuine_call_still_fires_beside_custom_free);
+    RUN_TEST(test_l003_severity_warning_when_asil_undeclared);
+    RUN_TEST(test_l003_severity_warning_at_asil_b);
+    RUN_TEST(test_l003_severity_error_at_asil_c);
+    RUN_TEST(test_l003_severity_error_at_asil_d);
     RUN_TEST(test_l004_direct_recursion_fires);
     RUN_TEST(test_l004_no_recursion_silent);
     RUN_TEST(test_l004_forward_decl_silent);

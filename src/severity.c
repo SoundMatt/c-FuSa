@@ -61,3 +61,19 @@ int cfusa_required_severity(const char *enforce, const char *dal,
     *out_sev = (rank >= 3) ? SEV_ERROR : SEV_WARNING;
     return 1;
 }
+
+int cfusa_declared_asil_rank(const cfusa_config_t *cfg)
+{
+    if (!cfg) return -1;
+    for (int i = 0; i < cfg->standards_count; i++) {
+        const char *s = cfg->standards[i];
+        if (strncmp(s, "iso26262", 8) == 0 || strncmp(s, "ISO 26262", 9) == 0) {
+            const char *colon = strchr(s, ':');
+            if (colon) {
+                int r = cfusa_asil_rank(colon + 1);
+                if (r >= 0) return r;
+            }
+        }
+    }
+    return -1;
+}
