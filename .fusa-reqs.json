@@ -280,6 +280,7 @@
     {"id":"REQ-LINT014","title":"L010 detects use of errno (MISRA-C 2012 Rule 22.8)","standard":"MISRA-C:2012","level":"ASIL-B"},
     {"id":"REQ-LINT015","title":"L011 detects octal constants (MISRA-C 2012 Rule 7.1) without false-positiving on hex literals, plain zero, or floats","standard":"MISRA-C:2012","level":"ASIL-B"},
     {"id":"REQ-LINT016","title":"L012 detects a macro defined with the same name as a C keyword (MISRA-C 2012 Rule 20.4)","standard":"MISRA-C:2012","level":"ASIL-B"},
+    {"id":"REQ-LINT017","title":"L003 detects dynamic memory allocation (MISRA-C 2012 Rule 21.3) without false-positiving on custom _free()-suffixed functions or string literals, and escalates to SEV_ERROR at declared ASIL-C/D","standard":"MISRA-C:2012","level":"ASIL-D"},
     {"id":"REQ-PR003","title":"cfusa pr --help returns zero","standard":"DO-178C","level":"ASIL-A"},
     {"id":"REQ-PR004","title":"cfusa pr new creates a problem-report entry","standard":"DO-178C","level":"ASIL-A"},
     {"id":"REQ-PR005","title":"cfusa pr close updates a problem report's status","standard":"DO-178C","level":"ASIL-A"},

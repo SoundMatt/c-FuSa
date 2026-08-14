@@ -6,6 +6,7 @@
 #include "cfusa/engine.h"
 #include "cfusa/report.h"
 #include "cfusa/config.h"
+#include "cfusa/severity.h"
 #include "cfusa/utils.h"
 
 /* ---- rule helpers ---- */
@@ -123,28 +124,55 @@ static int rule_l002(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
-//cfusa:req REQ-LINT005
-/* L003 — dynamic memory (malloc/calloc/realloc/free) MISRA-C 2012 Rule 21.3 */
+//cfusa:req REQ-LINT005 REQ-LINT017
+/* L003 — dynamic memory (malloc/calloc/realloc/free) MISRA-C 2012 Rule 21.3.
+ *
+ * Precision fix: the original version matched these names with a plain
+ * strstr(), so "free(" also matched the "free(" *substring* inside any
+ * custom cleanup function ending in "_free(" (e.g. cfusa_report_free())
+ * — a large false-positive class (61% of findings project-wide when
+ * this was measured). Now requires a non-identifier boundary
+ * immediately before the match, the same technique L011 uses for its
+ * octal-constant boundary check, and skips string-literal content so
+ * quoted example code doesn't trigger it either.
+ *
+ * Severity is ASIL-scaled (mirrors cmd_misra.c's declared-ASIL-based
+ * accredited-tool note): ISO 26262-6 lists
+ * avoiding dynamic memory allocation as "highly recommended" at
+ * ASIL-C/D but only "recommended" at QM/A/B, so a declared ASIL-C/D
+ * project gets a hard SEV_ERROR here instead of the uniform SEV_WARNING
+ * every project got before. */
 static const char * const dyn_mem_fns[] = {
     "malloc(", "calloc(", "realloc(", "free(",
     "malloc (","calloc (","realloc (","free (",
     NULL
 };
 
+typedef struct { cfusa_report_t *rpt; cfusa_severity_t sev; } l003_ctx_t;
+
 static void l003_line(const char *path, int lineno, const char *line, void *vctx)
 {
-    line_scan_ctx_t *ctx = vctx;
+    l003_ctx_t *ctx = vctx;
     const char *p = line;
     while (*p == ' ' || *p == '\t') p++;
-    if (*p == '/' || *p == '*') return; /* comment */
-    for (int i = 0; dyn_mem_fns[i]; i++) {
-        if (strstr(line, dyn_mem_fns[i])) {
+    if (*p == '/' || *p == '*') return; /* comment-only line */
+
+    int in_str = 0;
+    for (const char *q = line; *q; q++) {
+        if (*q == '"' && (q == line || q[-1] != '\\')) { in_str = !in_str; continue; }
+        if (in_str) continue;
+        for (int i = 0; dyn_mem_fns[i]; i++) {
+            size_t flen = strlen(dyn_mem_fns[i]);
+            if (strncmp(q, dyn_mem_fns[i], flen) != 0) continue;
+            int boundary_ok = (q == line) ||
+                !(isalnum((unsigned char)q[-1]) || q[-1] == '_');
+            if (!boundary_ok) continue;
             cfusa_report_add(ctx->rpt,
-                "CFUSA-L003", CFUSA_CATEGORY_LINT, SEV_WARNING,
+                "CFUSA-L003", CFUSA_CATEGORY_LINT, ctx->sev,
                 path, lineno,
                 "dynamic memory allocation ('%.*s') — MISRA-C 2012 Rule 21.3: "
                 "heap usage prohibited in safety-critical code",
-                (int)(strlen(dyn_mem_fns[i]) - 1), dyn_mem_fns[i]);
+                (int)(flen - 1), dyn_mem_fns[i]);
             return;
         }
     }
@@ -159,9 +187,10 @@ static int l003_file(const char *path, void *vctx)
 static int rule_l003(const char *dir, const cfusa_config_t *cfg,
                       cfusa_report_t *rpt)
 {
-    (void)cfg;
     static const char * const exts[] = {".c"};
-    line_scan_ctx_t ctx = {rpt};
+    cfusa_severity_t sev = (cfusa_declared_asil_rank(cfg) >= 3)
+        ? SEV_ERROR : SEV_WARNING;
+    l003_ctx_t ctx = {rpt, sev};
     cfusa_walk_sources(dir, exts, 1, l003_file, &ctx);
     return 0;
 }
