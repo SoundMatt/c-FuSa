@@ -343,7 +343,7 @@ void test_req_import_valid_csv(void)
     if (f) {
         fputs("id,title,text,standard,level\n", f);
         fputs("\"REQ-IMP001\",\"Import test\",\"The tool shall import.\",\"CERT-C\",\"SHALL\"\n", f);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
     char *argv[] = {"cfusa", "import", "--dir", RTC_DIR, csvpath, NULL};
     int rc = cmd_req(5, argv);
@@ -381,7 +381,7 @@ void test_req_import_codebeamer_csv(void)
     if (f) {
         fputs("\"tracker item id\",\"summary\",\"description\",\"category\"\n", f);
         fputs("\"101\",\"CB summary\",\"CB description\",\"Software\"\n", f);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
     char *argv[] = {"cfusa", "import", "--dir", RTC_DIR,
                     "--format", "codebeamer", csvpath, NULL};
@@ -409,7 +409,7 @@ void test_req_import_jama_csv(void)
     if (f) {
         fputs("ID,Name,Description,Status\n", f);
         fputs("202,Jama item,Jama description text,Active\n", f);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
     char *argv[] = {"cfusa", "import", "--dir", RTC_DIR,
                     "--format", "jama", csvpath, NULL};
@@ -450,7 +450,7 @@ void test_req_import_reqif_xml(void)
               "    </SPEC-OBJECTS>\n"
               "  </CORE-CONTENT>\n"
               "</REQ-IF>\n", f);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
     /* DOORS ReqIF XML (REQ-REQXML001): --format doors parses <SPEC-OBJECT>
      * elements, using LONG-NAME as title and <THE-VALUE> as text. */
@@ -483,7 +483,7 @@ void test_req_import_codebeamer_xml(void)
               "    <description>CB XML description</description>\n"
               "  </item>\n"
               "</tracker>\n", f);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
     /* Codebeamer XML (REQ-REQXML002): --format codebeamer + .xml extension
      * parses <item id=\"...\"><summary>/<description> elements. */
@@ -516,7 +516,7 @@ void test_req_import_jama_xml(void)
               "    <description>Jama XML description</description>\n"
               "  </item>\n"
               "</items>\n", f);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
     /* Jama XML (REQ-REQXML003): --format jama + .xml extension parses
      * <item id=\"...\"><name>/<description> elements. */
@@ -549,7 +549,7 @@ void test_req_import_polarion_xml(void)
               "    <description>Polarion description</description>\n"
               "  </workitem>\n"
               "</workitems>\n", f);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
     /* Polarion XML (REQ-REQXML004): --format polarion + .xml extension (no
      * "reqif" substring in the format string) parses <workitem id=\"...\">
@@ -672,7 +672,7 @@ void test_trace_req_coverage_truncated(void)
     FILE *f = fopen(RTC_DIR "/many.c", "w");
     if (f) {
         for (int i = 0; i < 25; i++) fprintf(f, "void Fn%d(void) {}\n", i);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
     char *argv[] = {"cfusa", "--dir", RTC_DIR, "--req-coverage", "80", NULL};
     /* exit code may be 0 or 1 — we only care it doesn't crash */
@@ -804,7 +804,7 @@ void test_trace_more_than_1024_reqs_not_truncated(void)
         fprintf(rf, "    {\"id\":\"REQ-BIG-%04d\",\"title\":\"r%d\"}%s\n",
                 i, i, (i < n) ? "," : "");
     fprintf(rf, "  ]\n}\n");
-    fclose(rf);
+    if (fclose(rf) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     FILE *cf = cfusa_fopen_write(impl_path);
     TEST_ASSERT_NOT_NULL(cf);
@@ -812,7 +812,7 @@ void test_trace_more_than_1024_reqs_not_truncated(void)
         fprintf(cf,
                 "//cfusa:req REQ-BIG-%04d\n//cfusa:test REQ-BIG-%04d\n"
                 "void f%d(void) {}\n", i, i, i);
-    fclose(cf);
+    if (fclose(cf) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     char *argv[] = {"cfusa", "--dir", RTC_DIR, "--output", out_path, NULL};
     int rc = cmd_trace(5, argv);
@@ -827,7 +827,7 @@ void test_trace_more_than_1024_reqs_not_truncated(void)
     TEST_ASSERT_NOT_NULL(buf);
     size_t nread = fread(buf, 1, (size_t)sz, of);
     buf[nread] = '\0';
-    fclose(of);
+    if (fclose(of) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     TEST_ASSERT_NOT_NULL(strstr(buf,
         "Coverage: 1030/1030 requirements traced, 1030/1030 tested"));
@@ -858,7 +858,7 @@ void test_req_more_than_1024_reqs_not_truncated(void)
         fprintf(rf, "    {\"id\":\"REQ-BIG-%04d\",\"title\":\"r%d\"}%s\n",
                 i, i, (i < n) ? "," : "");
     fprintf(rf, "  ]\n}\n");
-    fclose(rf);
+    if (fclose(rf) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     char *argv[] = {"cfusa", "--dir", RTC_DIR, "REQ-BIG-1030", NULL};
     int rc = cmd_req(4, argv);
@@ -892,7 +892,7 @@ void test_trace_more_than_4096_tags_not_truncated(void)
         fprintf(rf, "    {\"id\":\"REQ-TAG-%04d\",\"title\":\"r%d\"}%s\n",
                 i, i, (i < n) ? "," : "");
     fprintf(rf, "  ]\n}\n");
-    fclose(rf);
+    if (fclose(rf) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     FILE *cf = cfusa_fopen_write(impl_path);
     TEST_ASSERT_NOT_NULL(cf);
@@ -901,7 +901,7 @@ void test_trace_more_than_4096_tags_not_truncated(void)
             fprintf(cf, "//cfusa:req REQ-TAG-%04d\n", i);
         fprintf(cf, "void f%d(void) {}\n", i);
     }
-    fclose(cf);
+    if (fclose(cf) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     char *argv2[] = {"cfusa", "--dir", RTC_DIR, "--output", out_path, NULL};
     int rc = cmd_trace(5, argv2);
@@ -916,7 +916,7 @@ void test_trace_more_than_4096_tags_not_truncated(void)
     TEST_ASSERT_NOT_NULL(buf);
     size_t nread = fread(buf, 1, (size_t)sz, of);
     buf[nread] = '\0';
-    fclose(of);
+    if (fclose(of) != 0) TEST_FAIL_MESSAGE("fclose failed");
 
     /* Only impl tags were written (no test tags), so traced==n, tested==0 */
     char expect[128];

@@ -196,7 +196,7 @@ void test_sign_keygen_creates_key_file(void)
         char buf[128];
         buf[0] = '\0';
         fgets(buf, sizeof(buf), f);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         /* strip newline */
         size_t len = strlen(buf);
         if (len > 0 && buf[len-1] == '\n') buf[--len] = '\0';
@@ -226,7 +226,7 @@ void test_sign_keygen_overwrites_existing_file(void)
         char buf[128];
         buf[0] = '\0';
         fgets(buf, sizeof(buf), f);
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         size_t len = strlen(buf);
         if (len > 0 && buf[len-1] == '\n') buf[--len] = '\0';
         TEST_ASSERT_EQUAL(64, (int)len);
@@ -395,7 +395,7 @@ void test_misra_note_strong_at_asil_d(void)
     TEST_ASSERT_NOT_NULL(cf);
     if (cf) {
         fputs("{\"configVersion\":\"1.0\",\"standards\":[\"iso26262:ASIL-D\"]}\n", cf);
-        fclose(cf);
+        if (fclose(cf) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
 
     char out[256];

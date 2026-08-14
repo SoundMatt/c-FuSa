@@ -30,7 +30,7 @@ void test_qualify_badge_independent(void)
         char buf[8192] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "independently-qualified"));
         TEST_ASSERT_NOT_NULL(strstr(buf, "qualificationBadge"));
         (void)remove("/tmp/cfusa_qualify_indep.json");
@@ -54,7 +54,7 @@ void test_qualify_badge_self(void)
         char buf[8192] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "self-qualified"));
         (void)remove("/tmp/cfusa_qualify_self.json");
     }
@@ -76,7 +76,7 @@ void test_qualify_badge_unqualified(void)
         char buf[8192] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"qualificationBadge\": \"unqualified\""));
         (void)remove("/tmp/cfusa_qualify_unq.json");
     }
@@ -101,7 +101,7 @@ void test_qualify_qualifier_and_record_uri_in_json(void)
         char buf[8192] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "qualifierIdentity"));
         TEST_ASSERT_NOT_NULL(strstr(buf, "qualificationRecordUri"));
         (void)remove("/tmp/cfusa_qualify_meta.json");
@@ -128,7 +128,7 @@ void test_qualify_independence_independent(void)
         char buf[8192] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"independenceStatus\": \"independent\""));
         (void)remove("/tmp/cfusa_qualify_indep2.json");
     }
@@ -152,7 +152,7 @@ void test_qualify_independence_self_reviewed(void)
         char buf[8192] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"independenceStatus\": \"self-reviewed\""));
         (void)remove("/tmp/cfusa_qualify_self2.json");
     }
@@ -175,7 +175,7 @@ void test_qualify_independence_unqualified(void)
         char buf[8192] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"independenceStatus\": \"unqualified\""));
         (void)remove("/tmp/cfusa_qualify_unq2.json");
     }
@@ -203,7 +203,7 @@ void test_qualify_vv_fields_in_json(void)
         char buf[8192] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "implementationAuthor"));
         TEST_ASSERT_NOT_NULL(strstr(buf, "independentReviewer"));
         TEST_ASSERT_NOT_NULL(strstr(buf, "independentTestExecutor"));
@@ -235,7 +235,7 @@ static void assert_achievable_asil(char **argv, int argc, const char *expect)
         char buf[8192] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         char expected_field[64];
         snprintf(expected_field, sizeof(expected_field),
                  "\"achievableAsil\": \"%s\"", expect);

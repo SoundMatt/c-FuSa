@@ -163,7 +163,7 @@ void test_mcdc_no_records_note_explains_failure(void)
         char buf[4096] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "\"passed\": false"));
         TEST_ASSERT_NOT_NULL(strstr(buf, "no MC/DC condition records found"));
         (void)remove(out);
@@ -242,7 +242,7 @@ void test_mcdc_json_output_has_mcdc_report(void)
         char buf[4096] = "";
         size_t n = fread(buf, 1, sizeof(buf) - 1, f);
         buf[n] = '\0';
-        fclose(f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
         TEST_ASSERT_NOT_NULL(strstr(buf, "mcdcReport"));
         TEST_ASSERT_NOT_NULL(strstr(buf, "totalConditions"));
         TEST_ASSERT_NOT_NULL(strstr(buf, "coveragePct"));
