@@ -5,6 +5,33 @@ All notable changes to c-FuSa are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.53 — 2026-08-13
+
+Two MC/DC gate honesty fixes, found during a direct quality review of c-FuSa's
+MC/DC support (not filed as a separate issue — fixed on request).
+
+### Fixed
+- **`cfusa coverage --mcdc-file` no longer silently passes on an empty
+  parse.** A file that parses to zero MC/DC condition records used to
+  return a PASS ("nothing to fail") — indistinguishable, purely from
+  content, from a wrong path, a truncated file, or a future LLVM
+  export-format change the tool's string-scan no longer recognizes. Same
+  failure shape as the `MAX_REQS` silent-truncation bug (v0.5.51, issue
+  #100): incomplete data must never read as complete. Now fails loudly
+  with a diagnostic note; the report also no longer shows a contradictory
+  `100.00% (0/0 conditions) FAIL`.
+- **The branch-coverage MC/DC fallback is now honestly labeled.** Without
+  `--mcdc-file`, the DAL-A/ASIL-D-required MC/DC gate falls back to
+  treating 100% branch coverage as a proxy — but the output was labeled
+  "MC/DC analysis", which is materially misleading: 100% branch/decision
+  coverage does not establish that every condition within a decision
+  independently affects its outcome (the entire reason MC/DC exists as a
+  distinct, stricter metric). Now: a stderr `WARNING` whenever the proxy
+  is used, the text label changed to "MC/DC gate (branch-coverage
+  proxy — NOT verified MC/DC)", a machine-readable
+  `"mcdcProxy": {"verified": false, ...}` JSON field, and `--help` text
+  spelling out the distinction.
+
 ## v0.5.52 — 2026-08-13
 
 ASIL-scaling initiative (issue #103, sub-issues #104-#109). c-FuSa correctly

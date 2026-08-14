@@ -3,9 +3,26 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  5
-#define CFUSA_VERSION_PATCH  52
-#define CFUSA_VERSION_STRING "0.5.52"
-/* v0.5.52 — 2026-08-13 ASIL-scaling initiative (issue #103, #104-#109):
+#define CFUSA_VERSION_PATCH  53
+#define CFUSA_VERSION_STRING "0.5.53"
+/* v0.5.53 — 2026-08-13 MC/DC gate honesty fixes, found during a direct
+ * quality review of c-FuSa's MC/DC support: (1) `cfusa coverage
+ * --mcdc-file` parsing to zero condition records used to silently PASS
+ * ("nothing to fail") — indistinguishable from a wrong/empty/malformed
+ * export purely from content, the same silent-incomplete-data-reads-as-
+ * complete failure shape as the MAX_REQS bug (issue #100); now fails
+ * loudly with a diagnostic note, and the report no longer shows a
+ * contradictory "100.00% (0/0 conditions) FAIL". (2) without --mcdc-file,
+ * the DAL-A/ASIL-D-required MC/DC gate falls back to treating 100% branch
+ * coverage as a proxy, but the output was labeled "MC/DC analysis" —
+ * materially misleading, since 100% branch/decision coverage does not
+ * establish that every condition within a decision independently affects
+ * its outcome. Now: a stderr WARNING when the proxy is used, an honest
+ * "branch-coverage proxy — NOT verified MC/DC" label, a machine-readable
+ * mcdcProxy.verified=false JSON field, and --help text spelling out the
+ * distinction.
+ *
+ * v0.5.52 — 2026-08-13 ASIL-scaling initiative (issue #103, #104-#109):
  * c-FuSa correctly derived ASIL but didn't scale the rigor ISO 26262
  * actually escalates at higher ASIL levels — MC/DC coverage, independent
  * review/test, and complexity/rule strictness were either DO-178C-DAL-only
