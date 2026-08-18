@@ -738,6 +738,75 @@ void test_trace_func_coverage_na_empty(void)
         "//cfusa:test REQ-A002\nvoid test_beta(void) {}\n");
 }
 
+/* ---- --func-coverage-strict (REQ-FUNCCOV002, issue #125) ---- */
+
+//cfusa:req REQ-FUNCCOV002
+//cfusa:test REQ-FUNCCOV002
+void test_trace_func_coverage_strict_gate_pass(void)
+{
+    /* impl.c: both alpha and beta are individually tagged directly above
+     * their own definition -> 100% under the strict metric too. */
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--func-coverage-strict", "100", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+}
+
+/* This is the issue's core repro: a file where every function sits
+ * "in a file carrying >=1 //cfusa:req tag" (so --func-coverage reports
+ * 100%), but one function has no tag of its own directly above it. The
+ * plain --func-coverage gate must still pass (unchanged, file-level
+ * contract); --func-coverage-strict must correctly fail. */
+//cfusa:req REQ-FUNCCOV002
+//cfusa:test REQ-FUNCCOV002
+void test_trace_func_coverage_strict_catches_untagged_helper_in_tagged_file(void)
+{
+    write_file("mixed.c",
+        "//cfusa:req REQ-A001\n"
+        "void tagged_one(void) {}\n"
+        "\n"
+        "int untagged_helper(int x) { return x + 1; }\n"
+        "\n"
+        "//cfusa:req REQ-A002\n"
+        "void tagged_two(void) {}\n");
+
+    char *file_level[] = {"cfusa", "--dir", RTC_DIR, "--func-coverage", "100", NULL};
+    TEST_ASSERT_EQUAL_INT(0, cmd_trace(5, file_level));
+
+    char *strict[] = {"cfusa", "--dir", RTC_DIR, "--func-coverage-strict", "100", NULL};
+    TEST_ASSERT_EQUAL_INT(1, cmd_trace(5, strict));
+
+    rm_file("mixed.c");
+}
+
+//cfusa:req REQ-FUNCCOV002
+//cfusa:test REQ-FUNCCOV002
+void test_trace_func_coverage_strict_zero_disabled(void)
+{
+    write_file("extra.c",
+        "void fn1(void) {}\nvoid fn2(void) {}\nvoid fn3(void) {}\n");
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--func-coverage-strict", "0", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    rm_file("extra.c");
+}
+
+//cfusa:req REQ-FUNCCOV002
+//cfusa:test REQ-FUNCCOV002
+void test_trace_func_coverage_strict_na_empty(void)
+{
+    rm_file("impl.c");
+    rm_file("test_impl.c");
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--func-coverage-strict", "90", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    write_file("impl.c",
+        "//cfusa:req REQ-A001\nvoid alpha(void) {}\n"
+        "//cfusa:req REQ-A002\nvoid beta(void) {}\n");
+    write_file("test_impl.c",
+        "//cfusa:test REQ-A001\nvoid test_alpha(void) {}\n"
+        "//cfusa:test REQ-A002\nvoid test_beta(void) {}\n");
+}
+
 /* ---- dangling test-tag reference (REQ-TESTDANGLE001, x-FuSa spec §1.4.1) ---- */
 
 //cfusa:req REQ-TESTDANGLE001
@@ -972,6 +1041,10 @@ int main(void)
     RUN_TEST(test_trace_func_coverage_gate_fail);
     RUN_TEST(test_trace_func_coverage_zero_disabled);
     RUN_TEST(test_trace_func_coverage_na_empty);
+    RUN_TEST(test_trace_func_coverage_strict_gate_pass);
+    RUN_TEST(test_trace_func_coverage_strict_catches_untagged_helper_in_tagged_file);
+    RUN_TEST(test_trace_func_coverage_strict_zero_disabled);
+    RUN_TEST(test_trace_func_coverage_strict_na_empty);
     RUN_TEST(test_trace_dangling_test_tag_warning);
     RUN_TEST(test_trace_more_than_1024_reqs_not_truncated);
     RUN_TEST(test_req_more_than_1024_reqs_not_truncated);
