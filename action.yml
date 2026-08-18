@@ -62,9 +62,21 @@ runs:
         set -euo pipefail
         version="${{ inputs.version }}"
         if [ "$version" = "latest" ]; then
-          version=$(curl -fsSL \
-            https://api.github.com/repos/SoundMatt/c-FuSa/releases/latest \
-            | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/')
+          # Capture the full response into a variable before parsing it,
+          # rather than piping curl straight into `grep -m1`: grep -m1
+          # exits (closing its stdin pipe) right after its first match,
+          # and if curl is still writing later bytes of a large response
+          # body when that happens it can get SIGPIPE'd -- observed in CI
+          # as an intermittent "curl: (23) Failure writing output to
+          # destination" that, under `set -eo pipefail`, aborted this
+          # entire step before the actual binary download ever ran. Once
+          # curl has fully finished into a variable there's no reader to
+          # race.
+          resp=$(curl -fsSL https://api.github.com/repos/SoundMatt/c-FuSa/releases/latest) || {
+            echo "::error::Failed to query the GitHub releases API for the latest c-FuSa release."
+            exit 1
+          }
+          version=$(printf '%s' "$resp" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/')
           if [ -z "$version" ]; then
             echo "::error::Could not resolve the latest c-FuSa release tag from the GitHub API."
             exit 1
