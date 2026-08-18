@@ -36,24 +36,16 @@ static void disp_normalize_action(char *action)
     else if (strcmp(action, "fixed")     == 0) strcpy(action, "fix");
 }
 
-//cfusa:req REQ-DISP-ENFORCE001
-int cfusa_dispositions_load(const char *dir, cfusa_disposition_list_t *list)
+/* Shared by cfusa_dispositions_load()/cfusa_baseline_load(): parses
+ * `content` (id/rule/fingerprint/action entries, in any wrapper array —
+ * the parser doesn't care what key they're nested under) into `list`.
+ * `label` is only used in WARNING messages, so a baseline-vs-disposition
+ * parse failure is still attributed to the right file. */
+static int disp_parse(const char *content, const char *label,
+                       cfusa_disposition_list_t *list)
 {
-    memset(list, 0, sizeof(*list));
-
-    char path[512];
-    cfusa_path_join(path, sizeof(path), dir, DISP_FILE);
-    size_t len = 0;
-    char *content = cfusa_read_file(path, &len);
-    if (!content) {
-        char legacy[512];
-        cfusa_path_join(legacy, sizeof(legacy), dir, DISP_FILE_LEGACY);
-        content = cfusa_read_file(legacy, &len);
-    }
-    if (!content) return 1; /* no dispositions file at all — not an error */
-
     int ok = 1;
-    char *p = content;
+    const char *p = content;
     while ((p = strstr(p, "\"id\"")) != NULL) {
         char id[16] = "", rule[64] = "", fingerprint[72] = "", action[16] = "";
         cfusa_json_extract_string(p, "id",          id,          sizeof(id));
@@ -62,13 +54,13 @@ int cfusa_dispositions_load(const char *dir, cfusa_disposition_list_t *list)
         cfusa_json_extract_string(p, "action",      action,      sizeof(action));
         if (action[0]) {
             disp_normalize_action(action);
-            if (strcmp(action, "accept") != 0 && strcmp(action, "fix") != 0 &&
-                strcmp(action, "mitigate") != 0) {
+            if (strcmp(action, "accept")   != 0 && strcmp(action, "fix") != 0 &&
+                strcmp(action, "mitigate") != 0 && strcmp(action, "baseline") != 0) {
                 fprintf(stderr,
                     "cfusa: WARNING: %s entry %s has unrecognized action "
-                    "'%s' (expected accept|fix|mitigate) — this disposition "
-                    "will not suppress any finding\n",
-                    DISP_FILE, id[0] ? id : "<unknown id>", action);
+                    "'%s' (expected accept|fix|mitigate|baseline) — this "
+                    "entry will not suppress any finding\n",
+                    label, id[0] ? id : "<unknown id>", action);
             }
         }
 
@@ -76,9 +68,9 @@ int cfusa_dispositions_load(const char *dir, cfusa_disposition_list_t *list)
             if (!disp_reserve(list, list->count + 1)) {
                 fprintf(stderr,
                     "cfusa: WARNING: out of memory loading %s — only %d "
-                    "disposition(s) loaded; some previously-accepted "
+                    "entry/entries loaded; some previously-accepted "
                     "findings may not be suppressed this run\n",
-                    DISP_FILE, list->count);
+                    label, list->count);
                 ok = 0;
                 break;
             }
@@ -93,8 +85,38 @@ int cfusa_dispositions_load(const char *dir, cfusa_disposition_list_t *list)
         p++; /* advance past this match so the next strstr() finds the
                 following entry's "id" field, not the same one again */
     }
+    return ok;
+}
+
+//cfusa:req REQ-DISP-ENFORCE001
+int cfusa_dispositions_load_from(const char *path, cfusa_disposition_list_t *list)
+{
+    memset(list, 0, sizeof(*list));
+    size_t len = 0;
+    char *content = cfusa_read_file(path, &len);
+    if (!content) return 1; /* no such file — not an error */
+    int ok = disp_parse(content, path, list);
     free(content);
     return ok;
+}
+
+int cfusa_dispositions_load(const char *dir, cfusa_disposition_list_t *list)
+{
+    char path[512];
+    cfusa_path_join(path, sizeof(path), dir, DISP_FILE);
+    if (cfusa_file_exists(path))
+        return cfusa_dispositions_load_from(path, list);
+
+    char legacy[512];
+    cfusa_path_join(legacy, sizeof(legacy), dir, DISP_FILE_LEGACY);
+    return cfusa_dispositions_load_from(legacy, list);
+}
+
+int cfusa_baseline_load(const char *dir, cfusa_disposition_list_t *list)
+{
+    char path[512];
+    cfusa_path_join(path, sizeof(path), dir, CFUSA_BASELINE_FILE);
+    return cfusa_dispositions_load_from(path, list);
 }
 
 void cfusa_dispositions_free(cfusa_disposition_list_t *list)
@@ -112,6 +134,12 @@ void cfusa_report_apply_dispositions(cfusa_report_t *rpt,
     for (int i = 0; i < rpt->count; i++) {
         cfusa_finding_t *f = &rpt->findings[i];
         if (!f->fingerprint[0]) continue;
+        /* issue #208: already dispositioned by an earlier call against a
+         * different list (e.g. .fusa-dispositions.json, then
+         * .fusa-baseline.json) — skip so a second matching entry can
+         * never double-decrement error_count/warning_count/
+         * dispositioned_count for the same finding. */
+        if (f->disposition_id[0]) continue;
 
         for (int j = 0; j < list->count; j++) {
             const cfusa_disposition_t *d = &list->items[j];
@@ -121,8 +149,13 @@ void cfusa_report_apply_dispositions(cfusa_report_t *rpt,
             if (!d->fingerprint[0]) continue;
             if (strcmp(d->fingerprint, f->fingerprint) != 0) continue;
             /* "fix" is a historical audit note only — the code presumably
-             * no longer matches, so there is nothing live to suppress. */
-            if (strcmp(d->action, "accept") != 0 && strcmp(d->action, "mitigate") != 0)
+             * no longer matches, so there is nothing live to suppress.
+             * issue #208: "baseline" suppresses the same way accept/
+             * mitigate do (see cfusa_baseline_load()'s doc comment for
+             * why it's a distinct action rather than reusing "accept"). */
+            if (strcmp(d->action, "accept")   != 0 &&
+                strcmp(d->action, "mitigate") != 0 &&
+                strcmp(d->action, "baseline") != 0)
                 continue;
 
             strncpy(f->disposition_id,     d->id,     sizeof(f->disposition_id) - 1);

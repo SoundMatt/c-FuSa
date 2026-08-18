@@ -46,6 +46,7 @@ const cfusa_command_t CFUSA_COMMANDS[] = {
     {"iec62443",    "IEC 62443-4-2 Component Security Requirements gap report", cmd_iec62443},
     {"misra",       "MISRA-C:2012 rule coverage mapping",               cmd_misra},
     {"disposition", "Manage finding disposition entries",               cmd_disposition},
+    {"baseline",    "Snapshot current findings to exclude from the gate", cmd_baseline},
     {"impact",      "Change impact analysis on requirements",           cmd_impact},
     {"metrics",     "Track safety metrics over time",                   cmd_metrics},
     {"coupling",    "Data/control coupling analysis (DO-178C §6.4.4.3)",cmd_coupling},

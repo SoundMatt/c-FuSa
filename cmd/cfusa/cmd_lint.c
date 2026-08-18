@@ -676,6 +676,14 @@ int cmd_lint(int argc, char **argv)
     cfusa_report_apply_dispositions(&rpt, &disps);
     cfusa_dispositions_free(&disps);
 
+    //cfusa:req REQ-BASELINE001
+    /* issue #208: see the matching comment in cmd_check.c. */
+    cfusa_disposition_list_t baseline;
+    if (!cfusa_baseline_load(dir, &baseline))
+        fprintf(stderr, "cfusa lint: WARNING: baseline may be incomplete\n");
+    cfusa_report_apply_dispositions(&rpt, &baseline);
+    cfusa_dispositions_free(&baseline);
+
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
 
     if (output) {

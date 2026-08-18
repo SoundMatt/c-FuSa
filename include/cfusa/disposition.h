@@ -38,19 +38,52 @@ typedef struct {
  * case) — never silently truncates the list past a fixed cap. */
 int cfusa_dispositions_load(const char *dir, cfusa_disposition_list_t *list);
 
-/* Releases the array cfusa_dispositions_load() allocated. Safe on a
- * zeroed/already-freed list. */
+/* Same parser as cfusa_dispositions_load(), but reading `path` literally
+ * instead of the fixed .fusa-dispositions.json/.cfusa-dispositions.json
+ * names — used by cfusa_baseline_load() (issue #208) to read
+ * .fusa-baseline.json's identically-shaped id/rule/fingerprint/action
+ * entries through the same parsing logic rather than a second, drifting
+ * copy of it. Same "missing file is not an error" / return-value
+ * contract as cfusa_dispositions_load(). */
+int cfusa_dispositions_load_from(const char *path, cfusa_disposition_list_t *list);
+
+/* Releases the array cfusa_dispositions_load()/cfusa_dispositions_load_from()
+ * allocated. Safe on a zeroed/already-freed list. */
 void cfusa_dispositions_free(cfusa_disposition_list_t *list);
 
 /* Cross-references every finding in `rpt` against `list` by fingerprint.
- * A finding matching an accept- or mitigate-action disposition is tagged
- * (disposition_id/disposition_action set on the finding) and excluded
- * from rpt->error_count/warning_count/info_count — moved instead into
- * rpt->dispositioned_count. A finding is never removed from
+ * A finding matching an accept-, mitigate-, or baseline-action entry is
+ * tagged (disposition_id/disposition_action set on the finding) and
+ * excluded from rpt->error_count/warning_count/info_count — moved
+ * instead into rpt->dispositioned_count. A finding is never removed from
  * rpt->findings[]; a fix-action disposition is a historical note only and
  * never suppresses (the code presumably no longer matches, so there is
- * nothing live to suppress). Safe to call with an empty list (no-op). */
+ * nothing live to suppress).
+ *
+ * A finding that already carries a disposition_id (e.g. from an earlier
+ * call against a different list — cmd_check.c applies both
+ * .fusa-dispositions.json and .fusa-baseline.json this way) is skipped
+ * rather than re-matched, so calling this more than once against the
+ * same `rpt` with different lists can never double-decrement
+ * error_count/warning_count/dispositioned_count for the same finding.
+ *
+ * Safe to call with an empty list (no-op). */
 void cfusa_report_apply_dispositions(cfusa_report_t *rpt,
                                       const cfusa_disposition_list_t *list);
+
+/* issue #208: dir/.fusa-baseline.json -- a snapshot of finding
+ * fingerprints taken at some point in the project's history (via `cfusa
+ * baseline`), applied the same way an accept/mitigate disposition is,
+ * but recorded with action "baseline" rather than "accept" so a report
+ * reader can tell "predates policy enrollment, nobody has reviewed this"
+ * apart from "reviewed and deliberately accepted". Unlike a disposition,
+ * a baseline entry is a bulk, unreviewed snapshot -- it exists so a
+ * large legacy codebase can turn the gate on today and fail only on
+ * genuinely NEW findings, without hand-writing one disposition per
+ * pre-existing finding. Same "missing file is not an error" contract as
+ * cfusa_dispositions_load(). No legacy filename fallback (baseline is a
+ * new feature; there is no earlier convention to be compatible with). */
+#define CFUSA_BASELINE_FILE ".fusa-baseline.json"
+int cfusa_baseline_load(const char *dir, cfusa_disposition_list_t *list);
 
 #endif /* CFUSA_DISPOSITION_H */
