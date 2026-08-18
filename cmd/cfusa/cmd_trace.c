@@ -274,6 +274,21 @@ static int  g_func_covered[MAX_FUNCS];
 static int  g_func_count;
 static int  g_func_covered_count;
 
+/* issue #125: g_func_covered[] above is file-level (every function in a
+ * file inherits one shared "does this file have >=1 //cfusa:req tag
+ * anywhere" flag) — that's --func-coverage's original, still-unchanged
+ * contract. g_func_strict_covered[] is the new, genuinely per-function
+ * metric behind --func-coverage-strict: a function counts as covered
+ * only when a //cfusa:req tag sits in the contiguous run of blank/
+ * comment lines directly above it, with no other code line in between —
+ * matching the convention most call sites already follow by hand. Shipped
+ * as a separate opt-in flag rather than changing --func-coverage's
+ * existing behavior, since repos gate CI on its current (weaker)
+ * semantics and a silent tightening would newly fail them without
+ * warning. */
+static int g_func_strict_covered[MAX_FUNCS];
+static int g_func_strict_covered_count;
+
 static int is_test_file(const char *path)
 {
     const char *b = strrchr(path, '/');
@@ -305,19 +320,55 @@ static int looks_like_funcdef(const char *line, char *name, size_t sz)
     return 1;
 }
 
-typedef struct { const char *relpath; int annotated; } fscan_ctx_t;
+typedef struct {
+    const char *relpath;
+    int annotated;         /* file-level flag — --func-coverage (unchanged) */
+    int pending_impl_tag;  /* per-function state — --func-coverage-strict (issue #125) */
+    int in_block_comment;
+} fscan_ctx_t;
 
 static void func_line_cb(const char *path, int lineno, const char *line, void *v)
 {
     (void)path; (void)lineno;
     fscan_ctx_t *ctx = v;
+
+    const char *t = line;
+    while (*t == ' ' || *t == '\t') t++;
+
+    if (ctx->in_block_comment) {
+        if (strstr(t, "*/")) ctx->in_block_comment = 0;
+        return; /* whole line is comment content: neither breaks nor sets
+                    pending_impl_tag, and can't be a function definition */
+    }
+    if (strstr(t, "//cfusa:req ")) {
+        ctx->pending_impl_tag = 1;
+        return;
+    }
+    if (strncmp(t, "//", 2) == 0) {
+        return; /* any other line comment (incl. //cfusa:test) — doesn't
+                    break a pending tag, but doesn't set one either */
+    }
+    if (strncmp(t, "/*", 2) == 0) {
+        if (!strstr(t + 2, "*/")) ctx->in_block_comment = 1;
+        return;
+    }
+    if (*t == '\0') {
+        return; /* blank line — tolerated between a tag/comment and the
+                    function it annotates */
+    }
+
+    /* Real code line — matched against the original (untrimmed) `line`
+     * to preserve looks_like_funcdef()'s existing column-0 requirement. */
     char name[128];
     if (g_func_count < MAX_FUNCS && looks_like_funcdef(line, name, sizeof(name))) {
         snprintf(g_func_names[g_func_count], 192, "%s:%s", ctx->relpath, name);
         g_func_covered[g_func_count] = ctx->annotated;
         if (ctx->annotated) g_func_covered_count++;
+        g_func_strict_covered[g_func_count] = ctx->pending_impl_tag;
+        if (ctx->pending_impl_tag) g_func_strict_covered_count++;
         g_func_count++;
     }
+    ctx->pending_impl_tag = 0; /* any real code line consumes/breaks the pending tag */
 }
 
 static int funcfile_cb(const char *path, void *v)
@@ -339,14 +390,14 @@ static int funcfile_cb(const char *path, void *v)
         if (g_tags[i].kind == KIND_IMPL && strcmp(g_tags[i].file, relpath) == 0)
             ann = 1;
 
-    fscan_ctx_t ctx = {relpath, ann};
+    fscan_ctx_t ctx = {relpath, ann, 0, 0};
     cfusa_scan_lines(path, func_line_cb, &ctx);
     return 0;
 }
 
 static void do_scan_funcs(const char *root)
 {
-    g_func_count = g_func_covered_count = 0;
+    g_func_count = g_func_covered_count = g_func_strict_covered_count = 0;
     static const char * const fexts[] = {".c"};
     cfusa_walk_sources(root, fexts, 1, funcfile_cb, NULL);
 }
@@ -405,6 +456,7 @@ int cmd_trace(int argc, char **argv)
     int req_coverage = 0;
     int sec_tested   = 0;
     int func_coverage = 0; /* REQ-FUNCCOV001 */
+    int func_coverage_strict = 0; /* REQ-FUNCCOV002, issue #125 */
     int legacy       = 1;
     int strict_hlr_llr = 0; /* REQ-HLR001 */
 
@@ -416,6 +468,7 @@ int cmd_trace(int argc, char **argv)
         {"req-coverage",   required_argument, NULL, 'r'},
         {"sec-tested",     required_argument, NULL, 's'},
         {"func-coverage",  required_argument, NULL, 'F'}, /* REQ-FUNCCOV001 */
+        {"func-coverage-strict", required_argument, NULL, 'K'}, /* REQ-FUNCCOV002 */
         {"no-legacy",      no_argument,       NULL, 'L'},
         {"strict-hlr-llr", no_argument,       NULL, 'H'}, /* REQ-HLR001 */
         {"help",           no_argument,       NULL, 'h'},
@@ -428,7 +481,7 @@ int cmd_trace(int argc, char **argv)
 #elif defined(__linux__)
     optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
 #endif
-    while ((c = getopt_long(argc, argv, "d:o:f:gr:s:F:LHh", lo, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:o:f:gr:s:F:K:LHh", lo, NULL)) != -1) {
         switch (c) {
         case 'd': dir          = optarg;        break;
         case 'o': out_path     = optarg;        break;
@@ -437,13 +490,15 @@ int cmd_trace(int argc, char **argv)
         case 'r': req_coverage = atoi(optarg);  break;
         case 's': sec_tested   = atoi(optarg);  break;
         case 'F': func_coverage = atoi(optarg); break; /* REQ-FUNCCOV001 */
+        case 'K': func_coverage_strict = atoi(optarg); break; /* REQ-FUNCCOV002 */
         case 'L': legacy       = 0;             break;
         case 'H': strict_hlr_llr = 1;          break; /* REQ-HLR001 */
         case 'h':
             printf("Usage: cfusa trace [--dir <path>] [--format text|json|md]\n"
                    "                   [--output <file>] [--gaps]\n"
                    "                   [--req-coverage <N%%>] [--sec-tested <N%%>]\n"
-                   "                   [--func-coverage <N%%>] [--strict-hlr-llr]\n\n"
+                   "                   [--func-coverage <N%%>] [--func-coverage-strict <N%%>]\n"
+                   "                   [--strict-hlr-llr]\n\n"
                    "Builds a requirements traceability matrix from .cfusa-reqs.json\n"
                    "and source annotations:\n"
                    "  //cfusa:req REQ-ID       — implementation reference\n"
@@ -453,7 +508,15 @@ int cmd_trace(int argc, char **argv)
                    "  --req-coverage N   exit 1 if <N%% of requirements have impl traces\n"
                    "  --sec-tested N     exit 1 if <N%% of requirements have test traces\n"
                    "  --func-coverage N  exit 1 if <N%% of public functions are in a file\n"
-                   "                     carrying >=1 //cfusa:req tag (x-FuSa spec 1.4.1)\n"
+                   "                     carrying >=1 //cfusa:req tag (x-FuSa spec 1.4.1).\n"
+                   "                     File-level: any function in a tagged file counts,\n"
+                   "                     even if untagged itself — kept for backward\n"
+                   "                     compatibility with existing CI gates (issue #125).\n"
+                   "  --func-coverage-strict N  exit 1 if <N%% of public functions each\n"
+                   "                     individually carry a //cfusa:req tag directly\n"
+                   "                     above their own definition. Stricter, genuinely\n"
+                   "                     per-function measurement — prefer this for new\n"
+                   "                     CI gates.\n"
                    "  --strict-hlr-llr   exit 1 if any HLR/LLR decomposition violations\n");
             return 0;
         default: return 2;
@@ -650,6 +713,50 @@ int cmd_trace(int argc, char **argv)
             fprintf(stderr,
                     "cfusa trace: func-coverage gate failed: %d%% < required %d%%\n",
                     func_pct, func_coverage);
+            return 1;
+        }
+        return 0;
+    }
+
+    //cfusa:req REQ-FUNCCOV002
+    /* --- func-coverage-strict gate (REQ-FUNCCOV002, issue #125) ---
+     * Percentage of functions that EACH individually carry a //cfusa:req
+     * tag directly above their own definition (only blank/comment lines
+     * may sit between the tag and the function — see func_line_cb()'s
+     * pending_impl_tag tracking). Unlike --func-coverage, a function does
+     * NOT inherit coverage merely because some other function elsewhere
+     * in the same file is tagged — this is the genuinely per-function
+     * measurement the "func-coverage" name implies. Shipped as a
+     * separate, opt-in flag so existing --func-coverage CI gates keep
+     * their current (weaker but unchanged) contract; new gates should
+     * prefer this one. */
+    if (func_coverage_strict > 0) {
+        printf("Function Coverage Report (strict, per-function)\n\n");
+        do_scan_funcs(dir);
+        int m2na = (g_func_count == 0);
+        int strict_pct = m2na ? 0 : g_func_strict_covered_count * 100 / g_func_count;
+        if (m2na) {
+            printf("Function annotation density: N/A (no exported functions found)\n");
+            return 0;
+        }
+        printf("Function annotation density: %d%% (%d/%d functions individually tagged)\n",
+               strict_pct, g_func_strict_covered_count, g_func_count);
+        int shown = 0;
+        for (int i = 0; i < g_func_count; i++) {
+            if (g_func_strict_covered[i]) continue;
+            if (shown >= 20) {
+                int rem = 0;
+                for (int k = i; k < g_func_count; k++) if (!g_func_strict_covered[k]) rem++;
+                printf("  ... and %d more\n", rem);
+                break;
+            }
+            printf("  UNANNOTATED  %s\n", g_func_names[i]);
+            shown++;
+        }
+        if (strict_pct < func_coverage_strict) {
+            fprintf(stderr,
+                    "cfusa trace: func-coverage-strict gate failed: %d%% < required %d%%\n",
+                    strict_pct, func_coverage_strict);
             return 1;
         }
         return 0;
