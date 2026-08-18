@@ -130,13 +130,35 @@ void test_l001_empty_function_silent(void)
     cfusa_report_free(&rpt);
 }
 
+//cfusa:req REQ-LINT001
+//cfusa:test REQ-LINT001
+void test_l001_long_line_no_crash(void)
+{
+    /* issue #177: a single physical source line >=4095 bytes with no
+     * embedded newline in the first 4095 bytes used to leave `trimmed`
+     * without a guaranteed NUL terminator before cfusa_str_trim()'s
+     * internal strlen() ran on it (undefined behavior, potential OOB
+     * read past the 4096-byte buffer). Exercises that exact code path —
+     * must not crash or hang. */
+    static char code[9000];
+    size_t n = 0;
+    memcpy(code, "int fn(void) { int a[] = {", 27); n += 27;
+    for (int i = 0; i < 1000 && n < sizeof(code) - 20; i++)
+        n += (size_t)snprintf(code + n, sizeof(code) - n, "%d,", i);
+    n += (size_t)snprintf(code + n, sizeof(code) - n, "0}; return a[0]; }\n");
+
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(code, &rpt);
+    cfusa_report_free(&rpt);
+}
+
 /* ---- L002: goto edge cases ---- */
 
 //cfusa:req REQ-LINT003
 //cfusa:test REQ-LINT003
 void test_l002_bare_goto_fires(void)
 {
-    /* L002 requires 'goto' at the start of a line (after whitespace trim) */
+    /* 'goto' at the start of a line (after whitespace trim) */
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_lint_on("void fn(void) {\n    goto end;\nend:;\n}\n", &rpt);
     TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L002") > 0);
@@ -157,7 +179,6 @@ void test_l002_goto_in_string_silent(void)
 //cfusa:test REQ-LINT003
 void test_l002_goto_keyword_multiple_fires(void)
 {
-    /* goto must appear at line start for L002 to fire */
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_lint_on(
         "void fn(void) {\n"
@@ -166,6 +187,34 @@ void test_l002_goto_keyword_multiple_fires(void)
         "a:; b:;\n"
         "}\n", &rpt);
     TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L002") >= 2);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT003
+//cfusa:test REQ-LINT003
+void test_l002_inline_if_goto_fires(void)
+{
+    /* issue #162: this used to be the single biggest gap in L002 — the
+     * most common real-world goto idiom, "if (cond) goto label;" on one
+     * line, was never detected because the old check only matched when
+     * the trimmed line literally BEGAN with "goto". */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on("void fn(int x) { if (x < 0) goto fail; fail: return; }\n", &rpt);
+    TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L002") > 0);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT003
+//cfusa:test REQ-LINT003
+void test_l002_identifier_prefix_or_suffix_silent(void)
+{
+    /* neither a leading nor a trailing identifier-boundary violation
+     * should match: "notgoto" and "gotoward" are not the goto keyword. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "void fn(void) { int notgoto = 1; int gotoward = 2; "
+        "(void)notgoto; (void)gotoward; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L002"));
     cfusa_report_free(&rpt);
 }
 
@@ -233,6 +282,42 @@ void test_l003_genuine_call_still_fires_beside_custom_free(void)
      * the genuine call must still be caught, not masked by the skip. */
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_lint_on("void fn(void *p) { cfusa_report_free(p); free(p); }\n", &rpt);
+    TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L003") > 0);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT017
+//cfusa:test REQ-LINT017
+void test_l003_multiline_block_comment_prose_silent(void)
+{
+    /* issue #163: only a single-line heuristic ("does THIS line start
+     * with '/' or '*'?") skipped comments, so a multi-line block comment
+     * whose continuation lines don't start with '*' produced false
+     * findings on prose that merely mentions malloc/free. Persistent
+     * in_block_comment state must track across fgets() iterations the
+     * same way L004's already does. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "/* This helper wraps error handling. Historically it used to call\n"
+        "   malloc(sizeof(ctx)) internally as an example of what NOT to do,\n"
+        "   but that has been removed from this codebase entirely. */\n"
+        "int helper(void) { return 0; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L003"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT017
+//cfusa:test REQ-LINT017
+void test_l003_genuine_call_still_fires_after_block_comment(void)
+{
+    /* a real call right after a closed block comment must still fire —
+     * proves in_block_comment is correctly cleared on the comment's
+     * closing delimiter, not stuck permanently open. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "/* comment mentioning malloc(1) in prose\n"
+        " * more prose here */\n"
+        "void fn(void) { void *p = malloc(64); (void)p; }\n", &rpt);
     TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L003") > 0);
     cfusa_report_free(&rpt);
 }
@@ -357,6 +442,38 @@ void test_l006_no_setjmp_silent(void)
 {
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_lint_on("void fn(void) { int x = 1; (void)x; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L006"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT009
+//cfusa:test REQ-LINT009
+void test_l006_wrapper_name_silent(void)
+{
+    /* issue #161: a project-local helper whose name merely ends with the
+     * jmp-family token — no real <setjmp.h> call at all. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "int cfusa_setjmp(int state) { return state + 1; }\n"
+        "void fn(void) { (void)cfusa_setjmp(1); }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L006"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-LINT009
+//cfusa:test REQ-LINT009
+void test_l006_multiline_comment_prose_silent(void)
+{
+    /* L006 previously had no comment-awareness at all (not even the
+     * single-line heuristic other rules in this file use) — prose in a
+     * multi-line block comment merely mentioning the jmp-family tokens
+     * must not fire. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "/* This module historically called setjmp(env) directly for\n"
+        "   error recovery, but that has been removed from this codebase\n"
+        "   entirely in favor of explicit error-code returns. */\n"
+        "int fn(void) { return 0; }\n", &rpt);
     TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L006"));
     cfusa_report_free(&rpt);
 }
@@ -579,15 +696,20 @@ int main(void)
     RUN_TEST(test_l001_exactly_at_limit_silent);
     RUN_TEST(test_l001_two_functions_both_long_fire);
     RUN_TEST(test_l001_empty_function_silent);
+    RUN_TEST(test_l001_long_line_no_crash);
     RUN_TEST(test_l002_bare_goto_fires);
     RUN_TEST(test_l002_goto_in_string_silent);
     RUN_TEST(test_l002_goto_keyword_multiple_fires);
+    RUN_TEST(test_l002_inline_if_goto_fires);
+    RUN_TEST(test_l002_identifier_prefix_or_suffix_silent);
     RUN_TEST(test_l003_malloc_fires);
     RUN_TEST(test_l003_calloc_alone_fires);
     RUN_TEST(test_l003_realloc_fires_once);
     RUN_TEST(test_l003_custom_free_suffixed_function_silent);
     RUN_TEST(test_l003_string_literal_silent);
     RUN_TEST(test_l003_genuine_call_still_fires_beside_custom_free);
+    RUN_TEST(test_l003_multiline_block_comment_prose_silent);
+    RUN_TEST(test_l003_genuine_call_still_fires_after_block_comment);
     RUN_TEST(test_l003_severity_warning_when_asil_undeclared);
     RUN_TEST(test_l003_severity_warning_at_asil_b);
     RUN_TEST(test_l003_severity_error_at_asil_c);
@@ -604,6 +726,8 @@ int main(void)
     RUN_TEST(test_l005_no_undef_silent);
     RUN_TEST(test_l006_setjmp_fires);
     RUN_TEST(test_l006_no_setjmp_silent);
+    RUN_TEST(test_l006_wrapper_name_silent);
+    RUN_TEST(test_l006_multiline_comment_prose_silent);
     RUN_TEST(test_l007_static_global_int_fires);
     RUN_TEST(test_l007_static_const_ptr_silent);
     RUN_TEST(test_l007_static_struct_fires);
