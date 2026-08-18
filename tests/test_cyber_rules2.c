@@ -237,6 +237,22 @@ void test_cy006_no_free_silent(void)
     cfusa_report_free(&rpt);
 }
 
+//cfusa:req REQ-CYB006
+//cfusa:test REQ-CYB006
+void test_cy006_wrapper_name_silent(void)
+{
+    /* issue #173: a *_free() wrapper call — no real free() call at all.
+     * This codebase's own cfusa_report_free()/cfusa_dispositions_free()
+     * call sites number 300+, so this exact bug would flood `cfusa
+     * cyber` run against this repo with false CY006 noise. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_cyber_on(
+        "void cfusa_report_free(void *p){(void)p;}\n"
+        "void caller(void *r) { cfusa_report_free(r); }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-CY006"));
+    cfusa_report_free(&rpt);
+}
+
 /* ---- CY007: double free ---- */
 
 //cfusa:req REQ-CYB007
@@ -387,6 +403,7 @@ int main(void)
     RUN_TEST(test_cy005_malloc_constant_silent);
     RUN_TEST(test_cy006_single_free_fires);
     RUN_TEST(test_cy006_no_free_silent);
+    RUN_TEST(test_cy006_wrapper_name_silent);
     RUN_TEST(test_cy007_double_free_fires);
     RUN_TEST(test_cy007_single_free_silent);
     RUN_TEST(test_cy008_tmpnam_fires);

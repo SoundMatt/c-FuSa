@@ -679,3 +679,22 @@ int cfusa_match_outside_string(const char *line, const char *token)
     }
     return 0;
 }
+
+//cfusa:req REQ-UTIL019
+const char *cfusa_find_token_outside_string(const char *line, const char *token)
+{
+    int in_str = 0;
+    const char *p = line;
+    size_t tlen = strlen(token);
+    while (*p) {
+        if (*p == '"' && (p == line || p[-1] != '\\'))
+            in_str = !in_str;
+        if (!in_str && strncmp(p, token, tlen) == 0) {
+            int boundary_ok = (p == line) ||
+                !(isalnum((unsigned char)p[-1]) || p[-1] == '_');
+            if (boundary_ok) return p;
+        }
+        p++;
+    }
+    return NULL;
+}

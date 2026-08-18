@@ -268,6 +268,20 @@ void test_cy019_no_access_silent(void)
     cfusa_report_free(&rpt);
 }
 
+//cfusa:req REQ-CYB027
+//cfusa:test REQ-CYB027
+void test_cy019_custom_access_wrapper_silent(void)
+{
+    /* issue #157: a custom permission-check function (common in
+     * safety/embedded code) — no real POSIX access(2) call at all. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_cyber_on(
+        "int has_access(int uid, int fid){ return uid==fid; }\n"
+        "void fn(void) { if (has_access(1,2)) {} }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-CY019"));
+    cfusa_report_free(&rpt);
+}
+
 /* ---- CY020: predictable /tmp path ---- */
 
 //cfusa:req REQ-CYB028
@@ -312,6 +326,7 @@ int main(void)
     RUN_TEST(test_cy018_fopen_literal_silent);
     RUN_TEST(test_cy019_access_fires);
     RUN_TEST(test_cy019_no_access_silent);
+    RUN_TEST(test_cy019_custom_access_wrapper_silent);
     RUN_TEST(test_cy020_hardcoded_tmp_fires);
     RUN_TEST(test_cy020_mkstemp_silent);
     return UNITY_END();
