@@ -953,6 +953,11 @@ int cmd_hara(int argc, char **argv)
 
     int opt;
     optind = 1;
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    { extern int optreset; optreset = 1; }
+#elif defined(__linux__)
+    optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
+#endif
     while ((opt = getopt_long(argc, argv, "d:F:o:s:e:c:SAh", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'd': dir    = optarg; break;

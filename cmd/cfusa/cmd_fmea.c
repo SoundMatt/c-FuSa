@@ -286,6 +286,11 @@ int cmd_fmea(int argc, char **argv)
     };
 
     int ch; optind = 1;
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    { extern int optreset; optreset = 1; }
+#elif defined(__linux__)
+    optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
+#endif
     while ((ch = getopt_long(argc, argv, "d:D:o:f:cSAT:m:h", lo, NULL)) != -1) {
         switch (ch) {
         case 'd': dir      = optarg; break;

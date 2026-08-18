@@ -227,6 +227,11 @@ int cmd_comp(int argc, char **argv)
     int         threshold = THRESHOLD_DAL_B;
     int         verbose   = 0;
     optind = 1;
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    { extern int optreset; optreset = 1; }
+#elif defined(__linux__)
+    optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
+#endif
 
     static const struct option long_opts[] = {
         {"dir",       required_argument, NULL, 'd'},
