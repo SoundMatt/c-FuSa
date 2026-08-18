@@ -538,12 +538,17 @@ void test_cmd_baseline_does_not_hide_finding_introduced_after_snapshot(void)
     TEST_ASSERT_EQUAL_INT(0, cmd_baseline(3, baseline_argv));
 
     /* A genuinely different, NOT-yet-baselined finding (distinct rule) --
-     * must still gate even though a baseline file now exists. */
+     * must still gate even though a baseline file now exists. Rewritten
+     * (not appended) via cfusa_fopen_write() so this never opens the
+     * file with fopen()'s umask-dependent mode. */
     char path[256];
     snprintf(path, sizeof(path), "%s/goto.c", DE_DIR);
-    FILE *f = fopen(path, "a");
+    FILE *f = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(f);
-    if (f) { fputs("#pragma once\n", f); TEST_ASSERT_EQUAL_INT(0, fclose(f)); }
+    if (f) {
+        fputs("void fn(void) {\n    goto end;\nend:;\n}\n#pragma once\n", f);
+        TEST_ASSERT_EQUAL_INT(0, fclose(f));
+    }
 
     char *argv[] = {"cfusa", "--dir", DE_DIR, "--strict", NULL};
     int rc = cmd_check(4, argv);
