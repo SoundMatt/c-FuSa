@@ -133,8 +133,20 @@ int cmd_init(int argc, char **argv)
     }
 
     printf("  project:  %s@%s\n", cfg.project, cfg.version);
-    printf("  standard: %s\n",
-           cfg.standards_count > 0 ? cfg.standards[0] : "(none)");
+    /* issue #168: print every declared standard, not just the first — the
+     * .fusa.json this summary describes now also persists all of them
+     * (cfusa_config_save()), so the printed summary shouldn't imply only
+     * one was recorded when --standard was given a comma-separated list. */
+    if (cfg.standards_count == 0) {
+        printf("  standard: (none)\n");
+    } else {
+        char std_buf[256] = "";
+        for (int i = 0; i < cfg.standards_count; i++) {
+            if (i) strncat(std_buf, ", ", sizeof(std_buf) - strlen(std_buf) - 1);
+            strncat(std_buf, cfg.standards[i], sizeof(std_buf) - strlen(std_buf) - 1);
+        }
+        printf("  standard%s: %s\n", cfg.standards_count > 1 ? "s" : "", std_buf);
+    }
     printf("\nRun 'cfusa check' to scan your project.\n");
 
     if (docs) {

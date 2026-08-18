@@ -203,9 +203,23 @@ int cfusa_config_save(const char *dir, const cfusa_config_t *cfg)
     fprintf(f, "  \"configVersion\": \"1.0\",\n");
     fprintf(f, "  \"project\": {\"name\": \"%s\", \"version\": \"%s\"},\n",
             cfg->project, cfg->version[0] ? cfg->version : "0.1.0");
-    /* primary standard (first in the list) */
-    if (cfg->standards_count > 0)
+    /* issue #168: writing only standards[0] under the singular "standard"
+     * key silently dropped every other declared standard (e.g. a combined
+     * DO-178C DAL + ISO 26262 ASIL declaration), weakening downstream
+     * ASIL/DAL-scaled gates (HARA005's project-ASIL-exceeded check,
+     * COMP001's complexity threshold) that need to see all of them. Emit
+     * the full "standards" array whenever more than one is declared — the
+     * loader above already accepts this form (extract_str_array_n on
+     * "standards"), so round-tripping through save+load preserves every
+     * entry; a single standard keeps the simpler singular key. */
+    if (cfg->standards_count == 1) {
         fprintf(f, "  \"standard\": \"%s\",\n", cfg->standards[0]);
+    } else if (cfg->standards_count > 1) {
+        fprintf(f, "  \"standards\": [");
+        for (int i = 0; i < cfg->standards_count; i++)
+            fprintf(f, "%s\"%s\"", i ? ", " : "", cfg->standards[i]);
+        fprintf(f, "],\n");
+    }
     fprintf(f, "  \"strict\": %s,\n", cfg->strict ? "true" : "false");
     /* tool-defined extension: keep max_function_lines for internal use */
     fprintf(f, "  \"max_function_lines\": %d,\n", cfg->max_function_lines);
