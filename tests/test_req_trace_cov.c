@@ -34,6 +34,13 @@ static void rm_file(const char *fname)
 void setUp(void)
 {
     mkdir(RTC_DIR, 0700);
+    /* issue #146 fix: cmd_req/cmd_trace now prefer the canonical
+     * .fusa-reqs.json over the legacy .cfusa-reqs.json fixture written
+     * below. Without removing any canonical file a prior test left
+     * behind (e.g. a `req import`, which now always writes to the
+     * canonical name), a later test could silently read stale leftover
+     * state instead of this fixture. */
+    rm_file(".fusa-reqs.json");
     write_file(".cfusa-reqs.json",
         "{\n"
         "  \"requirements\": [\n"
@@ -132,14 +139,67 @@ void test_trace_req_coverage_gate_fail(void)
         "//cfusa:test REQ-A002\nvoid test_beta(void) {}\n");
 }
 
+//cfusa:req REQ-TRA007
+//cfusa:test REQ-TRA007
+void test_trace_req_coverage_gate_fails_on_test_only_requirement(void)
+{
+    /* issue #166: compute_coverage()'s `any` flag used to count a
+     * requirement as "traced" on ANY tag kind, while the itemized
+     * UNTRACED listing below Metric 1 filters strictly on KIND_IMPL —
+     * the two disagreed within the same report. REQ-A001 here has only
+     * a //cfusa:test tag (no //cfusa:req implementation tag), so it must
+     * count as untraced and fail a 100% gate — not silently pass while
+     * simultaneously being listed as UNTRACED. */
+    write_file("impl.c",
+        "//cfusa:req REQ-A002\nvoid beta(void) {}\n");
+    write_file("test_impl.c",
+        "//cfusa:test REQ-A001\nvoid test_alpha(void) {}\n"
+        "//cfusa:test REQ-A002\nvoid test_beta(void) {}\n");
+
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--req-coverage", "100", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_TRUE(rc != 0);
+
+    /* Restore */
+    write_file("impl.c",
+        "//cfusa:req REQ-A001\nvoid alpha(void) {}\n"
+        "//cfusa:req REQ-A002\nvoid beta(void) {}\n");
+    write_file("test_impl.c",
+        "//cfusa:test REQ-A001\nvoid test_alpha(void) {}\n"
+        "//cfusa:test REQ-A002\nvoid test_beta(void) {}\n");
+}
+
 //cfusa:req REQ-TRA009
 //cfusa:test REQ-TRA009
 void test_trace_sec_tested_gate_pass(void)
 {
-    /* Both reqs are tested — 100% >= 80% → pass */
+    /* issue #147: --sec-tested must gate on real //cfusa:sec-test tags,
+     * not any //cfusa:test tag — the default fixture's plain
+     * //cfusa:test tags (setUp()) deliberately do NOT satisfy this gate
+     * (see test_trace_sec_tested_gate_requires_real_sec_test_tag below).
+     * Both reqs genuinely have //cfusa:sec-test tags here — 100% >= 80%
+     * → pass. */
+    write_file("test_impl.c",
+        "//cfusa:sec-test REQ-A001\n"
+        "void test_alpha(void) {}\n"
+        "//cfusa:sec-test REQ-A002\n"
+        "void test_beta(void) {}\n");
     char *argv[] = {"cfusa", "--dir", RTC_DIR, "--sec-tested", "80", NULL};
     int rc = cmd_trace(5, argv);
     TEST_ASSERT_EQUAL(0, rc);
+}
+
+//cfusa:req REQ-TRA009
+//cfusa:test REQ-TRA009
+void test_trace_sec_tested_gate_requires_real_sec_test_tag(void)
+{
+    /* issue #147: the default fixture's test_impl.c (setUp()) has only
+     * plain //cfusa:test tags — zero //cfusa:sec-test tags anywhere —
+     * so the gate must fail, not silently pass by counting ordinary test
+     * coverage as if it were security-test coverage. */
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "--sec-tested", "50", NULL};
+    int rc = cmd_trace(5, argv);
+    TEST_ASSERT_TRUE(rc != 0);
 }
 
 //cfusa:req REQ-TRA010
@@ -253,6 +313,27 @@ void test_req_filter_unknown_id(void)
     char *argv[] = {"cfusa", "--dir", RTC_DIR, "REQ-ZZNOTFOUND", NULL};
     int rc = cmd_req(4, argv);
     TEST_ASSERT_TRUE(rc != 0);
+}
+
+//cfusa:req REQ-REQ001
+//cfusa:test REQ-REQ001
+void test_req_finds_canonical_fusa_reqs_json(void)
+{
+    /* issue #146: cmd_req.c used to only ever try the legacy filename
+     * .cfusa-reqs.json and never the canonical .fusa-reqs.json cmd_trace.c
+     * treats as primary — so `cfusa req` silently found no registry (and
+     * fell back to the raw-annotation dump) on any project that had
+     * migrated to the new filename. Here ONLY the canonical file exists. */
+    rm_file(".cfusa-reqs.json");
+    write_file(".fusa-reqs.json",
+        "{\n  \"requirements\": [\n"
+        "    {\"id\":\"REQ-A001\",\"title\":\"Alpha\",\"text\":\"The tool shall do alpha.\","
+        "\"standard\":\"ISO 26262\",\"level\":\"SHALL\"}\n"
+        "  ]\n}\n");
+
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, "REQ-A001", NULL};
+    int rc = cmd_req(4, argv);
+    TEST_ASSERT_EQUAL(0, rc);
 }
 
 //cfusa:req REQ-REQ004
@@ -390,7 +471,7 @@ void test_req_import_codebeamer_csv(void)
 
     /* verify the id was prefixed CB- */
     char reqs_path[256];
-    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", RTC_DIR);
     FILE *jf = fopen(reqs_path, "r");
     if (jf) {
         char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
@@ -417,7 +498,7 @@ void test_req_import_jama_csv(void)
     TEST_ASSERT_EQUAL(0, rc);
 
     char reqs_path[256];
-    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", RTC_DIR);
     FILE *jf = fopen(reqs_path, "r");
     if (jf) {
         char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
@@ -460,7 +541,7 @@ void test_req_import_reqif_xml(void)
     TEST_ASSERT_EQUAL_INT(0, rc);
 
     char reqs_path[256];
-    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", RTC_DIR);
     FILE *jf = fopen(reqs_path, "r");
     if (jf) {
         char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
@@ -493,7 +574,7 @@ void test_req_import_codebeamer_xml(void)
     TEST_ASSERT_EQUAL_INT(0, rc);
 
     char reqs_path[256];
-    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", RTC_DIR);
     FILE *jf = fopen(reqs_path, "r");
     if (jf) {
         char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
@@ -526,7 +607,7 @@ void test_req_import_jama_xml(void)
     TEST_ASSERT_EQUAL_INT(0, rc);
 
     char reqs_path[256];
-    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", RTC_DIR);
     FILE *jf = fopen(reqs_path, "r");
     if (jf) {
         char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
@@ -560,7 +641,7 @@ void test_req_import_polarion_xml(void)
     TEST_ASSERT_EQUAL_INT(0, rc);
 
     char reqs_path[256];
-    snprintf(reqs_path, sizeof(reqs_path), "%s/.cfusa-reqs.json", RTC_DIR);
+    snprintf(reqs_path, sizeof(reqs_path), "%s/.fusa-reqs.json", RTC_DIR);
     FILE *jf = fopen(reqs_path, "r");
     if (jf) {
         char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0'; fclose(jf);
@@ -1008,7 +1089,9 @@ int main(void)
     RUN_TEST(test_trace_output_to_file);
     RUN_TEST(test_trace_req_coverage_gate_pass);
     RUN_TEST(test_trace_req_coverage_gate_fail);
+    RUN_TEST(test_trace_req_coverage_gate_fails_on_test_only_requirement);
     RUN_TEST(test_trace_sec_tested_gate_pass);
+    RUN_TEST(test_trace_sec_tested_gate_requires_real_sec_test_tag);
     RUN_TEST(test_trace_sec_tested_gate_fail);
     RUN_TEST(test_trace_gaps_with_reqs);
     RUN_TEST(test_trace_gaps_with_untested);
@@ -1018,6 +1101,7 @@ int main(void)
     RUN_TEST(test_req_list_with_reqs_present);
     RUN_TEST(test_req_filter_known_id);
     RUN_TEST(test_req_filter_unknown_id);
+    RUN_TEST(test_req_finds_canonical_fusa_reqs_json);
     RUN_TEST(test_req_annotations_fallback);
     RUN_TEST(test_req_no_reqs_no_annotations);
     RUN_TEST(test_req_export_to_stdout);
