@@ -82,6 +82,56 @@ void test_qualify_badge_unqualified(void)
     }
 }
 
+/* issue #128: omitting --qualification-method must never produce
+ * qualified=true alongside qualificationBadge="unqualified" — the two
+ * fields must agree even though self-tests all pass. */
+//cfusa:req REQ-QUAL007
+//cfusa:test REQ-QUAL007
+void test_qualify_json_qualified_false_without_method(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--output", "/tmp/cfusa_qualify_noqual.json", NULL};
+    int rc = cmd_qualify(4, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen("/tmp/cfusa_qualify_noqual.json", "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192] = "";
+        size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"qualified\": false"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"qualificationBadge\": \"unqualified\""));
+        (void)remove("/tmp/cfusa_qualify_noqual.json");
+    }
+}
+
+/* Declaring --qualification-method (with self-tests passing) makes
+ * qualified=true agree with the non-"unqualified" badge. */
+//cfusa:req REQ-QUAL007
+//cfusa:test REQ-QUAL007
+void test_qualify_json_qualified_true_with_method(void)
+{
+    char *argv[] = {"cfusa", "qualify",
+                    "--qualification-method", "self",
+                    "--output", "/tmp/cfusa_qualify_withqual.json", NULL};
+    int rc = cmd_qualify(6, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen("/tmp/cfusa_qualify_withqual.json", "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192] = "";
+        size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"qualified\": true"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"qualificationBadge\": \"self-qualified\""));
+        (void)remove("/tmp/cfusa_qualify_withqual.json");
+    }
+}
+
 /* --qualifier and --record-uri appear in JSON output */
 //cfusa:req REQ-QUAL003
 //cfusa:test REQ-QUAL003
@@ -359,6 +409,8 @@ int main(void)
     RUN_TEST(test_qualify_badge_independent);
     RUN_TEST(test_qualify_badge_self);
     RUN_TEST(test_qualify_badge_unqualified);
+    RUN_TEST(test_qualify_json_qualified_false_without_method);
+    RUN_TEST(test_qualify_json_qualified_true_with_method);
     RUN_TEST(test_qualify_qualifier_and_record_uri_in_json);
     RUN_TEST(test_qualify_independence_independent);
     RUN_TEST(test_qualify_independence_self_reviewed);
