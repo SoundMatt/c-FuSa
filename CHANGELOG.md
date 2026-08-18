@@ -5,6 +5,97 @@ All notable changes to c-FuSa are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.1 — 2026-08-18
+
+Forty-three fixes from a 40-agent deep-audit sweep of the codebase
+(#141–#182) plus one more found and fixed the same session (#187).
+Patch version bump — precision/correctness fixes only, no new
+user-facing flags or behaviors. Every fix ships with regression tests
+verified to fail against the pre-fix code and pass against the fix;
+44/44 test suites pass and the self-check is clean.
+
+### Fixed
+- **Disposition JSON loading was brittle to incidental whitespace**
+  around field values in `.fusa-dispositions.json`/`.fusa-qualitybar.json`/
+  HARA files — replaced ad hoc field extraction with a shared
+  whitespace-tolerant JSON string-field helper. (#143, #159, #175, #176)
+- **`cfusa disposition add` wasn't atomic and could corrupt the
+  dispositions file under concurrent writes**, and didn't handle a
+  bare-array file shape. Now writes via a locked, atomic
+  temp-file-plus-rename, with a bare-array merge fallback. (#144, #158)
+- **DISP001 matched on a whole-file substring instead of the real
+  fingerprint-scoped disposition mechanism**, so an unrelated finding
+  whose message happened to mention a disposed rule id could be wrongly
+  suppressed. (#148)
+- **`project_root` wasn't set consistently across commands**, so the
+  same finding could get different fingerprints depending on which
+  command produced it — breaking cross-command disposition matching.
+  (#153)
+- **`cmd_req.c` resolved the wrong requirements filename in some code
+  paths, `--sec-tested` didn't gate on the real tested count, and
+  Metric 1 could disagree with the underlying data.** Canonical
+  `.fusa-reqs.json` resolution with legacy fallback; a real
+  `--sec-tested` gate. (#146, #147, #166)
+- **Five CFUSA-CY rules (CY003/CY004/CY006/CY007/CY019) matched
+  dangerous-function names without identifier-boundary checks**,
+  false-positiving on any name merely containing the pattern as a
+  substring. Switched to a shared boundary-aware matcher
+  (`cfusa_find_token_outside_string()`). (#154, #155, #156, #157, #173)
+- **`cmd_lint.c`'s L001/L002/L003/L006 had precision and safety gaps**:
+  L001's `strncpy` could leave an unterminated buffer; L002 only matched
+  `goto` when it started the line; L003/L006 had no persistent
+  block-comment tracking across lines, so multi-line comments without a
+  leading `*` on continuation lines were scanned as code. (#161, #162,
+  #163, #177)
+- **The legacy `REQ:` scanner and `cfusa_config_is_excluded()` matched
+  substrings without boundary checks**, e.g. excluding `src/rebuild_utils.c`
+  purely because it contains "build". Anchored to identifier/path-segment
+  boundaries. (#174, #180)
+- **`cmd_analyze.c`'s A001/A003/A006/A007 had false-positive/negative
+  precision issues**: A003 missed multi-declarator lines, A006 matched
+  pointer-arithmetic incorrectly, A007 missed some unchecked-`fclose`
+  sites. (#149, #150, #151, #169)
+- **Silent-truncation trio**: `cfusa coverage`'s lcov parser could
+  misread an empty/unreadable file as 100% coverage; the HLR/LLR arrays
+  were capped at a fixed 512 entries with no warning; HARA's nested
+  reference arrays silently dropped entries past their cap. All three
+  now fail loudly or warn instead of silently under-reporting. (#142,
+  #160, #167)
+- **`report.c` had internal-consistency and formatting gaps**: the
+  printed Result line didn't account for `--strict`; summary
+  tables/top-rules didn't exclude dispositioned findings; JSON/CSV
+  output had buffer-sizing and escaping issues. A new RFC 4180 CSV
+  writer was added. (#164, #165, #178, #179)
+- **A failed report write silently exited 0** instead of the documented
+  exit code 3. (#141)
+- **`cmd_hara.c`'s top-level JSON parsing was key-order-dependent** —
+  reordering `operationalSituations`/`hazards`/`safetyGoals` in the
+  source file could scope a scan incorrectly. Fixed via depth-1-bounded
+  bracket matching that no longer depends on key order. (#145)
+- **`cfusa_config_save()` only persisted the first declared standard**
+  when multiple were set via `--standard a,b`, silently dropping the
+  rest on every re-save. (#168)
+- **`--dal DAL-D` silently discarded an explicit `--threshold`**
+  (zeroing it instead of leaving it alone, asymmetric with how
+  `--asil QM` already behaves), and **`--dal DAL-A`/`--asil ASIL-D`'s
+  100%-MC/DC requirement wasn't reflected in `--mcdc-threshold`**,
+  letting a weaker explicit threshold silently pass. (#152, #172)
+- **Only 3 of the ~41 commands' `getopt_long` loops fully reset BSD's
+  `optreset`/glibc's `nextchar`** between invocations — a bare
+  `optind = 1` doesn't fully clear either, risking stale-state misparses
+  across the repeated, in-process invocation pattern this project's own
+  test suite (and any embedding caller) uses. Applied the full
+  platform-reset block to every command. (#170, #171)
+- **COUP001's `extern`-variable match was unanchored and
+  comment-unaware**, false-positiving on prose mentioning "extern"
+  inside a multi-line comment continuation line; **COUP001/COUP002/
+  COMP001 all hardcoded `return 0`** regardless of findings added,
+  breaking the `run()`-returns-finding-count contract every other rule
+  follows. (#181, #182)
+- **CFUSA-L004's recursion detector had no comment-awareness**,
+  misreporting a function as recursive when a comment inside its body
+  merely mentioned its own name. (#187)
+
 ## v0.6.0 — 2026-08-18
 
 Nine fixes: seven from an open-issue sweep (#128, #124, #126, #97, #127,
