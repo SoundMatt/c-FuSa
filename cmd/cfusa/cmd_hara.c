@@ -115,11 +115,34 @@ static char *extract_bracket(const char *json, const char *key, char open, char 
     return extract_bracket_at(json, key, open, close, NULL);
 }
 
-/* Splits the top-level elements of a `[ ... ]` array string (objects or
- * bare strings) into `elems`, string-content unescaped/unquoted for bare
- * string elements. Returns the element count. */
-static int split_array(const char *arr, char elems[][512], int max_elems)
+/* Frees the heap-allocated elements a split_array() call produced. Safe to
+ * call with n==0 (no-op). */
+static void free_array_elems(char *elems[], int n)
 {
+    for (int i = 0; i < n; i++) free(elems[i]);
+}
+
+/* Splits the top-level elements of a `[ ... ]` array string (objects or
+ * bare strings) into heap-allocated, exact-length buffers stored in the
+ * caller-supplied `elems[max_elems]` pointer array — string-content
+ * unescaped/unquoted for bare string elements. Returns the element count;
+ * each returned elems[i] is owned by the caller and must be released with
+ * free_array_elems().
+ *
+ * issue #124: this used to copy into fixed 512-byte stack rows and
+ * silently drop (skip — n never incremented, nothing logged) any element
+ * whose raw text was >=511 bytes. A real hazard/safety-goal object with
+ * normal prose description fields, plus the source file's own
+ * pretty-print indentation (counted verbatim, since this walks the raw
+ * substring), routinely exceeds that — a genuine 11-hazard HARA rendered
+ * as 0 hazards with no error. Heap-allocating each element at its exact
+ * size removes that cap entirely; only running past `max_elems` *entries*
+ * (a much larger, separately-documented ceiling per call site) can still
+ * truncate the array, and that case is reported via `*truncated_out` (may
+ * be NULL) so callers can warn instead of silently under-reporting. */
+static int split_array(const char *arr, char *elems[], int max_elems, int *truncated_out)
+{
+    if (truncated_out) *truncated_out = 0;
     if (!arr) return 0;
     const char *p = strchr(arr, '[');
     if (!p) return 0;
@@ -152,16 +175,22 @@ static int split_array(const char *arr, char elems[][512], int max_elems)
         }
 
         size_t len = (size_t)(p - start);
-        if (n < max_elems && len < 511) {
+        if (n < max_elems) {
+            const char *copy_start = start;
+            size_t copy_len = len;
             if (is_str && len >= 2) {
                 /* strip surrounding quotes for bare string elements */
-                memcpy(elems[n], start + 1, len - 2);
-                elems[n][len - 2] = '\0';
-            } else {
-                memcpy(elems[n], start, len);
-                elems[n][len] = '\0';
+                copy_start = start + 1;
+                copy_len = len - 2;
             }
+            char *buf = malloc(copy_len + 1);
+            if (!buf) break; /* OOM: stop, report what was already parsed */
+            memcpy(buf, copy_start, copy_len);
+            buf[copy_len] = '\0';
+            elems[n] = buf;
             n++;
+        } else if (truncated_out) {
+            *truncated_out = 1;
         }
     }
     return n;
@@ -217,6 +246,7 @@ typedef struct {
     cfusa_attestation_t attestation;
 } hara_doc_t;
 
+//cfusa:req REQ-HARA011
 static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
 {
     memset(doc, 0, sizeof(*doc));
@@ -227,22 +257,28 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
 
     char *os_arr = extract_bracket(json, "operationalSituations", '[', ']');
     if (os_arr) {
-        char elems[MAX_ITEMS][512];
-        int n = split_array(os_arr, elems, MAX_ITEMS);
+        char *elems[MAX_ITEMS];
+        int truncated = 0;
+        int n = split_array(os_arr, elems, MAX_ITEMS, &truncated);
         for (int i = 0; i < n && i < MAX_ITEMS; i++) {
             extract_str(elems[i], "id", doc->situations[i].id, sizeof(doc->situations[i].id));
             extract_str(elems[i], "description", doc->situations[i].description,
                          sizeof(doc->situations[i].description));
         }
         doc->situations_count = n;
+        free_array_elems(elems, n);
         free(os_arr);
+        if (truncated)
+            fprintf(stderr, "cfusa hara: WARNING: operationalSituations[] has more "
+                             "than %d entries — extra entries were dropped\n", MAX_ITEMS);
     }
 
     const char *hz_end_ptr = NULL;
     char *hz_arr = extract_bracket_at(json, "hazards", '[', ']', &hz_end_ptr);
     if (hz_arr) {
-        char elems[MAX_ITEMS][512];
-        int n = split_array(hz_arr, elems, MAX_ITEMS);
+        char *elems[MAX_ITEMS];
+        int truncated = 0;
+        int n = split_array(hz_arr, elems, MAX_ITEMS, &truncated);
         for (int i = 0; i < n && i < MAX_ITEMS; i++) {
             hazard_entry_t *h = &doc->hazards[i];
             extract_str(elems[i], "id", h->id, sizeof(h->id));
@@ -251,10 +287,11 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
 
             char *sit_arr = extract_bracket(elems[i], "situations", '[', ']');
             if (sit_arr) {
-                char sub[MAX_REFS][512];
-                h->situations_count = split_array(sit_arr, sub, MAX_REFS);
+                char *sub[MAX_REFS];
+                h->situations_count = split_array(sit_arr, sub, MAX_REFS, NULL);
                 for (int k = 0; k < h->situations_count; k++)
                     strncpy(h->situations[k], sub[k], REF_LEN - 1);
+                free_array_elems(sub, h->situations_count);
                 free(sit_arr);
             }
 
@@ -269,15 +306,20 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
 
             char *sg_arr = extract_bracket(elems[i], "safetyGoals", '[', ']');
             if (sg_arr) {
-                char sub[MAX_REFS][512];
-                h->safety_goals_count = split_array(sg_arr, sub, MAX_REFS);
+                char *sub[MAX_REFS];
+                h->safety_goals_count = split_array(sg_arr, sub, MAX_REFS, NULL);
                 for (int k = 0; k < h->safety_goals_count; k++)
                     strncpy(h->safety_goals[k], sub[k], REF_LEN - 1);
+                free_array_elems(sub, h->safety_goals_count);
                 free(sg_arr);
             }
         }
         doc->hazards_count = n;
+        free_array_elems(elems, n);
         free(hz_arr);
+        if (truncated)
+            fprintf(stderr, "cfusa hara: WARNING: hazards[] has more than %d "
+                             "entries — extra entries were dropped\n", MAX_ITEMS);
     }
 
     /* Scoped to start *after* the hazards array (when present) so this
@@ -285,8 +327,9 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
      * reference array instead of the document's top-level collection. */
     char *sg_arr_top = extract_bracket(hz_end_ptr ? hz_end_ptr : json, "safetyGoals", '[', ']');
     if (sg_arr_top) {
-        char elems[MAX_ITEMS][512];
-        int n = split_array(sg_arr_top, elems, MAX_ITEMS);
+        char *elems[MAX_ITEMS];
+        int truncated = 0;
+        int n = split_array(sg_arr_top, elems, MAX_ITEMS, &truncated);
         for (int i = 0; i < n && i < MAX_ITEMS; i++) {
             safety_goal_entry_t *g = &doc->goals[i];
             extract_str(elems[i], "id", g->id, sizeof(g->id));
@@ -296,24 +339,30 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
 
             char *hz_refs = extract_bracket(elems[i], "hazards", '[', ']');
             if (hz_refs) {
-                char sub[MAX_REFS][512];
-                g->hazards_count = split_array(hz_refs, sub, MAX_REFS);
+                char *sub[MAX_REFS];
+                g->hazards_count = split_array(hz_refs, sub, MAX_REFS, NULL);
                 for (int k = 0; k < g->hazards_count; k++)
                     strncpy(g->hazards[k], sub[k], REF_LEN - 1);
+                free_array_elems(sub, g->hazards_count);
                 free(hz_refs);
             }
 
             char *fssr = extract_bracket(elems[i], "fssrRefs", '[', ']');
             if (fssr) {
-                char sub[MAX_REFS][512];
-                g->fssr_refs_count = split_array(fssr, sub, MAX_REFS);
+                char *sub[MAX_REFS];
+                g->fssr_refs_count = split_array(fssr, sub, MAX_REFS, NULL);
                 for (int k = 0; k < g->fssr_refs_count; k++)
                     strncpy(g->fssr_refs[k], sub[k], REF_LEN - 1);
+                free_array_elems(sub, g->fssr_refs_count);
                 free(fssr);
             }
         }
         doc->goals_count = n;
+        free_array_elems(elems, n);
         free(sg_arr_top);
+        if (truncated)
+            fprintf(stderr, "cfusa hara: WARNING: safetyGoals[] has more than %d "
+                             "entries — extra entries were dropped\n", MAX_ITEMS);
     }
 }
 
