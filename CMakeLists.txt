@@ -40,6 +40,7 @@ add_library(cfusa_core STATIC
     src/qualitybar.c
     src/asil.c
     src/severity.c
+    src/disposition.c
 )
 target_include_directories(cfusa_core PUBLIC include)
 set_target_properties(cfusa_core PROPERTIES
@@ -164,6 +165,7 @@ cfusa_test(test_xfusa_v114)
 cfusa_test(test_xfusa_audit_20260728)
 cfusa_test(test_severity)
 cfusa_test(test_coverage_asil)
+cfusa_test(test_disposition_enforcement)
 
 # ---- Installation ----
 include(GNUInstallDirs)

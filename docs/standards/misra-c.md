@@ -21,9 +21,11 @@ MISRA-C:2012 (Motor Industry Software Reliability Association) defines mandatory
 
 ## Deviations
 
-MISRA-C deviations must be formally documented. `cfusa disposition add --rule <ID> --action accept|fix|mitigate --rationale <text> --reviewer <name>` records one in `.fusa-dispositions.json` (rationale, reviewer, timestamp — `cfusa disposition list`/`show` read it back).
+MISRA-C deviations must be formally documented. `cfusa disposition add --rule <ID> --fingerprint <sha256:...> --action accept|fix|mitigate --rationale <text> --reviewer <name>` records one in `.fusa-dispositions.json` (rationale, reviewer, timestamp — `cfusa disposition list`/`show` read it back).
 
-**This is a log, not a gate today.** `cfusa check`/`cfusa lint` do not read `.fusa-dispositions.json` — logging a deviation does not suppress the finding on the next run or change the exit code. Tracked in [issue #122](https://github.com/SoundMatt/c-FuSa/issues/122).
+**`cfusa check`/`cfusa lint` enforce accepted deviations** (as of [issue #122](https://github.com/SoundMatt/c-FuSa/issues/122)): a finding whose `fingerprint` (shown next to every finding in `cfusa check`/`cfusa lint` text output, and as `"fingerprint"` in JSON) matches an `accept`- or `mitigate`-action disposition is excluded from the exit-code gate — it never disappears from the report, it's tagged `[DISPOSITIONED accept: DISP-0007]` inline instead, and the JSON summary carries a separate `"dispositioned"` count so a reviewed-and-accepted deviation is never confused with an actual fix.
+
+**Scoping is fingerprint-based, not rule-based.** `--rule` alone is never used to suppress — recording `--rule CFUSA-L003` without `--fingerprint` exempts nothing; it's an audit note only. Keying off `--rule` would silently exempt *every future finding under that rule ID, anywhere in the codebase*, which is too coarse for a real deviation record. A `fix`-action disposition also never suppresses (it's a historical note — the code presumably no longer matches, so there is nothing live to suppress).
 
 ## Note
 

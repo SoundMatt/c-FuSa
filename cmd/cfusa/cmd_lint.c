@@ -8,6 +8,7 @@
 #include "cfusa/config.h"
 #include "cfusa/severity.h"
 #include "cfusa/utils.h"
+#include "cfusa/disposition.h"
 
 /* ---- rule helpers ---- */
 
@@ -753,6 +754,14 @@ int cmd_lint(int argc, char **argv)
     strncpy(rpt.standard, "MISRA-C:2012 / CERT-C", sizeof(rpt.standard) - 1);
 
     cfusa_engine_run_category(CFUSA_CATEGORY_LINT, dir, &cfg, &rpt);
+
+    //cfusa:req REQ-DISP-ENFORCE003
+    /* issue #122: see the matching comment in cmd_check.c. */
+    cfusa_disposition_list_t disps;
+    if (!cfusa_dispositions_load(dir, &disps))
+        fprintf(stderr, "cfusa lint: WARNING: dispositions may be incomplete\n");
+    cfusa_report_apply_dispositions(&rpt, &disps);
+    cfusa_dispositions_free(&disps);
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
 

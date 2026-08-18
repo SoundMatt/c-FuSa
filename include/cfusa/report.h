@@ -24,6 +24,13 @@ typedef struct {
     cfusa_severity_t severity;
     char             message[CFUSA_FINDING_MSG_MAX];
     char             fingerprint[72]; /* "sha256:" + 64 hex chars + NUL (§4.2) */
+    /* issue #122: set by cfusa_report_apply_dispositions() when this
+     * finding's fingerprint matches an accept/mitigate-action entry in
+     * .fusa-dispositions.json. Empty disposition_id means undispositioned
+     * — the finding is never removed from findings[] either way, only
+     * tagged; see cfusa_report_apply_dispositions() in disposition.c. */
+    char             disposition_id[16];
+    char             disposition_action[16];
 } cfusa_finding_t;
 
 typedef struct {
@@ -33,6 +40,11 @@ typedef struct {
     int              error_count;
     int              warning_count;
     int              info_count;
+    /* issue #122: count of findings excluded from error_count/warning_count/
+     * info_count above by cfusa_report_apply_dispositions() — reported as
+     * its own summary bucket rather than silently shrinking the other
+     * three, so a reader can't mistake "reviewed and accepted" for "fixed". */
+    int              dispositioned_count;
     char             project[128];
     char             version[32];
     char             standard[128];

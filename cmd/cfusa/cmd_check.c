@@ -9,6 +9,7 @@
 #include "cfusa/report.h"
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
+#include "cfusa/disposition.h"
 
 //cfusa:req REQ-CLI003 REQ-NOSUMMARY001
 int cmd_check(int argc, char **argv)
@@ -84,6 +85,18 @@ int cmd_check(int argc, char **argv)
 
     rpt.no_summary = no_summary;
     cfusa_engine_run_all(dir, &cfg, &rpt);
+
+    //cfusa:req REQ-DISP-ENFORCE003
+    /* issue #122: cross-reference findings against .fusa-dispositions.json
+     * by fingerprint — an accept/mitigate-action disposition suppresses
+     * its matching finding from error_count/warning_count (and so from
+     * the exit-code gate below) without ever removing it from the
+     * printed report. A missing dispositions file is not an error. */
+    cfusa_disposition_list_t disps;
+    if (!cfusa_dispositions_load(dir, &disps))
+        fprintf(stderr, "cfusa check: WARNING: dispositions may be incomplete\n");
+    cfusa_report_apply_dispositions(&rpt, &disps);
+    cfusa_dispositions_free(&disps);
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
     if (output)
