@@ -170,6 +170,11 @@ static void print_summary_table(const cfusa_report_t *rpt, FILE *out)
 
     for (int i = 0; i < rpt->count; i++) {
         const cfusa_finding_t *f = &rpt->findings[i];
+        /* issue #165: a dispositioned finding is already excluded from
+         * error_count/warning_count/info_count (the Total row below) —
+         * counting it here too would make the per-category rows no
+         * longer sum to that Total. */
+        if (f->disposition_id[0]) continue;
         int ci = -1;
         for (int j = 0; j < ncat; j++)
             if (!strcmp(cats[j], f->category)) { ci = j; break; }
@@ -208,6 +213,9 @@ static void print_top_rules(const cfusa_report_t *rpt, FILE *out)
 
     for (int i = 0; i < rpt->count; i++) {
         const cfusa_finding_t *f = &rpt->findings[i];
+        /* issue #165: matches print_summary_table()'s exclusion — a
+         * dispositioned finding should not inflate TOP RULES counts. */
+        if (f->disposition_id[0]) continue;
         int ri = -1;
         for (int j = 0; j < nrules; j++)
             if (!strcmp(rule_ids[j], f->rule_id)) { ri = j; break; }
@@ -281,7 +289,13 @@ static void print_text(const cfusa_report_t *rpt, FILE *out)
     fprintf(out, "\nSummary: %d total  %d errors  %d warnings  %d infos  %d dispositioned\n",
             rpt->count, rpt->error_count, rpt->warning_count, rpt->info_count,
             rpt->dispositioned_count);
-    fprintf(out, "Result:  %s\n", rpt->error_count > 0 ? "FAIL" : "PASS");
+    /* issue #164: mirrors the exact exit-code expression every caller
+     * (cmd_check.c/cmd_lint.c/cmd_analyze.c/cmd_cyber.c) uses, so the
+     * printed verdict can't silently disagree with the process's actual
+     * exit code under --strict (which also fails on warnings, not just
+     * errors). */
+    int passed = !(rpt->error_count > 0 || (rpt->strict && rpt->warning_count > 0));
+    fprintf(out, "Result:  %s\n", passed ? "PASS" : "FAIL");
 
     if (!rpt->no_summary && rpt->count > 0) {
         print_summary_table(rpt, out);
@@ -324,7 +338,12 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
     int nrules = cfusa_engine_rule_count();
     for (int i = 0; i < rpt->count; i++) {
         const cfusa_finding_t *f = &rpt->findings[i];
-        char esc_file[512], esc_msg[768];
+        /* issue #178: sized to the true worst case — cfusa_str_escape_json()
+         * can expand every input byte into a 2-byte escape (\", \\, \n,
+         * \r, \t), so a fixed 768-byte buffer silently truncated a
+         * message rich in quote/backslash characters partway through,
+         * with no indication in the emitted evidence artifact. */
+        char esc_file[2 * CFUSA_FINDING_FILE_MAX + 1], esc_msg[2 * CFUSA_FINDING_MSG_MAX + 1];
         cfusa_str_escape_json(f->file,    esc_file, sizeof(esc_file));
         cfusa_str_escape_json(f->message, esc_msg,  sizeof(esc_msg));
 
@@ -474,7 +493,12 @@ static void print_sarif(const cfusa_report_t *rpt, FILE *out)
         const char *level =
             (f->severity == SEV_ERROR)   ? "error" :
             (f->severity == SEV_WARNING) ? "warning" : "note";
-        char esc_file[512], esc_msg[768];
+        /* issue #178: sized to the true worst case — cfusa_str_escape_json()
+         * can expand every input byte into a 2-byte escape (\", \\, \n,
+         * \r, \t), so a fixed 768-byte buffer silently truncated a
+         * message rich in quote/backslash characters partway through,
+         * with no indication in the emitted evidence artifact. */
+        char esc_file[2 * CFUSA_FINDING_FILE_MAX + 1], esc_msg[2 * CFUSA_FINDING_MSG_MAX + 1];
         cfusa_str_escape_json(f->file,    esc_file, sizeof(esc_file));
         cfusa_str_escape_json(f->message, esc_msg,  sizeof(esc_msg));
 
@@ -608,6 +632,46 @@ static void print_md(const cfusa_report_t *rpt, FILE *out)
     }
 }
 
+/* ---- CSV output ---- */
+
+/* RFC 4180 field: always quoted (simplest correct rule — a field with no
+ * comma/quote/newline is still valid quoted CSV, and this avoids a
+ * separate "does this field need quoting" pass), embedded quotes doubled. */
+static void csv_field(FILE *out, const char *s)
+{
+    fputc('"', out);
+    for (; *s; s++) {
+        if (*s == '"') fputc('"', out);
+        fputc(*s, out);
+    }
+    fputc('"', out);
+}
+
+/* issue #179: --format csv used to be silently accepted by
+ * cfusa_format_parse() (a real enum value with no renderer), then fell
+ * through cfusa_report_print()'s switch default and wrote print_text()'s
+ * human-readable block-formatted report instead — any downstream tool
+ * expecting real comma-separated fields (spreadsheet import, `awk -F,`)
+ * would silently misparse it, with no error surfaced at generation time. */
+static void print_csv(const cfusa_report_t *rpt, FILE *out)
+{
+    fprintf(out, "severity,ruleId,category,file,line,message,fingerprint,"
+                 "dispositionId,dispositionAction\n");
+    for (int i = 0; i < rpt->count; i++) {
+        const cfusa_finding_t *f = &rpt->findings[i];
+        csv_field(out, cfusa_severity_str(f->severity)); fputc(',', out);
+        csv_field(out, f->rule_id);                      fputc(',', out);
+        csv_field(out, f->category);                     fputc(',', out);
+        csv_field(out, f->file[0] ? f->file : ".");       fputc(',', out);
+        fprintf(out, "%d,", f->line);
+        csv_field(out, f->message);                       fputc(',', out);
+        csv_field(out, f->fingerprint);                   fputc(',', out);
+        csv_field(out, f->disposition_id);                fputc(',', out);
+        csv_field(out, f->disposition_action);
+        fputc('\n', out);
+    }
+}
+
 void cfusa_report_print(const cfusa_report_t *rpt, FILE *out, cfusa_format_t fmt)
 {
     switch (fmt) {
@@ -615,6 +679,7 @@ void cfusa_report_print(const cfusa_report_t *rpt, FILE *out, cfusa_format_t fmt
     case FMT_SARIF: print_sarif(rpt, out); break;
     case FMT_HTML:  print_html(rpt, out);  break;
     case FMT_MD:    print_md(rpt, out);    break;
+    case FMT_CSV:   print_csv(rpt, out);   break;
     default:        print_text(rpt, out);  break;
     }
 }
