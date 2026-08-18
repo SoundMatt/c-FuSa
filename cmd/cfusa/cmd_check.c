@@ -100,10 +100,21 @@ int cmd_check(int argc, char **argv)
     cfusa_dispositions_free(&disps);
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
-    if (output)
-        cfusa_report_write(&rpt, output, fmt);
-    else
+    if (output) {
+        /* issue #141: a failed report write (bad --output path, permission
+         * denied, disk full) used to be silently swallowed — the exit code
+         * still came from finding counts alone, so CI gating on exit code
+         * saw a green build with no compliance-report artifact ever
+         * produced. Matches the exit-3 convention already used elsewhere
+         * in this codebase (cmd_trace.c/cmd_coverage.c/cmd_fmea.c/
+         * cmd_hara.c) for the identical fopen-for-write failure. */
+        if (cfusa_report_write(&rpt, output, fmt) != 0) {
+            cfusa_report_free(&rpt);
+            return 3;
+        }
+    } else {
         cfusa_report_print(&rpt, stdout, fmt);
+    }
 
     int rc = (rpt.error_count > 0) || (cfg.strict && rpt.warning_count > 0);
     cfusa_report_free(&rpt);

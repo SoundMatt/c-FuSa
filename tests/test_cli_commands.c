@@ -36,6 +36,9 @@ extern int cmd_cyber(int argc, char **argv);
 extern int cmd_comp(int argc, char **argv);
 extern int cmd_req(int argc, char **argv);
 extern int cmd_fix(int argc, char **argv);
+extern int cmd_lint(int argc, char **argv);
+extern int cmd_analyze(int argc, char **argv);
+extern int cmd_report(int argc, char **argv);
 
 #define CLI_TEST_DIR "/tmp/cfusa_cli_testdir"
 
@@ -91,6 +94,61 @@ void test_check_runs_on_empty_dir(void)
     /* Safety rules (HARA001, COUP003) fire on any dir without safety artifacts;
      * this test verifies no crash — return code is expected to be non-zero. */
     TEST_ASSERT_TRUE(rc == 0 || rc == 1);
+}
+
+/* ---- issue #141: a failed report write must exit 3, not the finding-
+ * count-only exit code — a bad --output path is silently swallowed
+ * otherwise, and CI gating on exit code sees a green build with no
+ * compliance-report artifact ever produced. ---- */
+
+//cfusa:req REQ-CLI003
+//cfusa:test REQ-CLI003
+void test_check_bad_output_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--output", "/nonexistent/dir/check.json", NULL};
+    int rc = cmd_check(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
+//cfusa:req REQ-LINT001
+//cfusa:test REQ-LINT001
+void test_lint_bad_output_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--output", "/nonexistent/dir/lint.json", NULL};
+    int rc = cmd_lint(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
+//cfusa:req REQ-ANA001
+//cfusa:test REQ-ANA001
+void test_analyze_bad_output_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--output", "/nonexistent/dir/analyze.json", NULL};
+    int rc = cmd_analyze(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
+//cfusa:req REQ-CYB001
+//cfusa:test REQ-CYB001
+void test_cyber_bad_output_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--output", "/nonexistent/dir/cyber.json", NULL};
+    int rc = cmd_cyber(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
+}
+
+//cfusa:req REQ-CLI003
+//cfusa:test REQ-CLI003
+void test_report_bad_output_returns_3(void)
+{
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR,
+                    "--output", "/nonexistent/dir/report.json", NULL};
+    int rc = cmd_report(5, argv);
+    TEST_ASSERT_EQUAL(3, rc);
 }
 
 /* ---- check --no-summary ---- */
@@ -1099,5 +1157,10 @@ int main(void)
     RUN_TEST(test_req_import_empty_csv_returns_2);
     RUN_TEST(test_req_import_bad_header_returns_2);
     RUN_TEST(test_fix_report_creates_file);
+    RUN_TEST(test_check_bad_output_returns_3);
+    RUN_TEST(test_lint_bad_output_returns_3);
+    RUN_TEST(test_analyze_bad_output_returns_3);
+    RUN_TEST(test_cyber_bad_output_returns_3);
+    RUN_TEST(test_report_bad_output_returns_3);
     return UNITY_END();
 }

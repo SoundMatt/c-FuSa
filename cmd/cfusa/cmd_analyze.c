@@ -649,10 +649,15 @@ int cmd_analyze(int argc, char **argv)
     cfusa_engine_run_category(CFUSA_CATEGORY_ANALYZE, dir, &cfg, &rpt);
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
-    if (output)
-        cfusa_report_write(&rpt, output, fmt);
-    else
+    if (output) {
+        /* issue #141: see the matching comment in cmd_check.c. */
+        if (cfusa_report_write(&rpt, output, fmt) != 0) {
+            cfusa_report_free(&rpt);
+            return 3;
+        }
+    } else {
         cfusa_report_print(&rpt, stdout, fmt);
+    }
 
     int rc = (rpt.error_count > 0) || (cfg.strict && rpt.warning_count > 0);
     cfusa_report_free(&rpt);

@@ -865,10 +865,15 @@ int cmd_lint(int argc, char **argv)
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
 
-    if (output)
-        cfusa_report_write(&rpt, output, fmt);
-    else
+    if (output) {
+        /* issue #141: see the matching comment in cmd_check.c. */
+        if (cfusa_report_write(&rpt, output, fmt) != 0) {
+            cfusa_report_free(&rpt);
+            return 3;
+        }
+    } else {
         cfusa_report_print(&rpt, stdout, fmt);
+    }
 
     int exit_code = 0;
     if (rpt.error_count > 0) exit_code = 1;
