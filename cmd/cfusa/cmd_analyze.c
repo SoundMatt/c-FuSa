@@ -100,23 +100,147 @@ static int rule_a002(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+/* A003 — signed/unsigned comparison against sizeof(...) (CERT-C INT02-C).
+ *
+ * Precision fix (issue #126): the original check was purely syntactic —
+ * any "<op> sizeof" substring fired, with no notion of the left operand's
+ * actual type. sizeof(...) itself returns size_t (unsigned), so comparing
+ * it against another already-unsigned value (e.g. `size_t len = ...; if
+ * (len < sizeof(buf))`) is exactly the code CERT INT02-C wants, not a
+ * violation of it — but a same-file sample measured this as the dominant
+ * false-positive shape (near-100% FP rate).
+ *
+ * Fix: a first pass over the file (a003_collect_line) records every
+ * locally-visible size_t/unsigned*-typed name it can see via a simple
+ * "<type keyword> <identifier>" scan (declarations and function
+ * parameters alike — this also incidentally covers struct members, since
+ * a struct's own field declarations match the same pattern). The second
+ * pass then only flags a comparison whose left operand is a *simple*
+ * identifier (walked back from the operator) that ISN'T in that set.
+ *
+ * This is a heuristic, not real type resolution — consistent with this
+ * tool's line-based-scan precision ceiling elsewhere in the codebase. It
+ * won't catch a real violation whose signed operand is a complex
+ * expression (`arr[i] < sizeof(buf)`) or declared in a header this file
+ * doesn't itself contain — trading recall for precision, which is the
+ * right direction for a rule issue #126 measured at near-100% noise. */
+#define A003_MAX_NAMES 256
+#define A003_NAME_LEN   64
+
+typedef struct {
+    cfusa_report_t *rpt;
+    char names[A003_MAX_NAMES][A003_NAME_LEN];
+    int count;
+} a003_ctx_t;
+
+static const char * const a003_unsigned_types[] = {
+    "unsigned long long", "unsigned long", "unsigned short", "unsigned int", "unsigned char",
+    "size_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t", "uintptr_t", "uintmax_t",
+    "unsigned",
+    NULL
+};
+
+static int a003_is_known_unsigned(a003_ctx_t *ctx, const char *id, size_t len)
+{
+    if (len == 0 || len >= A003_NAME_LEN) return 0;
+    for (int i = 0; i < ctx->count; i++)
+        if (strncmp(ctx->names[i], id, len) == 0 && ctx->names[i][len] == '\0')
+            return 1;
+    return 0;
+}
+
 //cfusa:req REQ-ANA003
-/* A003 — signed/unsigned comparison */
+/* Pass 1: scan the whole file for "<size_t/unsigned-family keyword>
+ * <identifier>" occurrences and remember each identifier as known-
+ * unsigned. Intentionally not scoped to declarations only — matching
+ * inside a struct body, a function signature, or a local declaration all
+ * use the same textual shape, and this is a best-effort heuristic, not a
+ * real parser. */
+static void a003_collect_line(const char *path, int lineno, const char *line, void *vctx)
+{
+    (void)path; (void)lineno;
+    a003_ctx_t *ctx = vctx;
+    const char *t = line;
+    while (*t == ' ' || *t == '\t') t++;
+    if (*t == '/' || *t == '*') return; /* skip whole-line comments */
+
+    for (const char *p = line; *p; p++) {
+        for (int i = 0; a003_unsigned_types[i]; i++) {
+            size_t tlen = strlen(a003_unsigned_types[i]);
+            if (strncmp(p, a003_unsigned_types[i], tlen) != 0) continue;
+            /* identifier-boundary before and after the keyword — not a
+             * substring of a longer identifier either side */
+            if (p != line && (isalnum((unsigned char)p[-1]) || p[-1] == '_')) continue;
+            char after = p[tlen];
+            if (isalnum((unsigned char)after) || after == '_') continue;
+
+            const char *q = p + tlen;
+            while (*q == ' ' || *q == '\t' || *q == '*') q++;
+            const char *id_start = q;
+            while (isalnum((unsigned char)*q) || *q == '_') q++;
+            size_t idlen = (size_t)(q - id_start);
+            if (idlen > 0 && idlen < A003_NAME_LEN && ctx->count < A003_MAX_NAMES) {
+                memcpy(ctx->names[ctx->count], id_start, idlen);
+                ctx->names[ctx->count][idlen] = '\0';
+                ctx->count++;
+            }
+            p = q - 1; /* resume scanning after the captured identifier */
+            break;
+        }
+    }
+}
+
+/* Extracts the identifier ending immediately before `at` (skipping any
+ * whitespace directly before it) — e.g. for "  len < sizeof(buf)" with
+ * `at` pointing at '<', returns "len". Returns length 0 when the token
+ * immediately before `at` isn't a simple identifier (a closing paren/
+ * bracket from a complex expression, or start of line). */
+static size_t a003_operand_before(const char *line_start, const char *at, const char **id_out)
+{
+    const char *p = at;
+    while (p > line_start && (p[-1] == ' ' || p[-1] == '\t')) p--;
+    const char *end = p;
+    while (p > line_start && (isalnum((unsigned char)p[-1]) || p[-1] == '_')) p--;
+    *id_out = p;
+    return (size_t)(end - p);
+}
+
+/* Pass 2: the actual A003 check, now consulting pass 1's known-unsigned
+ * name set before flagging. */
 static void a003_line(const char *path,int lineno,const char *line,void *vctx)
 {
-    a_ctx_t *ctx=vctx;
+    a003_ctx_t *ctx=vctx;
     const char *p=line;
     while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
-    if ((strstr(line,"< sizeof") || strstr(line,"> sizeof")
-      || strstr(line,"<= sizeof") || strstr(line,">= sizeof")
-      || strstr(line,"== sizeof") || strstr(line,"!= sizeof"))
-      && !strstr(line,"(size_t)") && !strstr(line,"(int)sizeof"))
+
+    static const char * const ops[] = {"<=", ">=", "==", "!=", "<", ">", NULL};
+    for (int oi = 0; ops[oi]; oi++) {
+        char pat[16];
+        snprintf(pat, sizeof(pat), "%s sizeof", ops[oi]);
+        const char *m = strstr(line, pat);
+        if (!m) continue;
+        if (strstr(line,"(size_t)") || strstr(line,"(int)sizeof")) return;
+
+        const char *id;
+        size_t idlen = a003_operand_before(line, m, &id);
+        /* No simple identifier immediately before the operator (a
+         * complex expression, or another sizeof(...)) — don't guess. */
+        if (idlen == 0) return;
+        if (a003_is_known_unsigned(ctx, id, idlen)) return;
+
         cfusa_report_add(ctx->rpt,
             "CFUSA-A003", CFUSA_CATEGORY_ANALYZE, SEV_WARNING,
             path, lineno,
             "signed/unsigned comparison with sizeof — sizeof returns size_t (unsigned); "
             "compare with (size_t) or use explicit cast (CERT-C INT02-C)");
+        return;
+    }
+}
+
+static int a003_collect_file(const char *path, void *v)
+{
+    cfusa_scan_lines(path, a003_collect_line, v); return 0;
 }
 
 static int a003_file(const char *path, void *v)
@@ -124,12 +248,21 @@ static int a003_file(const char *path, void *v)
     cfusa_scan_lines(path, a003_line, v); return 0;
 }
 
+//cfusa:req REQ-ANA010
 static int rule_a003(const char *dir, const cfusa_config_t *cfg,
                       cfusa_report_t *rpt)
 {
     (void)cfg;
     static const char * const exts[]={".c"};
-    a_ctx_t ctx={rpt};
+    a003_ctx_t ctx; memset(&ctx, 0, sizeof(ctx));
+    ctx.rpt = rpt;
+    /* Two full passes over every source file: pass 1 accumulates one
+     * known-unsigned name set across the whole project (not scoped per
+     * file — a name seen anywhere counts, biasing toward suppressing
+     * more false positives at a small, acceptable risk of missing a
+     * genuinely differently-typed same-named variable elsewhere), then
+     * pass 2 runs the actual check consulting that set. */
+    cfusa_walk_sources(dir, exts, 1, a003_collect_file, &ctx);
     cfusa_walk_sources(dir, exts, 1, a003_file, &ctx);
     return 0;
 }

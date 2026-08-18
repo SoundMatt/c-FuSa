@@ -107,6 +107,65 @@ void test_a003_sizeof_comparison_fires(void)
     cfusa_report_free(&rpt);
 }
 
+/* issue #126: a size_t-typed local compared against sizeof(...) is not a
+ * signed/unsigned mismatch -- CERT INT02-C-correct code, must be silent. */
+//cfusa:req REQ-ANA010
+//cfusa:test REQ-ANA010
+void test_a003_size_t_local_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_analyze_on(
+        "void fn(char *buf) {\n"
+        "    size_t len = 4;\n"
+        "    if (len < sizeof(buf)) { return; }\n"
+        "}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-A003"));
+    cfusa_report_free(&rpt);
+}
+
+/* issue #126: same guarantee for a size_t-typed function parameter. */
+//cfusa:req REQ-ANA010
+//cfusa:test REQ-ANA010
+void test_a003_size_t_parameter_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_analyze_on(
+        "int fn(size_t n) { return n >= sizeof(int); }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-A003"));
+    cfusa_report_free(&rpt);
+}
+
+/* issue #126: an unsigned-family typedef (uint32_t) is recognized too. */
+//cfusa:req REQ-ANA010
+//cfusa:test REQ-ANA010
+void test_a003_uint32_local_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_analyze_on(
+        "void fn(void) {\n"
+        "    uint32_t count = 0;\n"
+        "    if (count == sizeof(int)) { return; }\n"
+        "}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-A003"));
+    cfusa_report_free(&rpt);
+}
+
+/* issue #126: a genuinely signed int compared to sizeof(...) must still
+ * fire -- the fix must not overcorrect into never flagging anything. */
+//cfusa:req REQ-ANA010
+//cfusa:test REQ-ANA010
+void test_a003_int_local_still_fires(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_analyze_on(
+        "void fn(void) {\n"
+        "    int idx = 0;\n"
+        "    if (idx < sizeof(int)) { return; }\n"
+        "}\n", &rpt);
+    TEST_ASSERT_TRUE(count_rule(&rpt,"CFUSA-A003") > 0);
+    cfusa_report_free(&rpt);
+}
+
 /* ---- A005: assert in production ---- */
 //cfusa:req REQ-ANA007
 //cfusa:test REQ-ANA007
@@ -169,6 +228,10 @@ int main(void)
     RUN_TEST(test_a002_unchecked_malloc_fires);
     RUN_TEST(test_a002_inline_check_silent);
     RUN_TEST(test_a003_sizeof_comparison_fires);
+    RUN_TEST(test_a003_size_t_local_silent);
+    RUN_TEST(test_a003_size_t_parameter_silent);
+    RUN_TEST(test_a003_uint32_local_silent);
+    RUN_TEST(test_a003_int_local_still_fires);
     RUN_TEST(test_a005_assert_fires);
     RUN_TEST(test_a006_ptr_arithmetic_fires);
     RUN_TEST(test_a007_unchecked_fclose_fires);
