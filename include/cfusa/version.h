@@ -3,9 +3,36 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  6
-#define CFUSA_VERSION_PATCH  1
-#define CFUSA_VERSION_STRING "0.6.1"
-/* v0.6.1 — 2026-08-18 forty-three fixes from a 40-agent deep-audit
+#define CFUSA_VERSION_PATCH  2
+#define CFUSA_VERSION_STRING "0.6.2"
+/* v0.6.2 — 2026-08-18 architecture-plan loop: eleven tracked improvement
+ * issues (#203-#213), eight shipped across eight PRs (#215-#218,
+ * #220-#223); #206/#207 (per-file result cache; compile_commands.json/
+ * libclang integration) deliberately deferred per their own issue
+ * scoping; #211 (Windows/MSVC) resolved as a scoping decision rather
+ * than an implementation. Includes new user-facing flags/behaviors, not
+ * just fixes. Highlights: a shared
+ * comment/string-aware lexer (cfusa_lex_strip_line()) replacing ad hoc
+ * per-rule state machines (#203); a single tree-walk/single file-read
+ * engine for line-scan rules, collapsing 54 independent
+ * cfusa_walk_sources() call sites into one dispatch pass (#204); #if 0
+ * preprocessor-lite awareness so unconditionally-disabled code is no
+ * longer scanned (#205); `cfusa baseline` / .fusa-baseline.json for
+ * suppress-existing-debt adoption on a legacy codebase (#208); `cfusa
+ * check --changed-since <ref>` to scope a report to only lines changed
+ * since a git ref (#209); `cfusa fix` remediation-guidance coverage
+ * expanded from 19 to the full 39 lint/analyze/cyber rules, plus a real
+ * `--dry-run`/`--apply` autofix for CFUSA-CY006 (free-without-NULL)
+ * (#210); Windows/MSVC support audited and deliberately deferred —
+ * WSL2 is the supported path today, see issue #211 for the full
+ * rationale; `cfusa explain <RULE-ID>` for a rule's full
+ * description/standard citation/fix guidance in one place (#212); a
+ * first-party GitHub Action (action.yml, `uses: SoundMatt/c-FuSa@
+ * <tag>`) installing a pinned release binary, running `cfusa check`,
+ * and uploading SARIF (#213). 47/47 test suites pass, self-check clean.
+ * See CHANGELOG.md for the itemised, issue-linked list.
+ *
+ * v0.6.1 — 2026-08-18 forty-three fixes from a 40-agent deep-audit
  * sweep of the codebase (#141-#182) plus one more found and fixed the
  * same session (#187). Patch bump — precision/correctness fixes only,
  * no new user-facing flags or behaviors. Highlights: disposition JSON
