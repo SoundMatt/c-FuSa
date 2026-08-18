@@ -7,6 +7,9 @@
  * remediation guidance. Prints a numbered fix list with step-by-step
  * instructions for each affected location.
  */
+#if defined(__linux__) || defined(__unix__)
+#  define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -167,6 +170,20 @@ int cmd_fix(int argc, char **argv)
 
     cfusa_report_t rpt;
     cfusa_report_init(&rpt);
+    /* issue #153-class: without project_root, cfusa_report_add() leaves
+     * `file` absolute instead of relativizing it like cmd_check.c does —
+     * so a finding fixed here and later reported via --report gets a
+     * different fingerprint than the same real finding from `cfusa
+     * check`, silently breaking disposition matching between them. */
+    {
+        char *abs = realpath(dir, NULL);
+        if (abs) {
+            strncpy(rpt.project_root, abs, sizeof(rpt.project_root) - 1);
+            free(abs);
+        } else {
+            strncpy(rpt.project_root, dir, sizeof(rpt.project_root) - 1);
+        }
+    }
     cfusa_engine_run_all(dir, &cfg, &rpt);
 
     int total   = rpt.count;

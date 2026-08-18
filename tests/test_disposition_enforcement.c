@@ -18,6 +18,7 @@
 
 extern int cmd_check(int argc, char **argv);
 extern int cmd_lint(int argc, char **argv);
+extern int cmd_analyze(int argc, char **argv);
 extern int cmd_disposition(int argc, char **argv);
 
 #define DE_DIR "/tmp/cfusa_dispenf_testdir"
@@ -313,31 +314,25 @@ static void write_bad_source(void)
     }
 }
 
-/* Gets the fingerprint `cmd` (cmd_check or cmd_lint) would itself compute
- * for `rule` in DE_DIR, by actually running `cmd --format json` and
- * reading the value back out of its own output — rather than
+/* Gets the fingerprint `cmd` (cmd_check, cmd_lint, or cmd_analyze) would
+ * itself compute for `rule` in DE_DIR, by actually running `cmd --format
+ * json` and reading the value back out of its own output — rather than
  * re-invoking the engine directly and computing one independently.
  *
- * This indirection matters, and the two commands are NOT
- * interchangeable here: cmd_check sets rpt.project_root via
+ * This indirection matters: a caller computing a fingerprint
+ * independently of the command it's meant to match can silently diverge
+ * from what that command actually produces. It used to matter even more
+ * — until issue #153 was fixed, cmd_check set rpt.project_root via
  * realpath(dir) before scanning (which cfusa_report_add() then uses to
  * relativize each finding's file path into the fingerprint's canonical
- * input); cmd_lint does not set project_root at all, so its findings'
- * file paths — and therefore fingerprints — stay unrelativized
- * (absolute). A caller computing a fingerprint independently of the
- * command it's meant to match can silently diverge from what that
- * command actually produces, and — worse — can appear to work on one
- * platform and not another: on macOS, realpath("/tmp/...") re-prefixes
- * "/private", so cmd_check's project_root doesn't even match
- * cfusa_walk_sources()'s own literal "/tmp/..." path prefix either,
- * leaving cmd_check's fingerprint unrelativized too (by a different,
- * coincidental reason) — so a naive direct-engine lookup happened to
- * match cmd_check there. On Linux, where /tmp isn't a symlink, realpath
- * matches the literal prefix and cmd_check's relativization actually
- * kicks in, while a direct-engine lookup stays absolute — a real,
- * silent, platform-dependent fingerprint mismatch. Always fetching the
- * fingerprint from the exact command under test avoids the whole class
- * of bug, on every platform. */
+ * input) while cmd_lint/cmd_analyze/cmd_cyber did not, so the identical
+ * real finding got a different fingerprint depending on which command
+ * produced it — see test_check_and_lint_fingerprints_match_for_same_rule
+ * / test_check_and_analyze_fingerprints_match_for_same_rule below, which
+ * exist specifically to guard against that regressing. Always fetching
+ * the fingerprint from the exact command under test (rather than a
+ * fixed reference command) still avoids the whole class of bug, on every
+ * platform, regardless of whether all commands agree. */
 static void get_fingerprint_for_rule(int (*cmd)(int, char **), const char *rule,
                                       char *out, size_t out_sz)
 {
@@ -460,6 +455,43 @@ void test_lint_exit_code_flips_after_accept_disposition(void)
     char path[256]; snprintf(path, sizeof(path), "%s/bad.c", DE_DIR); remove(path);
 }
 
+/* issue #153: cmd_lint never set rpt.project_root, so the identical real
+ * CFUSA-L003 finding got a different (unrelativized) fingerprint from
+ * `cfusa lint` than from `cfusa check` — silently breaking a disposition
+ * recorded against one command's fingerprint when the other command runs. */
+//cfusa:req REQ-DISP-ENFORCE001
+//cfusa:test REQ-DISP-ENFORCE001
+void test_check_and_lint_fingerprints_match_for_same_rule(void)
+{
+    write_bad_source();
+
+    char fp_check[80], fp_lint[80];
+    get_fingerprint_for_rule(cmd_check, "CFUSA-L003", fp_check, sizeof(fp_check));
+    get_fingerprint_for_rule(cmd_lint,  "CFUSA-L003", fp_lint,  sizeof(fp_lint));
+
+    TEST_ASSERT_TRUE(fp_check[0] != '\0');
+    TEST_ASSERT_EQUAL_STRING(fp_check, fp_lint);
+
+    char path[256]; snprintf(path, sizeof(path), "%s/bad.c", DE_DIR); remove(path);
+}
+
+/* Same guarantee for cmd_analyze (issue #153). */
+//cfusa:req REQ-DISP-ENFORCE001
+//cfusa:test REQ-DISP-ENFORCE001
+void test_check_and_analyze_fingerprints_match_for_same_rule(void)
+{
+    write_bad_source();
+
+    char fp_check[80], fp_analyze[80];
+    get_fingerprint_for_rule(cmd_check,   "CFUSA-A002", fp_check,   sizeof(fp_check));
+    get_fingerprint_for_rule(cmd_analyze, "CFUSA-A002", fp_analyze, sizeof(fp_analyze));
+
+    TEST_ASSERT_TRUE(fp_check[0] != '\0');
+    TEST_ASSERT_EQUAL_STRING(fp_check, fp_analyze);
+
+    char path[256]; snprintf(path, sizeof(path), "%s/bad.c", DE_DIR); remove(path);
+}
+
 /* cmd_check must never crash / must still succeed when no dispositions
  * file exists at all (the overwhelmingly common case). */
 //cfusa:req REQ-DISP-ENFORCE003
@@ -489,6 +521,8 @@ int main(void)
     RUN_TEST(test_apply_dispositions_empty_list_is_noop);
     RUN_TEST(test_check_json_tags_and_omits_dispositioned_finding_from_gate);
     RUN_TEST(test_lint_exit_code_flips_after_accept_disposition);
+    RUN_TEST(test_check_and_lint_fingerprints_match_for_same_rule);
+    RUN_TEST(test_check_and_analyze_fingerprints_match_for_same_rule);
     RUN_TEST(test_check_runs_fine_with_no_dispositions_file);
     return UNITY_END();
 }
