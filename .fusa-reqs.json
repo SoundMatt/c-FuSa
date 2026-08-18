@@ -33,6 +33,7 @@
     {"id":"REQ-HARA008","title":"cfusa hara asil computes ASIL from S/E/C","standard":"ISO 26262-3","level":"ASIL-A"},
     {"id":"REQ-HARA009","title":"ASIL table follows ISO 26262-3:2018 Table 4","standard":"ISO 26262-3","level":"ASIL-D"},
     {"id":"REQ-HARA010","title":"check gates on stored hazard ASIL matching the S x E x C table","standard":"ISO 26262-3","level":"ASIL-D"},
+    {"id":"REQ-HARA011","title":"cfusa hara parses operationalSituations/hazards/safetyGoals entries of any raw JSON length without silently dropping them; a genuine per-array-length ceiling emits a stderr warning rather than under-reporting silently","standard":"ISO 26262-3","level":"ASIL-D"},
     {"id":"REQ-ENG001","title":"Engine registers rules up to CFUSA_MAX_RULES","standard":"ISO 26262","level":"ASIL-A"},
     {"id":"REQ-ENG002","title":"Engine runs all registered rules","standard":"ISO 26262","level":"ASIL-A"},
     {"id":"REQ-ENG003","title":"Engine can run rules by category","standard":"ISO 26262","level":"ASIL-A"},
