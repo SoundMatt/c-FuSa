@@ -249,6 +249,7 @@
     {"id":"REQ-DISP003","title":"cfusa disposition list shows entries that were previously added","standard":"ISO 26262","level":"ASIL-B"},
     {"id":"REQ-FIX003","title":"cfusa fix runs on the gap-coverage test directory without crashing","standard":"c-FuSa CLI","level":"ASIL-A"},
     {"id":"REQ-FIX004","title":"cfusa fix --report writes a findings report to the given output path","standard":"c-FuSa CLI","level":"ASIL-A"},
+    {"id":"REQ-FIX005","title":"cfusa fix provides remediation guidance for CFUSA-CY006 (free-without-NULL, CWE-416/CERT-C MEM30-C): set the pointer to NULL immediately after free()","standard":"c-FuSa CLI","level":"ASIL-A"},
     {"id":"REQ-FMEA003","title":"cfusa fmea --help returns zero","standard":"IEC 60812","level":"ASIL-A"},
     {"id":"REQ-FMEA004","title":"cfusa fmea --format json writes fmea.json","standard":"IEC 60812","level":"ASIL-A"},
     {"id":"REQ-FMEA005","title":"cfusa fmea --format csv writes fmea.csv","standard":"IEC 60812","level":"ASIL-A"},

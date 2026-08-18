@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../vendor/unity/unity.h"
+#include "../include/cfusa/utils.h"
 
 extern int cmd_vuln(int argc, char **argv);
 extern int cmd_sci(int argc, char **argv);
@@ -408,6 +409,53 @@ void test_fix_runs_no_crash(void)
     (void)rc;
 }
 
+/* issue #127: cfusa fix had no remediation guidance for CFUSA-CY006
+ * (free-without-NULL, CWE-416/CERT-C MEM30-C) despite it being fully
+ * mechanical -- exactly the shape `fix` already handles for other rules. */
+//cfusa:req REQ-FIX005
+//cfusa:test REQ-FIX005
+void test_fix_cy006_guidance_present(void)
+{
+    char src_path[256];
+    snprintf(src_path, sizeof(src_path), "%s/cy006_fix_src.c", CMD2_DIR);
+    FILE *sf = cfusa_fopen_write(src_path);
+    TEST_ASSERT_NOT_NULL(sf);
+    if (sf) {
+        fputs("void fn(void *ptr) {\n    free(ptr);\n}\n", sf);
+        if (fclose(sf) != 0) TEST_FAIL_MESSAGE("fclose failed");
+    }
+
+    char capture_path[256];
+    snprintf(capture_path, sizeof(capture_path), "%s/fix_cy006_stdout.txt", CMD2_DIR);
+    fflush(stdout);
+    int saved_fd = dup(STDOUT_FILENO);
+    FILE *redirected = freopen(capture_path, "w", stdout);
+    TEST_ASSERT_NOT_NULL(redirected);
+
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, NULL};
+    int rc = cmd_fix(3, argv);
+
+    fflush(stdout);
+    dup2(saved_fd, STDOUT_FILENO);
+    close(saved_fd);
+    /* cmd_fix returns 1 whenever any finding exists at all (fixable or
+     * not) -- the free() call itself is a genuine finding, so 1 here
+     * means "ran successfully and found something", not a crash/error. */
+    TEST_ASSERT_EQUAL_INT(1, rc);
+
+    FILE *f = fopen(capture_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "CFUSA-CY006"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Null the pointer immediately after free"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "MEM30-C"));
+    }
+    remove(capture_path);
+    remove(src_path);
+}
+
 /* ---- do178 ---- */
 
 //cfusa:req REQ-DO178
@@ -622,6 +670,7 @@ int main(void)
     RUN_TEST(test_template_type_safety_plan);
     RUN_TEST(test_fix_help_returns_zero);
     RUN_TEST(test_fix_runs_no_crash);
+    RUN_TEST(test_fix_cy006_guidance_present);
     RUN_TEST(test_do178_help_returns_zero);
     RUN_TEST(test_do178_runs_no_crash);
     RUN_TEST(test_do178_invalid_dal_returns_2);

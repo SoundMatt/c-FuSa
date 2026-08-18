@@ -97,6 +97,14 @@ static const fix_entry_t FIXES[] = {
      "Validate that n * sizeof(T) does not overflow before allocating:\n"
      "  if (n > SIZE_MAX / sizeof(T)) { return ERROR_OVERFLOW; }\n"
      "  void *p = malloc(n * sizeof(T));   /* CERT-C INT30-C */"},
+    //cfusa:req REQ-FIX005
+    {"CFUSA-CY006",
+     "Null the pointer immediately after free to prevent use-after-free",
+     "Set the pointer to NULL right after freeing it — any later use then\n"
+     "  dereferences NULL (a clean crash) instead of freed memory:\n"
+     "  free(ptr);\n"
+     "  ptr = NULL;\n"
+     "  For a struct field: free(obj->field); obj->field = NULL;   /* CWE-416, CERT-C MEM30-C */"},
     {"CFUSA-CY007",
      "Null the pointer after free to prevent double-free",
      "Set the pointer to NULL immediately after freeing:\n"
