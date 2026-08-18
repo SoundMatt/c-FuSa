@@ -1,3 +1,6 @@
+#if defined(__linux__) || defined(__unix__)
+#  define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
