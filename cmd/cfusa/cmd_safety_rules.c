@@ -617,31 +617,72 @@ static int rule_dupreq001(const char *dir, const cfusa_config_t *cfg,
 
 /* ── COUP001 — data coupling: extern mutable global variables ─────────── */
 
-typedef struct { cfusa_report_t *rpt; } coup_ctx_t;
+/* issue #182: `added` accumulates the number of findings this rule's
+ * callbacks actually add, so rule_coup001()/rule_coup002() below can
+ * honor the run()-returns-finding-count contract every other rule in
+ * this file follows, instead of hardcoding `return 0;`.
+ * in_block_comment (COUP001 only) persists across cfusa_scan_lines()
+ * calls within one file — reset per file in coup001_file() — mirroring
+ * L003/L006's fix (cmd_lint.c) for the same comment-continuation gap. */
+typedef struct { cfusa_report_t *rpt; int in_block_comment; int added; } coup_ctx_t;
 
 static void coup001_line(const char *path, int lineno, const char *line,
                            void *vctx)
 {
     coup_ctx_t *ctx = vctx;
-    const char *p = line;
+
+    /* issue #181: strip block-comment and string-literal content before
+     * matching, so a multi-line "/* ... * /" comment's continuation
+     * lines (a legal, common C style with no leading '*') can never be
+     * scanned as code -- only the first line of such a comment used to
+     * be recognized, via the bare "starts with '/' or '*'" check below. */
+    char code[4096];
+    size_t n = 0;
+    int in_str = 0;
+    for (const char *q = line; *q && n < sizeof(code) - 1; q++) {
+        if (ctx->in_block_comment) {
+            if (q[0] == '*' && q[1] == '/') { ctx->in_block_comment = 0; q++; }
+            continue;
+        }
+        if (in_str) {
+            if (*q == '\\' && q[1]) { q++; continue; }
+            if (*q == '"') in_str = 0;
+            continue;
+        }
+        if (q[0] == '"') { in_str = 1; continue; }
+        if (q[0] == '/' && q[1] == '*') { ctx->in_block_comment = 1; q++; continue; }
+        if (q[0] == '/' && q[1] == '/') break; /* rest of line is comment */
+        code[n++] = *q;
+    }
+    code[n] = '\0';
+
+    const char *p = code;
     while (*p == ' ' || *p == '\t') p++;
-    if (*p == '/' || *p == '*') return;
     if (*p == '#') return;
 
-    /* Match: "extern <type> <name>;" — mutable vars only; skip fn decls (have '(') */
-    if (strstr(p, "extern ") && !strstr(p, "const ") &&
+    /* issue #181: anchor the match to the start of the (comment/string-
+     * stripped) trimmed line -- matching cmd_coupling.c's scan_line() --
+     * instead of an unanchored strstr() that could match "extern " text
+     * appearing mid-line in prose or a trailing comment. Mutable vars
+     * only; skip fn decls (have '('). */
+    if (strncmp(p, "extern ", 7) == 0 && !strstr(p, "const ") &&
         !strchr(p, '(') && strchr(p, ';') &&
-        !strstr(p, "extern \"C\"")) {
+        strncmp(p, "extern \"C\"", 10) != 0) {
         cfusa_report_add(ctx->rpt,
             "COUP001", "analyze", SEV_WARNING,
             path, lineno,
             "data coupling: exported mutable variable via 'extern' declaration; "
             "consider passing state explicitly (DO-178C §6.4.4.3)");
+        ctx->added++;
     }
 }
 
 static int coup001_file(const char *path, void *v)
 {
+    /* `ctx` is shared across every file in the tree walk — reset the
+     * per-file comment state here, same rationale as l003_file(). */
+    coup_ctx_t *ctx = v;
+    ctx->in_block_comment = 0;
     cfusa_scan_lines(path, coup001_line, v); return 0;
 }
 
@@ -650,9 +691,9 @@ static int rule_coup001(const char *dir, const cfusa_config_t *cfg,
 {
     (void)cfg;
     static const char * const exts[] = {".c", ".h"};
-    coup_ctx_t ctx = {rpt};
+    coup_ctx_t ctx = {rpt, 0, 0};
     cfusa_walk_sources(dir, exts, 2, coup001_file, &ctx);
-    return 0;
+    return ctx.added;
 }
 
 /* ── COUP002 — control coupling: function pointer parameters ─────────── */
@@ -677,6 +718,7 @@ static void coup002_line(const char *path, int lineno, const char *line,
                 "control coupling: function pointer parameter detected; "
                 "use explicit dispatch tables with documented coupling rationale "
                 "(DO-178C §6.4.4.3)");
+            ctx->added++;
         }
     }
 }
@@ -691,9 +733,9 @@ static int rule_coup002(const char *dir, const cfusa_config_t *cfg,
 {
     (void)cfg;
     static const char * const exts[] = {".c", ".h"};
-    coup_ctx_t ctx = {rpt};
+    coup_ctx_t ctx = {rpt, 0, 0};
     cfusa_walk_sources(dir, exts, 2, coup002_file, &ctx);
-    return 0;
+    return ctx.added;
 }
 
 /* ── COUP003 — coupling-report.json should be present ──────────────── */
@@ -883,6 +925,7 @@ static int count_decisions(const char *line)
 typedef struct {
     cfusa_report_t *rpt;
     int threshold;
+    int added; /* issue #182: findings actually added, for the run() contract */
 } comp_file_ctx_t;
 
 static int comp001_file(const char *path, void *vctx)
@@ -941,6 +984,7 @@ static int comp001_file(const char *path, void *vctx)
                             "(threshold %d) — refactor to reduce branching paths "
                             "(DO-178C §6.3.4)",
                             fn_name, complexity, ctx->threshold);
+                        ctx->added++;
                     }
                     in_fn      = 0;
                     complexity = 0;
@@ -960,9 +1004,9 @@ static int rule_comp001(const char *dir, const cfusa_config_t *cfg,
                          cfusa_report_t *rpt)
 {
     static const char * const exts[] = {".c"};
-    comp_file_ctx_t ctx = {rpt, comp_threshold(cfg)};
+    comp_file_ctx_t ctx = {rpt, comp_threshold(cfg), 0};
     cfusa_walk_sources(dir, exts, 1, comp001_file, &ctx);
-    return 0;
+    return ctx.added;
 }
 
 /* ── Registration ────────────────────────────────────────────────────── */

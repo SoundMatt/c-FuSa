@@ -460,6 +460,113 @@ void test_coup001_detects_extern_mutable(void)
     rm_file("sample.c");
 }
 
+/* issue #181: a multi-line block comment's continuation lines (a legal,
+ * common C style with no leading '*') must not be scanned as code -- the
+ * original bare "first char is '/' or '*'" check only recognized the
+ * FIRST line of such a comment. */
+void test_coup001_ignores_extern_in_block_comment_continuation(void)
+{
+    make_file("sample2.c",
+        "/* This module intentionally has no globals.\n"
+        " see also extern char legacy_buf[10]; for context\n"
+        " end of comment */\n"
+        "void foo(void) { }\n");
+
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "COUP001") == 0) r->run(SR_DIR, &cfg, &rpt);
+    }
+    TEST_ASSERT_EQUAL(0, rpt.warning_count);
+    cfusa_report_free(&rpt);
+    rm_file("sample2.c");
+}
+
+/* issue #181: the match must be anchored to the start of the trimmed
+ * line (matching cmd_coupling.c's scan_line()) -- an unanchored
+ * strstr() previously matched "extern " text appearing after other
+ * real code earlier on the same line too, not just inside comments. */
+void test_coup001_ignores_extern_after_other_code_same_line(void)
+{
+    make_file("sample3.c",
+        "int dummy = 0; /* not extern */\n"
+        "void foo(void) { (void)dummy; }\n");
+
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "COUP001") == 0) r->run(SR_DIR, &cfg, &rpt);
+    }
+    TEST_ASSERT_EQUAL(0, rpt.warning_count);
+    cfusa_report_free(&rpt);
+    rm_file("sample3.c");
+}
+
+/* issue #182: rule_coup001()'s return value must equal the number of
+ * findings it actually added to the report, matching every other
+ * rule's run()-returns-finding-count contract in this file. */
+void test_coup001_run_return_value_matches_findings_added(void)
+{
+    make_file("multi_extern.c",
+        "extern int g_a;\n"
+        "extern int g_b;\n"
+        "extern int g_c;\n");
+
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int rc = 0;
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "COUP001") == 0) rc = r->run(SR_DIR, &cfg, &rpt);
+    }
+    TEST_ASSERT_EQUAL(3, rc);
+    TEST_ASSERT_EQUAL(3, rpt.warning_count);
+    cfusa_report_free(&rpt);
+    rm_file("multi_extern.c");
+}
+
+/* issue #182: same contract check for rule_coup002(). */
+void test_coup002_run_return_value_matches_findings_added(void)
+{
+    make_file("multi_fn_ptr.c",
+        "void dispatch1(void (*handler)(int), int val) { handler(val); }\n"
+        "void dispatch2(void (*handler)(int), int val) { handler(val); }\n");
+
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int rc = 0;
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "COUP002") == 0) rc = r->run(SR_DIR, &cfg, &rpt);
+    }
+    TEST_ASSERT_EQUAL(2, rc);
+    TEST_ASSERT_EQUAL(2, rpt.warning_count);
+    cfusa_report_free(&rpt);
+    rm_file("multi_fn_ptr.c");
+}
+
 void test_coup002_detects_fn_pointer_param(void)
 {
     make_file("fn_ptr.c",
@@ -521,6 +628,71 @@ void test_comp001_detects_complex_function(void)
     TEST_ASSERT_TRUE(rpt.warning_count > 0);
     cfusa_report_free(&rpt);
     rm_file("complex.c");
+}
+
+/* issue #182: rule_comp001()'s return value must equal the number of
+ * findings it actually added, matching every other rule's
+ * run()-returns-finding-count contract in this file. */
+void test_comp001_run_return_value_matches_findings_added(void)
+{
+    /* Two independently-complex functions in one file, each above the
+     * default threshold, so COMP001 must add exactly 2 findings. */
+    make_file("two_complex.c",
+        "int big1(int a, int b, int c, int d, int e) {\n"
+        "  if (a > 0) {\n"
+        "    if (b > 0) {\n"
+        "      for (int i = 0; i < c; i++) {\n"
+        "        while (d > 0) {\n"
+        "          switch (e) {\n"
+        "            case 1: d--; break;\n"
+        "            case 2: d -= 2; break;\n"
+        "            case 3: d -= 3; break;\n"
+        "            default: d = 0; break;\n"
+        "          }\n"
+        "        }\n"
+        "      }\n"
+        "    } else if (b < 0) {\n"
+        "      return -1;\n"
+        "    }\n"
+        "  }\n"
+        "  return (a && b) || (c && d) ? 1 : 0;\n"
+        "}\n"
+        "int big2(int a, int b, int c, int d, int e) {\n"
+        "  if (a > 0) {\n"
+        "    if (b > 0) {\n"
+        "      for (int i = 0; i < c; i++) {\n"
+        "        while (d > 0) {\n"
+        "          switch (e) {\n"
+        "            case 1: d--; break;\n"
+        "            case 2: d -= 2; break;\n"
+        "            case 3: d -= 3; break;\n"
+        "            default: d = 0; break;\n"
+        "          }\n"
+        "        }\n"
+        "      }\n"
+        "    } else if (b < 0) {\n"
+        "      return -1;\n"
+        "    }\n"
+        "  }\n"
+        "  return (a && b) || (c && d) ? 1 : 0;\n"
+        "}\n");
+
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int rc = -1;
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "COMP001") == 0) rc = r->run(SR_DIR, &cfg, &rpt);
+    }
+    TEST_ASSERT_EQUAL(2, rc);
+    TEST_ASSERT_EQUAL(2, rpt.warning_count);
+    cfusa_report_free(&rpt);
+    rm_file("two_complex.c");
 }
 
 void test_comp001_passes_simple_function(void)
@@ -681,9 +853,14 @@ int main(void)
 
     RUN_TEST(test_coup003_fires_when_no_coupling_report);
     RUN_TEST(test_coup001_detects_extern_mutable);
+    RUN_TEST(test_coup001_ignores_extern_in_block_comment_continuation);
+    RUN_TEST(test_coup001_ignores_extern_after_other_code_same_line);
+    RUN_TEST(test_coup001_run_return_value_matches_findings_added);
     RUN_TEST(test_coup002_detects_fn_pointer_param);
+    RUN_TEST(test_coup002_run_return_value_matches_findings_added);
     /* Complexity rule */
     RUN_TEST(test_comp001_detects_complex_function);
+    RUN_TEST(test_comp001_run_return_value_matches_findings_added);
     RUN_TEST(test_comp001_passes_simple_function);
     RUN_TEST(test_comp_threshold_default_passes_vg5);
     RUN_TEST(test_comp_threshold_iso26262_asil_d_fails_vg5);
