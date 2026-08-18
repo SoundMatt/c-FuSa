@@ -5,6 +5,58 @@ All notable changes to c-FuSa are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.0 — 2026-08-18
+
+Nine fixes: seven from an open-issue sweep (#128, #124, #126, #97, #127,
+#125, #122) plus two more (#129, #137) found and fixed the same session.
+Minor version bump — includes new user-facing flags/behaviors, not just
+bug fixes.
+
+### Fixed
+- **`cfusa qualify`'s `qualified`/`qualificationBadge` JSON fields could
+  disagree** (`qualified: true` next to `qualificationBadge:
+  "unqualified"`) since they were computed independently. `qualified` now
+  requires both passing self-tests AND a declared `--qualification-method`.
+  (#128)
+- **`cmd_hara.c`'s `split_array()` silently dropped any hazard/safety-goal
+  JSON element >=511 bytes** (fixed 512-byte stack buffer, no warning) — a
+  real HARA document could read 0 hazards. Now heap-allocates each element
+  at its exact length; the (generous) entry-count cap now warns instead of
+  silently truncating. (#124)
+- **CFUSA-A003 (signed/unsigned vs `sizeof`, CERT INT02-C) was a
+  near-100% false-positive rate on real code** — purely syntactic, no type
+  awareness. Now does a two-pass scan for locally-visible
+  `size_t`/unsigned-family names before flagging; self-scan on this repo
+  went from 22 to 2 findings. (#126)
+- **`cfusa safety-case` hardcoded exact lowercase evidence filenames**
+  (`hara.md`, `safety-plan.md`, etc.), case-sensitive via `stat()` — broke
+  on Linux CI/release for projects naming files e.g. `HARA.md`. New shared
+  `cfusa_find_file_ci()` does a real case-insensitive directory-listing
+  match. (#97)
+- **`cfusa coverage --mcdc-file` parsed a schema that never matched real
+  `llvm-cov export` output**, so every genuine export reported 0 MC/DC
+  conditions. Fixed and verified against an actual captured `llvm-cov
+  export` run (both a fully-covered and zero-covered case). (#129)
+
+### Added
+- **`cfusa fix` remediation guidance for CFUSA-CY006** (free-without-NULL,
+  CWE-416/CERT-C MEM30-C). (#127)
+- **`cfusa trace --func-coverage-strict`** — a genuinely per-function
+  annotation-density gate (a `//cfusa:req` tag directly above the
+  function's own definition), additive alongside the unchanged file-level
+  `--func-coverage`. (#125)
+- **`.fusa-dispositions.json` is now enforced, not just logged.**
+  `cfusa check`/`cfusa lint` load it and exclude accept/mitigate-action
+  findings (matched by fingerprint, never rule-wide) from the exit-code
+  gate — the finding stays visible, tagged inline, and its own summary
+  bucket. `cfusa disposition add --fingerprint <sha256:...>` is new.
+  (#122)
+- **`cfusa coverage --branch-threshold <pct>`** — an independent
+  branch-coverage regression floor, separate from `--threshold`'s
+  line-only gate; acts as a floor alongside `--dal`/`--asil` (never
+  weakens their fixed-100% branch requirement, only raises it if
+  stricter). (#137)
+
 ## v0.5.54 — 2026-08-14
 
 Three fixes from a direct quality review: unchecked `fclose()` return values,
