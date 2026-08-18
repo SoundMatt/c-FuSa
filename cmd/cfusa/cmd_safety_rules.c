@@ -23,6 +23,7 @@
 #include "cfusa/config.h"
 #include "cfusa/severity.h"
 #include "cfusa/utils.h"
+#include "cfusa/lex.h"
 
 //cfusa:req REQ-HARA001 REQ-HARA002 REQ-HARA003 REQ-HARA004 REQ-HARA005 REQ-HARA010
 //cfusa:req REQ-COUPLING001 REQ-COUPLING002 REQ-COUPLING003
@@ -621,40 +622,18 @@ static int rule_dupreq001(const char *dir, const cfusa_config_t *cfg,
  * callbacks actually add, so rule_coup001()/rule_coup002() below can
  * honor the run()-returns-finding-count contract every other rule in
  * this file follows, instead of hardcoding `return 0;`.
- * in_block_comment (COUP001 only) persists across cfusa_scan_lines()
- * calls within one file — reset per file in coup001_file() — mirroring
- * L003/L006's fix (cmd_lint.c) for the same comment-continuation gap. */
-typedef struct { cfusa_report_t *rpt; int in_block_comment; int added; } coup_ctx_t;
+ * issue #203: comment/string-literal stripping now goes through the
+ * shared cfusa_lex_strip_line() (include/cfusa/lex.h) instead of a
+ * hand-rolled copy of the same state machine (added here for #181). */
+typedef struct { cfusa_report_t *rpt; cfusa_lex_state_t lex; int added; } coup_ctx_t;
 
 static void coup001_line(const char *path, int lineno, const char *line,
                            void *vctx)
 {
     coup_ctx_t *ctx = vctx;
 
-    /* issue #181: strip block-comment and string-literal content before
-     * matching, so a multi-line "/* ... * /" comment's continuation
-     * lines (a legal, common C style with no leading '*') can never be
-     * scanned as code -- only the first line of such a comment used to
-     * be recognized, via the bare "starts with '/' or '*'" check below. */
     char code[4096];
-    size_t n = 0;
-    int in_str = 0;
-    for (const char *q = line; *q && n < sizeof(code) - 1; q++) {
-        if (ctx->in_block_comment) {
-            if (q[0] == '*' && q[1] == '/') { ctx->in_block_comment = 0; q++; }
-            continue;
-        }
-        if (in_str) {
-            if (*q == '\\' && q[1]) { q++; continue; }
-            if (*q == '"') in_str = 0;
-            continue;
-        }
-        if (q[0] == '"') { in_str = 1; continue; }
-        if (q[0] == '/' && q[1] == '*') { ctx->in_block_comment = 1; q++; continue; }
-        if (q[0] == '/' && q[1] == '/') break; /* rest of line is comment */
-        code[n++] = *q;
-    }
-    code[n] = '\0';
+    cfusa_lex_strip_line(&ctx->lex, line, code, sizeof(code));
 
     const char *p = code;
     while (*p == ' ' || *p == '\t') p++;
@@ -682,7 +661,7 @@ static int coup001_file(const char *path, void *v)
     /* `ctx` is shared across every file in the tree walk — reset the
      * per-file comment state here, same rationale as l003_file(). */
     coup_ctx_t *ctx = v;
-    ctx->in_block_comment = 0;
+    cfusa_lex_reset(&ctx->lex);
     cfusa_scan_lines(path, coup001_line, v); return 0;
 }
 
@@ -691,7 +670,7 @@ static int rule_coup001(const char *dir, const cfusa_config_t *cfg,
 {
     (void)cfg;
     static const char * const exts[] = {".c", ".h"};
-    coup_ctx_t ctx = {rpt, 0, 0};
+    coup_ctx_t ctx = {rpt, {0}, 0};
     cfusa_walk_sources(dir, exts, 2, coup001_file, &ctx);
     return ctx.added;
 }
@@ -733,7 +712,7 @@ static int rule_coup002(const char *dir, const cfusa_config_t *cfg,
 {
     (void)cfg;
     static const char * const exts[] = {".c", ".h"};
-    coup_ctx_t ctx = {rpt, 0, 0};
+    coup_ctx_t ctx = {rpt, {0}, 0};
     cfusa_walk_sources(dir, exts, 2, coup002_file, &ctx);
     return ctx.added;
 }

@@ -12,6 +12,7 @@
 #include "cfusa/severity.h"
 #include "cfusa/utils.h"
 #include "cfusa/disposition.h"
+#include "cfusa/lex.h"
 
 /* ---- rule helpers ---- */
 
@@ -177,36 +178,27 @@ static const char * const dyn_mem_fns[] = {
     NULL
 };
 
-/* issue #163: in_block_comment persists across fgets() iterations (reset
- * per-file in l003_file() below), the same technique l004_ctx_t already
- * uses — without it, only a single-line heuristic ("does THIS line start
- * with '/' or '*'?") skipped comments, so a multi-line block comment
- * whose continuation lines don't start with '*' produced false findings
- * on prose that merely mentions malloc/free. */
-typedef struct { cfusa_report_t *rpt; cfusa_severity_t sev; int in_block_comment; } l003_ctx_t;
+/* issue #203: comment/string-literal stripping now goes through the
+ * shared cfusa_lex_strip_line() (include/cfusa/lex.h) instead of a
+ * hand-rolled in_block_comment/in_str state machine duplicated here --
+ * this rule's own copy was added for issue #163 (multi-line block
+ * comment continuation lines with no leading '*' produced false
+ * findings on prose that merely mentions malloc/free); the shared
+ * primitive covers the identical case plus escaped-quote handling. */
+typedef struct { cfusa_report_t *rpt; cfusa_severity_t sev; cfusa_lex_state_t lex; } l003_ctx_t;
 
 static void l003_line(const char *path, int lineno, const char *line, void *vctx)
 {
     l003_ctx_t *ctx = vctx;
 
-    int in_str = 0;
-    for (const char *q = line; *q; q++) {
-        if (ctx->in_block_comment) {
-            if (q[0] == '*' && q[1] == '/') { ctx->in_block_comment = 0; q++; }
-            continue;
-        }
-        if (in_str) {
-            if (*q == '\\' && q[1]) { q++; continue; }
-            if (*q == '"') in_str = 0;
-            continue;
-        }
-        if (q[0] == '"') { in_str = 1; continue; }
-        if (q[0] == '/' && q[1] == '*') { ctx->in_block_comment = 1; q++; continue; }
-        if (q[0] == '/' && q[1] == '/') break; /* rest of line is comment */
+    char code[4096];
+    cfusa_lex_strip_line(&ctx->lex, line, code, sizeof(code));
+
+    for (const char *q = code; *q; q++) {
         for (int i = 0; dyn_mem_fns[i]; i++) {
             size_t flen = strlen(dyn_mem_fns[i]);
             if (strncmp(q, dyn_mem_fns[i], flen) != 0) continue;
-            int boundary_ok = (q == line) ||
+            int boundary_ok = (q == code) ||
                 !(isalnum((unsigned char)q[-1]) || q[-1] == '_');
             if (!boundary_ok) continue;
             cfusa_report_add(ctx->rpt,
@@ -223,11 +215,11 @@ static void l003_line(const char *path, int lineno, const char *line, void *vctx
 static int l003_file(const char *path, void *vctx)
 {
     /* `ctx` is shared across every file in the tree walk (one instance
-     * created once in rule_l003()) — reset the per-file comment state
-     * here so a block comment left open at EOF in one file can't leak
-     * into the next file's scan. */
+     * created once in rule_l003()) — reset the per-file lexer state here
+     * so a block comment left open at EOF in one file can't leak into
+     * the next file's scan. */
     l003_ctx_t *ctx = vctx;
-    ctx->in_block_comment = 0;
+    cfusa_lex_reset(&ctx->lex);
     cfusa_scan_lines(path, l003_line, vctx);
     return 0;
 }
@@ -238,7 +230,7 @@ static int rule_l003(const char *dir, const cfusa_config_t *cfg,
     static const char * const exts[] = {".c"};
     cfusa_severity_t sev = (cfusa_declared_asil_rank(cfg) >= 3)
         ? SEV_ERROR : SEV_WARNING;
-    l003_ctx_t ctx = {rpt, sev};
+    l003_ctx_t ctx = {rpt, sev, {0}};
     cfusa_walk_sources(dir, exts, 1, l003_file, &ctx);
     return 0;
 }
@@ -261,7 +253,7 @@ typedef struct {
     cfusa_report_t *rpt;
     char fn_name[128];
     int  in_fn;
-    int  in_block_comment; /* persists across fgets() iterations */
+    cfusa_lex_state_t lex; /* in_block_comment persists across fgets() iterations */
 } l004_ctx_t;
 
 /* Word-boundary-aware self-call detector for CFUSA-L004. Unlike the
@@ -273,15 +265,14 @@ typedef struct {
  * (e.g. static int evaluate(...) calling helper_evaluate(...), or
  * rcp_e2e_wd_evaluate(...)) is misreported as recursion.
  *
- * issue #187: the caller (l004_file() below) now passes a comment- and
- * string-stripped view of the line, built by the same skip-block/
- * line-comment/string-literal logic its brace-depth tracker already
- * applies -- so a doc-comment merely mentioning the function's own name
- * followed by '(' (e.g. "this setUp() writes below") can no longer be
- * misread as a real self-call. The in_str tracking below is kept as a
- * defensive no-op (string content is already absent from that stripped
- * view) rather than removed, in case this is ever called with a raw
- * line in the future. */
+ * issue #187 / #203: the caller (l004_file() below) now passes a view of
+ * the line already stripped of comment and string content by the shared
+ * cfusa_lex_strip_line() (include/cfusa/lex.h) -- so a doc-comment merely
+ * mentioning the function's own name followed by '(' (e.g. "this
+ * setUp() writes below") can no longer be misread as a real self-call.
+ * The in_str tracking below is kept as a defensive no-op (string content
+ * is already blanked in that stripped view) rather than removed, in case
+ * this is ever called with a raw line in the future. */
 static int l004_self_call(const char *line, const char *fn_name)
 {
     size_t flen = strlen(fn_name);
@@ -311,7 +302,7 @@ static int l004_file(const char *path, void *vctx)
     int lineno = 0, brace = 0;
     ctx->fn_name[0] = '\0';
     ctx->in_fn = 0;
-    ctx->in_block_comment = 0;
+    cfusa_lex_reset(&ctx->lex);
 
     while (fgets(line, sizeof(line), f)) {
         lineno++;
@@ -331,7 +322,7 @@ static int l004_file(const char *path, void *vctx)
             size_t tlen = strlen(tp);
             int is_decl = (tlen > 0 && tp[tlen - 1] == ';');
             if (!ctx->in_fn && brace == 0 && !is_decl
-                && !ctx->in_block_comment
+                && !ctx->lex.in_block_comment
                 && strstr(tp, "(") && strstr(tp, ")")
                 && tp[0] != '#' && tp[0] != '/' && tp[0] != '*'
                 && !strstr(tp, "=") && !strstr(tp, "[]")) {
@@ -355,65 +346,32 @@ static int l004_file(const char *path, void *vctx)
             }
         }
 
-        /* Update brace depth, skipping block comments, line comments, and
-         * string/character literals so embedded braces don't corrupt depth.
-         * issue #187: the same surviving characters (i.e. everything
-         * outside a comment or a string/character literal) are also
-         * collected into `code_only`, which is what the self-call check
-         * below scans instead of the raw `line` -- otherwise a comment
-         * merely mentioning the function's own name followed by '(' is
-         * misread as a real recursive call. */
-        char code_only[4096];
-        size_t code_n = 0;
-        {
-            const char *p = line;
-            while (*p) {
-                if (ctx->in_block_comment) {
-                    if (p[0] == '*' && p[1] == '/') {
-                        ctx->in_block_comment = 0;
-                        p += 2;
-                    } else {
-                        p++;
-                    }
-                    continue;
+        /* issue #203: comment/string-literal stripping now goes through
+         * the shared cfusa_lex_strip_line() instead of a hand-rolled
+         * copy of the same state machine. Brace depth is counted over
+         * the stripped `code` buffer so embedded braces inside a comment
+         * or string/character literal don't corrupt it; the self-call
+         * check below scans the same stripped buffer so a comment merely
+         * mentioning the function's own name followed by '(' is never
+         * misread as a real recursive call (issue #187). */
+        char code[4096];
+        cfusa_lex_strip_line(&ctx->lex, line, code, sizeof(code));
+        for (const char *p = code; *p; p++) {
+            if (*p == '{') {
+                brace++;
+            } else if (*p == '}') {
+                brace--;
+                if (brace == 0) {
+                    ctx->in_fn = 0;
+                    ctx->fn_name[0] = '\0';
                 }
-                if (p[0] == '/' && p[1] == '*') {
-                    ctx->in_block_comment = 1;
-                    p += 2;
-                    continue;
-                }
-                if (p[0] == '/' && p[1] == '/') break; /* rest is comment */
-                if (*p == '"') {
-                    p++;
-                    while (*p && !(*p == '"' && p[-1] != '\\')) p++;
-                    if (*p) p++;
-                    continue;
-                }
-                if (*p == '\'') {
-                    p++;
-                    while (*p && !(*p == '\'' && p[-1] != '\\')) p++;
-                    if (*p) p++;
-                    continue;
-                }
-                if (*p == '{') {
-                    brace++;
-                } else if (*p == '}') {
-                    brace--;
-                    if (brace == 0) {
-                        ctx->in_fn = 0;
-                        ctx->fn_name[0] = '\0';
-                    }
-                }
-                if (code_n < sizeof(code_only) - 1) code_only[code_n++] = *p;
-                p++;
             }
         }
-        code_only[code_n] = '\0';
 
         /* Self-call check.  Skip the line where the function was first
          * detected: the signature always contains "fn_name(" naturally. */
         if (!fn_just_detected && ctx->in_fn && ctx->fn_name[0] && brace > 0) {
-            if (l004_self_call(code_only, ctx->fn_name)) {
+            if (l004_self_call(code, ctx->fn_name)) {
                 cfusa_report_add(ctx->rpt,
                     "CFUSA-L004", CFUSA_CATEGORY_LINT, SEV_ERROR,
                     path, lineno,
@@ -432,7 +390,7 @@ static int rule_l004(const char *dir, const cfusa_config_t *cfg,
 {
     (void)cfg;
     static const char * const exts[] = {".c"};
-    l004_ctx_t ctx = {rpt, "", 0, 0};
+    l004_ctx_t ctx = {rpt, "", 0, {0}};
     cfusa_walk_sources(dir, exts, 1, l004_file, &ctx);
     return 0;
 }
@@ -478,29 +436,21 @@ static int rule_l005(const char *dir, const cfusa_config_t *cfg,
  * time rather than leaving that gap in place. */
 static const char * const jmp_fns[] = {"setjmp(", "longjmp(", NULL};
 
-typedef struct { cfusa_report_t *rpt; int in_block_comment; } l006_ctx_t;
+/* issue #203: comment/string-literal stripping now goes through the
+ * shared cfusa_lex_strip_line() instead of a hand-rolled copy of the
+ * same state machine (added here for issue #161). */
+typedef struct { cfusa_report_t *rpt; cfusa_lex_state_t lex; } l006_ctx_t;
 
 static void l006_line(const char *path,int lineno,const char *line,void *vctx)
 {
     l006_ctx_t *ctx=vctx;
-    int in_str = 0;
-    for (const char *q = line; *q; q++) {
-        if (ctx->in_block_comment) {
-            if (q[0] == '*' && q[1] == '/') { ctx->in_block_comment = 0; q++; }
-            continue;
-        }
-        if (in_str) {
-            if (*q == '\\' && q[1]) { q++; continue; }
-            if (*q == '"') in_str = 0;
-            continue;
-        }
-        if (q[0] == '"') { in_str = 1; continue; }
-        if (q[0] == '/' && q[1] == '*') { ctx->in_block_comment = 1; q++; continue; }
-        if (q[0] == '/' && q[1] == '/') break; /* rest of line is comment */
+    char code[4096];
+    cfusa_lex_strip_line(&ctx->lex, line, code, sizeof(code));
+    for (const char *q = code; *q; q++) {
         for (int i = 0; jmp_fns[i]; i++) {
             size_t flen = strlen(jmp_fns[i]);
             if (strncmp(q, jmp_fns[i], flen) != 0) continue;
-            int boundary_ok = (q == line) ||
+            int boundary_ok = (q == code) ||
                 !(isalnum((unsigned char)q[-1]) || q[-1] == '_');
             if (!boundary_ok) continue;
             cfusa_report_add(ctx->rpt,
@@ -518,7 +468,7 @@ static int l006_file(const char *path, void *vctx)
     /* `ctx` is shared across every file in the tree walk — reset the
      * per-file comment state here, same rationale as l003_file(). */
     l006_ctx_t *ctx = vctx;
-    ctx->in_block_comment = 0;
+    cfusa_lex_reset(&ctx->lex);
     cfusa_scan_lines(path,l006_line,vctx); return 0;
 }
 
@@ -527,7 +477,7 @@ static int rule_l006(const char *dir, const cfusa_config_t *cfg,
 {
     (void)cfg;
     static const char * const exts[] = {".c",".h"};
-    l006_ctx_t ctx={rpt, 0};
+    l006_ctx_t ctx={rpt, {0}};
     cfusa_walk_sources(dir,exts,2,l006_file,&ctx);
     return 0;
 }
