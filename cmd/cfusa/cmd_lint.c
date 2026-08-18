@@ -40,6 +40,13 @@ static int l001_file(const char *path, void *vctx)
         lineno++;
         char trimmed[4096];
         strncpy(trimmed, line, sizeof(trimmed) - 1);
+        /* issue #177: strncpy() only NUL-terminates when `line` is shorter
+         * than the destination — without this, a single physical source
+         * line >=4095 bytes with no embedded newline leaves trimmed[4095]
+         * uninitialized before cfusa_str_trim()'s internal strlen() runs
+         * (matches the fix l004_file() already applies for the same
+         * hazard, cmd_lint.c below). */
+        trimmed[sizeof(trimmed) - 1] = '\0';
         cfusa_str_trim(trimmed);
 
         /* Detect function signature before scanning braces on this line so
@@ -103,13 +110,31 @@ typedef struct { cfusa_report_t *rpt; } line_scan_ctx_t;
 static void l002_line(const char *path, int lineno, const char *line, void *vctx)
 {
     line_scan_ctx_t *ctx = vctx;
-    const char *p = line;
-    while (*p == ' ' || *p == '\t') p++;
-    if (strncmp(p, "goto", 4) == 0 && (p[4] == ' ' || p[4] == '\t'))
+    const char *lp = line;
+    while (*lp == ' ' || *lp == '\t') lp++;
+    if (*lp == '/' || *lp == '*') return; /* comment-only line */
+
+    /* issue #162: this used to only match when the trimmed line literally
+     * BEGAN with "goto", so the most common real-world idiom — "if (cond)
+     * goto label;" on one line — was never detected. Now scans the whole
+     * line for a word-boundary-delimited "goto" token (outside string
+     * literals), matching the boundary technique already used by L003/
+     * L004/L011 in this same file. */
+    int in_str = 0;
+    for (const char *p = line; *p; p++) {
+        if (*p == '"' && (p == line || p[-1] != '\\')) { in_str = !in_str; continue; }
+        if (in_str) continue;
+        if (strncmp(p, "goto", 4) != 0) continue;
+        int left_ok = (p == line) ||
+            !(isalnum((unsigned char)p[-1]) || p[-1] == '_');
+        int right_ok = (p[4] == ' ' || p[4] == '\t');
+        if (!left_ok || !right_ok) continue;
         cfusa_report_add(ctx->rpt,
             "CFUSA-L002", CFUSA_CATEGORY_LINT, SEV_WARNING,
             path, lineno,
             "use of 'goto' violates MISRA-C 2012 Rule 15.1");
+        return;
+    }
 }
 
 static int l002_file(const char *path, void *vctx)
@@ -152,19 +177,32 @@ static const char * const dyn_mem_fns[] = {
     NULL
 };
 
-typedef struct { cfusa_report_t *rpt; cfusa_severity_t sev; } l003_ctx_t;
+/* issue #163: in_block_comment persists across fgets() iterations (reset
+ * per-file in l003_file() below), the same technique l004_ctx_t already
+ * uses — without it, only a single-line heuristic ("does THIS line start
+ * with '/' or '*'?") skipped comments, so a multi-line block comment
+ * whose continuation lines don't start with '*' produced false findings
+ * on prose that merely mentions malloc/free. */
+typedef struct { cfusa_report_t *rpt; cfusa_severity_t sev; int in_block_comment; } l003_ctx_t;
 
 static void l003_line(const char *path, int lineno, const char *line, void *vctx)
 {
     l003_ctx_t *ctx = vctx;
-    const char *p = line;
-    while (*p == ' ' || *p == '\t') p++;
-    if (*p == '/' || *p == '*') return; /* comment-only line */
 
     int in_str = 0;
     for (const char *q = line; *q; q++) {
-        if (*q == '"' && (q == line || q[-1] != '\\')) { in_str = !in_str; continue; }
-        if (in_str) continue;
+        if (ctx->in_block_comment) {
+            if (q[0] == '*' && q[1] == '/') { ctx->in_block_comment = 0; q++; }
+            continue;
+        }
+        if (in_str) {
+            if (*q == '\\' && q[1]) { q++; continue; }
+            if (*q == '"') in_str = 0;
+            continue;
+        }
+        if (q[0] == '"') { in_str = 1; continue; }
+        if (q[0] == '/' && q[1] == '*') { ctx->in_block_comment = 1; q++; continue; }
+        if (q[0] == '/' && q[1] == '/') break; /* rest of line is comment */
         for (int i = 0; dyn_mem_fns[i]; i++) {
             size_t flen = strlen(dyn_mem_fns[i]);
             if (strncmp(q, dyn_mem_fns[i], flen) != 0) continue;
@@ -184,6 +222,12 @@ static void l003_line(const char *path, int lineno, const char *line, void *vctx
 
 static int l003_file(const char *path, void *vctx)
 {
+    /* `ctx` is shared across every file in the tree walk (one instance
+     * created once in rule_l003()) — reset the per-file comment state
+     * here so a block comment left open at EOF in one file can't leak
+     * into the next file's scan. */
+    l003_ctx_t *ctx = vctx;
+    ctx->in_block_comment = 0;
     cfusa_scan_lines(path, l003_line, vctx);
     return 0;
 }
@@ -403,21 +447,59 @@ static int rule_l005(const char *dir, const cfusa_config_t *cfg,
 }
 
 //cfusa:req REQ-LINT009
-/* L006 — setjmp/longjmp (MISRA-C 2012 Rule 17.4) */
+/* L006 — setjmp/longjmp (MISRA-C 2012 Rule 17.4).
+ *
+ * issue #161: identifier-boundary check — without it, a project-local
+ * function whose name merely ends with "setjmp("/"longjmp(" (e.g.
+ * cfusa_setjmp()) false-positives as a real non-local jump. This rule
+ * previously had no comment-awareness at all (not even the single-line
+ * heuristic other rules in this file use), so persistent
+ * in_block_comment state (mirroring L003's fix) is added at the same
+ * time rather than leaving that gap in place. */
+static const char * const jmp_fns[] = {"setjmp(", "longjmp(", NULL};
+
+typedef struct { cfusa_report_t *rpt; int in_block_comment; } l006_ctx_t;
+
 static void l006_line(const char *path,int lineno,const char *line,void *vctx)
 {
-    line_scan_ctx_t *ctx=vctx;
-    if (cfusa_match_outside_string(line,"setjmp(")||cfusa_match_outside_string(line,"longjmp("))
-        cfusa_report_add(ctx->rpt,
-            "CFUSA-L006", CFUSA_CATEGORY_LINT, SEV_ERROR,
-            path, lineno,
-            "use of setjmp/longjmp — MISRA-C 2012 Rule 17.4: "
-            "non-local jumps shall not be used");
+    l006_ctx_t *ctx=vctx;
+    int in_str = 0;
+    for (const char *q = line; *q; q++) {
+        if (ctx->in_block_comment) {
+            if (q[0] == '*' && q[1] == '/') { ctx->in_block_comment = 0; q++; }
+            continue;
+        }
+        if (in_str) {
+            if (*q == '\\' && q[1]) { q++; continue; }
+            if (*q == '"') in_str = 0;
+            continue;
+        }
+        if (q[0] == '"') { in_str = 1; continue; }
+        if (q[0] == '/' && q[1] == '*') { ctx->in_block_comment = 1; q++; continue; }
+        if (q[0] == '/' && q[1] == '/') break; /* rest of line is comment */
+        for (int i = 0; jmp_fns[i]; i++) {
+            size_t flen = strlen(jmp_fns[i]);
+            if (strncmp(q, jmp_fns[i], flen) != 0) continue;
+            int boundary_ok = (q == line) ||
+                !(isalnum((unsigned char)q[-1]) || q[-1] == '_');
+            if (!boundary_ok) continue;
+            cfusa_report_add(ctx->rpt,
+                "CFUSA-L006", CFUSA_CATEGORY_LINT, SEV_ERROR,
+                path, lineno,
+                "use of setjmp/longjmp — MISRA-C 2012 Rule 17.4: "
+                "non-local jumps shall not be used");
+            return;
+        }
+    }
 }
 
-static int l006_file(const char *path, void *v)
+static int l006_file(const char *path, void *vctx)
 {
-    cfusa_scan_lines(path,l006_line,v); return 0;
+    /* `ctx` is shared across every file in the tree walk — reset the
+     * per-file comment state here, same rationale as l003_file(). */
+    l006_ctx_t *ctx = vctx;
+    ctx->in_block_comment = 0;
+    cfusa_scan_lines(path,l006_line,vctx); return 0;
 }
 
 static int rule_l006(const char *dir, const cfusa_config_t *cfg,
@@ -425,7 +507,7 @@ static int rule_l006(const char *dir, const cfusa_config_t *cfg,
 {
     (void)cfg;
     static const char * const exts[] = {".c",".h"};
-    line_scan_ctx_t ctx={rpt};
+    l006_ctx_t ctx={rpt, 0};
     cfusa_walk_sources(dir,exts,2,l006_file,&ctx);
     return 0;
 }
