@@ -1,6 +1,10 @@
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
+#include <unistd.h>
 #include <getopt.h>
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
@@ -40,6 +44,66 @@ static int count_dispositions(const char *path)
     return n;
 }
 
+/* Finds the ']' that closes the array beginning at `arr` (which points to
+ * the character immediately after the opening '['), tracking [ ] nesting
+ * depth and skipping over any '[' or ']' that appears inside a JSON string
+ * value (e.g. a rationale like "see ticket [ABC-123]"). Returns NULL if no
+ * balanced closing bracket is found. Used instead of a plain strrchr(),
+ * which would find the wrong ']' if one appears inside a string value. */
+static const char *find_array_end(const char *arr)
+{
+    int depth = 1;
+    int in_str = 0;
+    for (const char *p = arr; *p; p++) {
+        if (in_str) {
+            if (*p == '\\' && p[1]) { p++; continue; }
+            if (*p == '"') in_str = 0;
+            continue;
+        }
+        if (*p == '"') { in_str = 1; continue; }
+        if (*p == '[') depth++;
+        else if (*p == ']') { depth--; if (depth == 0) return p; }
+    }
+    return NULL;
+}
+
+/* Acquires an exclusive advisory lock on `dir`/.fusa-dispositions.json.lock
+ * (created if absent), blocking until held. Guards the read-modify-write
+ * critical section in do_add() end to end — without it, two concurrent
+ * `cfusa disposition add` invocations can each read the same pre-add
+ * content, then each write back their own single new entry, silently
+ * losing whichever one wrote second (issue #158). Returns the lock fd (to
+ * be released via disp_unlock()), or -1 on failure (a WARNING is printed;
+ * callers proceed unlocked rather than blocking disposition-add forever
+ * on a broken filesystem). */
+static int disp_lock(const char *dir)
+{
+    char lockpath[512];
+    cfusa_path_join(lockpath, sizeof(lockpath), dir, DISP_FILE ".lock");
+    int fd = open(lockpath, O_WRONLY | O_CREAT, 0600);
+    if (fd < 0) {
+        fprintf(stderr,
+            "cfusa disposition add: WARNING: could not open %s (%s) — "
+            "proceeding without a lock; a concurrent 'disposition add' "
+            "could race with this one\n", lockpath, strerror(errno));
+        return -1;
+    }
+    if (flock(fd, LOCK_EX) != 0) {
+        fprintf(stderr,
+            "cfusa disposition add: WARNING: could not lock %s (%s) — "
+            "proceeding without a lock; a concurrent 'disposition add' "
+            "could race with this one\n", lockpath, strerror(errno));
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+
+static void disp_unlock(int fd)
+{
+    if (fd >= 0) { flock(fd, LOCK_UN); close(fd); }
+}
+
 //cfusa:req REQ-DISP-FP001
 static void do_add(const char *dir, const char *rule, const char *rationale,
                    const char *action, const char *reviewer, const char *ref,
@@ -47,6 +111,10 @@ static void do_add(const char *dir, const char *rule, const char *rationale,
 {
     char path[512];
     cfusa_path_join(path, sizeof(path), dir, DISP_FILE);
+    char tmppath[550];
+    snprintf(tmppath, sizeof(tmppath), "%s.tmp.%d", path, (int)getpid());
+
+    int lockfd = disp_lock(dir);
 
     size_t len = 0;
     char *existing = cfusa_read_file(path, &len);
@@ -62,26 +130,50 @@ static void do_add(const char *dir, const char *rule, const char *rationale,
     cfusa_str_escape_json(fingerprint, esc_fp,   sizeof(esc_fp));
 
     /* cfusa_fopen_write(): explicit 0600, not fopen()'s umask-dependent
-     * mode (which could leave .fusa-dispositions.json world-writable). */
-    FILE *f = cfusa_fopen_write(path);
-    if (!f) { perror(path); free(existing); return; }
+     * mode (which could leave .fusa-dispositions.json world-writable).
+     * Written to a temp file and rename()'d into place below so a reader
+     * (or a crash mid-write) never observes a partially-written file. */
+    FILE *f = cfusa_fopen_write(tmppath);
+    if (!f) { perror(tmppath); free(existing); disp_unlock(lockfd); return; }
 
     write_dispositions_header(f);
 
     if (existing) {
         char *start = strstr(existing, "\"dispositions\"");
         char *arr   = start ? strchr(start, '[') : NULL;
+        if (!arr) {
+            /* Fallback: no "dispositions" wrapper key — the file is (or
+             * was migrated from) the legacy bare-array shape
+             * `[ {...}, {...} ]`, which this repo's own real
+             * .cfusa-dispositions.json actually uses. Without this
+             * fallback every prior entry would be silently discarded on
+             * the next `disposition add` (issue #144). */
+            arr = strchr(existing, '[');
+        }
         if (arr) {
             arr++;
-            char *end = strrchr(arr, ']');
+            const char *end = find_array_end(arr);
             if (end) {
-                while (end > arr && (end[-1] == ' ' || end[-1] == '\n' || end[-1] == '\r'))
+                while (end > arr && (end[-1] == ' ' || end[-1] == '\n' ||
+                                      end[-1] == '\r' || end[-1] == '\t'))
                     end--;
                 if (end > arr) {
                     fwrite(arr, 1, (size_t)(end - arr), f);
                     fprintf(f, ",\n");
                 }
+            } else {
+                fprintf(stderr,
+                    "cfusa disposition add: WARNING: could not find the end "
+                    "of the existing dispositions array in %s — prior "
+                    "entries were NOT preserved; check %s before trusting "
+                    "this run's suppression\n", path, path);
             }
+        } else if (*existing) {
+            fprintf(stderr,
+                "cfusa disposition add: WARNING: %s exists but doesn't look "
+                "like a dispositions array — prior entries were NOT "
+                "preserved; check %s before trusting this run's "
+                "suppression\n", path, path);
         }
         free(existing);
     }
@@ -95,6 +187,14 @@ static void do_add(const char *dir, const char *rule, const char *rationale,
 
     write_dispositions_footer(f);
     fclose(f);
+
+    if (rename(tmppath, path) != 0) {
+        perror(path);
+        remove(tmppath);
+        disp_unlock(lockfd);
+        return;
+    }
+    disp_unlock(lockfd);
 
     printf("Added DISP-%04d: rule=%s action=%s\n", id_num, rule, action);
     if (!fingerprint[0])

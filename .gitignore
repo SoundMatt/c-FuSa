@@ -30,3 +30,5 @@ install_manifest.txt
 compile_commands.json
 qualify-report.json
 .cache/
+.fusa-dispositions.json.lock
+.fusa-dispositions.json.tmp.*
