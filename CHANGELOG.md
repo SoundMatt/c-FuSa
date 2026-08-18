@@ -5,6 +5,65 @@ All notable changes to c-FuSa are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.2 — 2026-08-18
+
+Architecture-plan loop: eleven tracked improvement issues (#203–#213),
+eight shipped across eight PRs (#215–#218, #220–#223); #206/#207
+deliberately deferred per their own issue scoping; #211 (Windows/MSVC)
+resolved as a scoping decision rather than an implementation — see
+below. Minor-version-worthy in spirit (new user-facing flags/commands),
+kept as a patch bump per policy. 47/47 test suites pass, self-check
+clean (0 errors).
+
+### Added
+- **A shared, comment/string-literal-aware line-stripping primitive**
+  (`cfusa_lex_strip_line()`, `include/cfusa/lex.h`/`src/lex.c`) replacing
+  ad hoc per-rule comment/string state machines — space-blanks (never
+  deletes) comment/string content so column positions are preserved and
+  tokens never glue together across a stripped comment. (#203)
+- **A single tree-walk / single file-read engine for line-scan rules**
+  (`cfusa_engine_register_line_rule()` / `cfusa_engine_run_line_rules()`)
+  — collapsed 54 independent `cfusa_walk_sources()` call sites (one per
+  rule) into one walk-and-dispatch pass per `cfusa check`/`lint`/
+  `analyze`/`cyber` run. (#204)
+- **`#if 0` preprocessor-lite awareness** — code inside an
+  unconditionally-disabled `#if 0` block is no longer scanned by
+  line-based rules, removing a class of false positives on intentionally
+  dead/documentation code. (#205)
+- **`cfusa baseline`** and `.fusa-baseline.json` — snapshot a project's
+  current findings to exclude them from the exit-code gate, so an
+  existing codebase can adopt c-FuSa without gating on its full
+  pre-existing backlog. Composes with `.fusa-dispositions.json`. (#208)
+- **`cfusa check --changed-since <git-ref>`** — scopes a report to only
+  findings on lines actually changed since `<ref>` (via `git diff
+  --unified=0`), for gating a pull request on newly-introduced findings
+  rather than a project's full existing backlog. Independent of, and
+  composable with, baseline/dispositions. (#209)
+- **`cfusa fix` remediation-guidance coverage expanded from 19 to the
+  full 39 lint/analyze/cyber rules**, plus a real `--dry-run`/`--apply`
+  auto-rewrite for `CFUSA-CY006` (free-without-NULL) — conservatively
+  scoped to a bare `free(<simple-lvalue>);` call, and safe to re-run
+  since it skips a pointer already NULL'd on the next line. (#210)
+- **`cfusa explain <RULE-ID>`** (and `cfusa explain --list`) — prints a
+  rule's category, standard/clause citation, description, and remediation
+  guidance in one place; rule-id lookup is case-insensitive and tolerates
+  a missing `CFUSA-` prefix. (#212)
+- **A first-party GitHub Action** (`action.yml`, usable as `uses:
+  SoundMatt/c-FuSa@<tag>`) — installs a pinned `cfusa` release binary,
+  runs `cfusa check`, and uploads SARIF to the code-scanning tab, with
+  `dir`/`version`/`strict`/`changed-since`/`fail-on-error` inputs.
+  Dogfooded against this repo itself in CI
+  (`.github/workflows/action-smoke-test.yml`). (#213)
+
+### Documented
+- **Windows/MSVC support was audited and deliberately deferred, not
+  implemented.** `fork()`/`pipe()`/`execvp()` subprocess spawning (4
+  files), the `opendir()`/`readdir()`-based tree walk underlying every
+  rule, and `getopt_long` (all 44 `cmd_*.c` files) have no direct Windows
+  equivalent — this is a systemic, cross-cutting port, not a bounded
+  feature. WSL2 already runs today's `cfusa` unmodified and is the
+  recommended path; see issue #211 for the full audit and rationale.
+
 ## v0.6.1 — 2026-08-18
 
 Forty-three fixes from a 40-agent deep-audit sweep of the codebase
