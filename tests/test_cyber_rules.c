@@ -135,6 +135,18 @@ void test_cy003_popen_literal_silent(void)
     cfusa_report_free(&rpt);
 }
 
+//cfusa:req REQ-CYB009
+//cfusa:test REQ-CYB009
+void test_cy003_wrapper_name_silent(void)
+{
+    /* issue #154: a custom wrapper whose name merely contains "system("
+     * as a substring — no real system(3)/popen(3)/exec*(3) call at all. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_cyber_on("int restart_system(int code) { return code; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-CY003"));
+    cfusa_report_free(&rpt);
+}
+
 /* ---- CY004: NULL dereference after alloc ---- */
 //cfusa:req REQ-CYB010
 //cfusa:test REQ-CYB010
@@ -154,6 +166,35 @@ void test_cy004_safe_assign_silent(void)
     /* ptr->field = malloc(...) — arrow precedes malloc, not immediate deref */
     run_cyber_on("void fn(struct T *t) { t->buf = malloc(64); }\n", &rpt);
     TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-CY004"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-CYB011
+//cfusa:test REQ-CYB011
+void test_cy004_wrapper_name_and_unrelated_arrow_silent(void)
+{
+    /* issue #156: a wrapper allocator (no identifier boundary) plus a
+     * completely unrelated pointer dereference later on the line — p is
+     * never dereferenced at all. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_cyber_on(
+        "void fn(struct S *ok_so_far) { struct S *p = my_calloc(1, sizeof(*p)); "
+        "ok_so_far->count++; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-CY004"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-CYB011
+//cfusa:test REQ-CYB011
+void test_cy004_assigned_var_deref_later_fires(void)
+{
+    /* the assigned variable itself is dereferenced later (not an
+     * immediate chain) — must still fire. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_cyber_on(
+        "void fn(void) { struct S *p = calloc(1, sizeof(*p)); do_something(); "
+        "p->x = 1; }\n", &rpt);
+    TEST_ASSERT_TRUE(count_rule(&rpt,"CFUSA-CY004") > 0);
     cfusa_report_free(&rpt);
 }
 
@@ -185,6 +226,22 @@ void test_cy007_comment_two_frees_silent(void)
 {
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_cyber_on("/* call free() before free() again */\nvoid fn(void){}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-CY007"));
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-CYB014
+//cfusa:test REQ-CYB014
+void test_cy007_wrapper_names_silent(void)
+{
+    /* issue #155: two unrelated custom cleanup functions whose names
+     * both end in the bare substring "free(" — neither is a real
+     * free() call, and this exact call pair already appears
+     * back-to-back in this codebase's own cmd_check.c/cmd_lint.c. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_cyber_on(
+        "void caller(void *rpt, void *disps) { cfusa_report_free(rpt); "
+        "cfusa_dispositions_free(disps); }\n", &rpt);
     TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-CY007"));
     cfusa_report_free(&rpt);
 }
@@ -244,11 +301,15 @@ int main(void)
     RUN_TEST(test_cy002_fprintf_not_printf_mismatch);
     RUN_TEST(test_cy003_popen_variable_fires);
     RUN_TEST(test_cy003_popen_literal_silent);
+    RUN_TEST(test_cy003_wrapper_name_silent);
     RUN_TEST(test_cy004_malloc_then_deref_fires);
     RUN_TEST(test_cy004_safe_assign_silent);
+    RUN_TEST(test_cy004_wrapper_name_and_unrelated_arrow_silent);
+    RUN_TEST(test_cy004_assigned_var_deref_later_fires);
     RUN_TEST(test_cy005_overflow_fires);
     RUN_TEST(test_cy007_double_free_fires);
     RUN_TEST(test_cy007_comment_two_frees_silent);
+    RUN_TEST(test_cy007_wrapper_names_silent);
     RUN_TEST(test_cy008_tmpnam_fires);
     RUN_TEST(test_cy009_md5_fires);
     RUN_TEST(test_cy010_gets_fires);

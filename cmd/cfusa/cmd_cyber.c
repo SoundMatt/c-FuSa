@@ -1,6 +1,7 @@
 #if defined(__linux__) || defined(__unix__)
 #  define _GNU_SOURCE
 #endif
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -98,9 +99,11 @@ static void cy003_line(const char *path,int lineno,const char *line,void *vctx)
     if(*p=='/'||*p=='*') return;
     static const char * const cmdfns[]={"system(","popen(","execl(","execlp(","execv(","execvp(",NULL};
     for(int i=0;cmdfns[i];i++){
-        const char *fp=strstr(line,cmdfns[i]);
+        /* issue #154: identifier-boundary check — without it, a custom
+         * wrapper like restart_system() or safe_popen() false-positives
+         * as a real system(3)/popen(3) call. */
+        const char *fp=cfusa_find_token_outside_string(line,cmdfns[i]);
         if(!fp) continue;
-        if(!cfusa_match_outside_string(line,cmdfns[i])) continue;
         /* Only flag if the first argument is not a string literal (i.e., a variable) */
         const char *arg=fp+strlen(cmdfns[i]);
         while(*arg==' ') arg++;
@@ -121,6 +124,48 @@ static int rule_cy003(const char *dir,const cfusa_config_t *cfg,cfusa_report_t *
     cfusa_walk_sources(dir,e,1,cy003_file,&c); return 0;
 }
 
+/* Returns a pointer to the ')' matching the '(' at `open` (string-literal-
+ * aware), or NULL if unbalanced. Used by cy004_line() to find exactly
+ * where an alloc call ends, so it can check what immediately follows it. */
+static const char *cy004_matching_paren(const char *open)
+{
+    int depth = 0, in_str = 0;
+    for (const char *p = open; *p; p++) {
+        if (in_str) {
+            if (*p == '\\' && p[1]) { p++; continue; }
+            if (*p == '"') in_str = 0;
+            continue;
+        }
+        if (*p == '"') { in_str = 1; continue; }
+        if (*p == '(') depth++;
+        else if (*p == ')') { depth--; if (depth == 0) return p; }
+    }
+    return NULL;
+}
+
+/* Extracts the assigned-to variable name from a "... = malloc(" / "... =
+ * calloc(" assignment on the same line — e.g. "struct S *p = malloc(...)"
+ * yields "p" — by walking back from `alloc` over whitespace, an '=', more
+ * whitespace, then the identifier itself. `out[0]` is left '\0' if the
+ * text immediately before `alloc` doesn't look like a plain assignment
+ * (out_sz assumed >= 1). */
+static void cy004_lhs_var(const char *line, const char *alloc,
+                           char *out, size_t out_sz)
+{
+    out[0] = '\0';
+    const char *p = alloc;
+    while (p > line && (p[-1] == ' ' || p[-1] == '\t')) p--;
+    if (p == line || p[-1] != '=') return;
+    p--;
+    while (p > line && (p[-1] == ' ' || p[-1] == '\t')) p--;
+    const char *end = p;
+    while (p > line && (isalnum((unsigned char)p[-1]) || p[-1] == '_')) p--;
+    size_t len = (size_t)(end - p);
+    if (len == 0 || len >= out_sz) return;
+    memcpy(out, p, len);
+    out[len] = '\0';
+}
+
 //cfusa:req REQ-CYB004
 /* CY004 — CWE-476: NULL pointer dereference after allocation */
 static void cy004_line(const char *path,int lineno,const char *line,void *vctx)
@@ -128,16 +173,46 @@ static void cy004_line(const char *path,int lineno,const char *line,void *vctx)
     cy_ctx_t *ctx=vctx;
     const char *p=line; while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
-    /* Flag immediate dereference of malloc/calloc result on same line */
+    /* Flag dereference of a malloc/calloc result on the same line. issue
+     * #156: requires (a) an identifier boundary before "malloc("/
+     * "calloc(" — so a wrapper like my_calloc() doesn't false-positive —
+     * and (b) the "->" to appear either immediately after the alloc
+     * call's own matching closing paren (an inline chain like
+     * "malloc(...)->field", skipping over any enclosing cast's closing
+     * parens/whitespace) or immediately after the SPECIFIC variable the
+     * result was assigned to ("p = malloc(...); p->field") — never an
+     * unrelated "->" expression elsewhere on the line that merely
+     * happens to follow a coincidental alloc call. */
     {
-        const char *alloc = strstr(line,"malloc(");
-        if (!alloc) alloc = strstr(line,"calloc(");
-        if (alloc && strstr(alloc, "->")
-            && (cfusa_match_outside_string(line,"malloc(") || cfusa_match_outside_string(line,"calloc(")))
-            cfusa_report_add(ctx->rpt,
-                "CFUSA-CY004","cyber",SEV_ERROR,path,lineno,
-                "CWE-476: potential NULL dereference — do not dereference allocation "
-                "result without checking for NULL first");
+        const char *alloc = cfusa_find_token_outside_string(line,"malloc(");
+        if (!alloc) alloc = cfusa_find_token_outside_string(line,"calloc(");
+        if (alloc) {
+            /* "malloc(" and "calloc(" are both 7 characters; alloc+6
+             * points at the '(' itself, the last character of either
+             * token. */
+            const char *open_paren = alloc + 6;
+            const char *close = cy004_matching_paren(open_paren);
+            if (close) {
+                const char *after = close + 1;
+                while (*after == ' ' || *after == '\t' || *after == ')') after++;
+                int hit = (after[0] == '-' && after[1] == '>');
+                if (!hit) {
+                    char varname[128];
+                    cy004_lhs_var(line, alloc, varname, sizeof(varname));
+                    if (varname[0]) {
+                        char needle[136];
+                        snprintf(needle, sizeof(needle), "%s->", varname);
+                        if (cfusa_find_token_outside_string(close + 1, needle))
+                            hit = 1;
+                    }
+                }
+                if (hit)
+                    cfusa_report_add(ctx->rpt,
+                        "CFUSA-CY004","cyber",SEV_ERROR,path,lineno,
+                        "CWE-476: potential NULL dereference — do not dereference allocation "
+                        "result without checking for NULL first");
+            }
+        }
     }
 }
 
@@ -179,8 +254,12 @@ static void cy006_line(const char *path,int lineno,const char *line,void *vctx)
     cy_ctx_t *ctx=vctx;
     const char *p=line; while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
-    /* Heuristic: free() followed by use — flag free() calls for review */
-    if(strstr(line,"free("))
+    /* Heuristic: free() followed by use — flag free() calls for review.
+     * issue #173: identifier-boundary check — without it, this fires on
+     * every *_free() wrapper call (e.g. cfusa_report_free(),
+     * cfusa_dispositions_free()), which this codebase's own call sites
+     * number 300+. */
+    if(cfusa_find_token_outside_string(line,"free("))
         cfusa_report_add(ctx->rpt,
             "CFUSA-CY006","cyber",SEV_INFO,path,lineno,
             "CWE-416: free() call — ensure pointer is set to NULL immediately after "
@@ -201,11 +280,16 @@ static void cy007_line(const char *path,int lineno,const char *line,void *vctx)
     cy_ctx_t *ctx=vctx;
     const char *p=line; while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
-    /* Simple: two free() on same line (rare but real) — both outside string literals */
-    const char *first=strstr(line,"free(");
-    if(!first || !cfusa_match_outside_string(line,"free(")) return;
-    const char *second=strstr(first+5,"free(");
-    if(second && cfusa_match_outside_string(first+5,"free("))
+    /* Simple: two free() on same line (rare but real) — both outside
+     * string literals AND at a real identifier boundary. issue #155:
+     * without the boundary check, this fired on any line calling two
+     * unrelated *_free() wrappers (e.g. cfusa_report_free(rpt);
+     * cfusa_dispositions_free(disps);), which this exact call pair
+     * already appears back-to-back as in cmd_check.c/cmd_lint.c. */
+    const char *first=cfusa_find_token_outside_string(line,"free(");
+    if(!first) return;
+    const char *second=cfusa_find_token_outside_string(first+5,"free(");
+    if(second)
         cfusa_report_add(ctx->rpt,
             "CFUSA-CY007","cyber",SEV_ERROR,path,lineno,
             "CWE-415: possible double-free on same line — "
@@ -502,7 +586,11 @@ static void cy019_line(const char *path, int lineno, const char *line, void *vct
     cy_ctx_t *ctx = vctx;
     const char *p = line; while (*p == ' ' || *p == '\t') p++;
     if (*p == '/' || *p == '*') return;
-    if (cfusa_match_outside_string(line, "access("))
+    /* issue #157: identifier-boundary check — without it, a custom
+     * permission-check function like has_access()/check_access() (common
+     * names in safety/embedded code) false-positives as a real POSIX
+     * access(2) call. */
+    if (cfusa_find_token_outside_string(line, "access("))
         cfusa_report_add(ctx->rpt, "CFUSA-CY019", "cyber", SEV_WARNING, path, lineno,
             "CWE-362: access() check before open() creates TOCTOU race — "
             "use open() with O_CREAT|O_EXCL or fstat() on an open fd instead");

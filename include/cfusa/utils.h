@@ -145,4 +145,19 @@ int cfusa_count_lines_in_file(const char *path);
 /* Returns 1 if token appears on the line outside a C string literal, 0 otherwise. */
 int cfusa_match_outside_string(const char *line, const char *token);
 
+/* Returns a pointer to the first occurrence of `token` in `line` that is
+ * both outside a string literal (like cfusa_match_outside_string()) AND
+ * at a real identifier boundary — not immediately preceded by an
+ * alnum/'_' character — or NULL if no such occurrence exists. Without
+ * this, a fixed token like "free(" or "system(" matches as a raw
+ * substring inside an unrelated identifier ("cfusa_report_free(",
+ * "restart_system("), producing a false positive on any project's own
+ * wrapper function of a similar name. Several rules across cmd_lint.c
+ * (CFUSA-L003) and cmd_cyber.c (CY001/CY002/CY010) duplicated this exact
+ * boundary check inline before this helper existed — issues #154 (CY003),
+ * #155 (CY007), #156 (CY004), #157 (CY019), #173 (CY006) were all this
+ * same bug class independently. */
+//cfusa:req REQ-UTIL019
+const char *cfusa_find_token_outside_string(const char *line, const char *token);
+
 #endif /* CFUSA_UTILS_H */
