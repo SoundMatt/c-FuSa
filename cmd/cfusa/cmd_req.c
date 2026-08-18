@@ -13,7 +13,8 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 
-#define REQS_FILE  ".cfusa-reqs.json"
+#define REQS_FILE        ".fusa-reqs.json"
+#define REQS_FILE_LEGACY ".cfusa-reqs.json"
 #define MAX_ID     64
 #define MAX_TITLE  128
 
@@ -93,6 +94,17 @@ static int load_reqs(const char *dir)
 {
     char path[512]; cfusa_path_join(path, sizeof(path), dir, REQS_FILE);
     size_t len; char *json = cfusa_read_file(path, &len);
+    if (!json) {
+        /* issue #146: cmd_req.c used to only ever try the legacy filename
+         * and never the canonical .fusa-reqs.json cmd_trace.c treats as
+         * primary, so `cfusa req` silently found no registry on any
+         * project that had migrated to the new filename. */
+        cfusa_path_join(path, sizeof(path), dir, REQS_FILE_LEGACY);
+        json = cfusa_read_file(path, &len);
+        if (json)
+            fprintf(stderr, "cfusa req: WARNING: %s is deprecated; rename to %s\n",
+                    REQS_FILE_LEGACY, REQS_FILE);
+    }
     if (!json) return 1;
     const char *p = strstr(json, "\"requirements\"");
     if (p) p = strchr(p, '[');
@@ -696,12 +708,22 @@ static int do_req_import(const char *dir, const char *input_file,
         }
     }
 
-    /* Read existing content */
+    /* Read existing content. Always written back to the canonical
+     * REQS_FILE below regardless of which name it was read from, so an
+     * import completes the migration off the legacy filename. */
     char reqs_path[512];
     cfusa_path_join(reqs_path, sizeof(reqs_path), dir, REQS_FILE);
 
     size_t elen = 0;
     char *existing = cfusa_read_file(reqs_path, &elen);
+    if (!existing) {
+        char legacy_path[512];
+        cfusa_path_join(legacy_path, sizeof(legacy_path), dir, REQS_FILE_LEGACY);
+        existing = cfusa_read_file(legacy_path, &elen);
+        if (existing)
+            fprintf(stderr, "cfusa req import: WARNING: merging from deprecated "
+                    "%s; will write to %s\n", REQS_FILE_LEGACY, REQS_FILE);
+    }
 
     char ts[32]; cfusa_timestamp_now(ts); (void)ts;
 

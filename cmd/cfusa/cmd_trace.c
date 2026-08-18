@@ -251,15 +251,24 @@ static void compute_coverage(int *traced, int *tested, int *sec_tested)
 {
     *traced = *tested = *sec_tested = 0;
     for (int i = 0; i < g_req_count; i++) {
-        int any = 0, ht = 0, hst = 0;
+        /* issue #166: this used to set `any` (and therefore *traced) on
+         * ANY tag kind, while the itemized UNTRACED listing a few lines
+         * below (in the req-coverage report) filters strictly on
+         * KIND_IMPL — the two disagreed on what "traced" means within
+         * the same report, so a requirement with only a test tag (no
+         * implementation tag) could silently satisfy a 100%
+         * traceability gate while simultaneously being listed as
+         * UNTRACED directly below it. `has_impl` now matches the
+         * UNTRACED listing's semantics exactly. */
+        int has_impl = 0, ht = 0, hst = 0;
         for (int j = 0; j < g_tag_count; j++) {
             if (!strcmp(g_tags[j].req_id, g_reqs[i].id)) {
-                any = 1;
+                if (g_tags[j].kind == KIND_IMPL)     has_impl = 1;
                 if (g_tags[j].kind == KIND_TEST)     ht  = 1;
                 if (g_tags[j].kind == KIND_SEC_TEST) { ht = 1; hst = 1; }
             }
         }
-        if (any) (*traced)++;
+        if (has_impl) (*traced)++;
         if (ht)  (*tested)++;
         if (hst) (*sec_tested)++;
     }
@@ -666,9 +675,14 @@ int cmd_trace(int argc, char **argv)
         return failed ? 1 : 0;
     }
     if (sec_tested > 0 && total > 0) {
-        int pct = tested * 100 / total;
-        printf("sec-tested: %d%% (%d/%d requirements have test traces)\n",
-               pct, tested, total);
+        /* issue #147: this used to read `tested` (set for ANY test tag,
+         * including a plain //cfusa:test with no //cfusa:sec-test) instead
+         * of `sec_tested_count` (set only for //cfusa:sec-test) — so the
+         * --sec-tested gate silently reduced to the ordinary test-coverage
+         * gate and never actually checked for security-test coverage. */
+        int pct = sec_tested_count * 100 / total;
+        printf("sec-tested: %d%% (%d/%d requirements have security-test traces)\n",
+               pct, sec_tested_count, total);
         if (pct < sec_tested) {
             fprintf(stderr,
                     "cfusa trace: sec-tested gate failed: %d%% < required %d%%\n",
