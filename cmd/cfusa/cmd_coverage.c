@@ -238,11 +238,17 @@ static void apply_dal(const char *dal, double *threshold_line,
         *threshold_line   = 100.0;
         *threshold_branch = 0.0;
         *need_mcdc        = 0;
-    } else if (!strcmp(dal, "DAL-D")) {
-        *threshold_line   = 0.0;
-        *threshold_branch = 0.0;
-        *need_mcdc        = 0;
     }
+    /* issue #172: DAL-D means "no DO-178C coverage requirement", not
+     * "your project has no coverage requirement" — unconditionally
+     * zeroing *threshold_line here used to silently discard whatever
+     * floor the caller already had (the 80% default, or an explicit
+     * --threshold the user passed), asymmetric with how apply_asil()'s
+     * QM tier (the identical "no requirement" case) deliberately leaves
+     * its outputs unchanged rather than lowering them. DAL-D now does
+     * the same: no branch here at all, so the caller's existing
+     * threshold_line/threshold_branch/need_mcdc simply pass through
+     * untouched. */
 }
 
 //cfusa:req REQ-COV020
@@ -316,6 +322,7 @@ int cmd_coverage(int argc, char **argv)
     //cfusa:req REQ-COV015
     const char *mcdc_file    = NULL;
     int    mcdc_threshold    = 100;
+    int    mcdc_threshold_explicit = 0; /* issue #152 */
 
     static const struct option long_opts[] = {
         {"dir",            required_argument, NULL, 'd'},
@@ -358,7 +365,8 @@ int cmd_coverage(int argc, char **argv)
         case 'm': mcdc         = 1;               break;
         case 'C': mcdc_file    = optarg;
                   mcdc         = 1;               break; /* --mcdc-file implies --mcdc */
-        case 'T': mcdc_threshold = atoi(optarg); break;
+        case 'T': mcdc_threshold = atoi(optarg);
+                  mcdc_threshold_explicit = 1;   break;
         case 'M': mutate       = 1;               break;
         case 'S': mutate_score = atof(optarg);
                   mutate       = 1;               break;
@@ -434,6 +442,32 @@ int cmd_coverage(int argc, char **argv)
         if (asil_line   > threshold)        threshold        = asil_line;
         if (asil_branch > threshold_branch) threshold_branch = asil_branch;
         if (asil_mcdc)                      mcdc              = 1;
+    }
+
+    /* issue #152: --dal DAL-A / --asil ASIL-D are documented (--help,
+     * above) as requiring 100% MC/DC, but nothing floored
+     * --mcdc-threshold to match — a weaker explicit --mcdc-threshold
+     * could silently coexist with a DAL-A/ASIL-D claim, producing a
+     * "passing" MC/DC gate (and a mcdcReport in the emitted JSON) well
+     * below the compliance level the DAL/ASIL label next to it claims.
+     * Only DAL-A/ASIL-D specifically require the floor — a plain --mcdc
+     * or --mcdc-file without --dal/--asil (or at a lower DAL/ASIL tier)
+     * legitimately wants to track MC/DC progress at any threshold. */
+    {
+        int mcdc_requires_100 = (dal_explicit && !strcmp(dal, "DAL-A")) ||
+                                 (asil_explicit && cfusa_asil_rank(asil) == 4);
+        if (mcdc_requires_100 && mcdc_threshold < 100) {
+            if (mcdc_threshold_explicit)
+                fprintf(stderr,
+                    "cfusa coverage: WARNING: --mcdc-threshold %d is below "
+                    "100%%, but %s%s%s requires 100%% MC/DC — raising the "
+                    "gate to 100%%.\n",
+                    mcdc_threshold,
+                    dal_explicit ? dal : "",
+                    (dal_explicit && asil_explicit) ? " / " : "",
+                    asil_explicit ? asil : "");
+            mcdc_threshold = 100;
+        }
     }
 
     //cfusa:req REQ-COV022

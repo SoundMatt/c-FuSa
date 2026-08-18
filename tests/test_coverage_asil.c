@@ -380,6 +380,118 @@ void test_coverage_real_lcov_still_passes(void)
     TEST_ASSERT_EQUAL(0, rc);
 }
 
+/* ---- issue #172: --dal DAL-D must not discard an explicit --threshold ---- */
+
+//cfusa:req REQ-COV020
+//cfusa:test REQ-COV020
+void test_dal_d_does_not_discard_explicit_threshold(void)
+{
+    /* Before the fix, apply_dal()'s DAL-D branch unconditionally zeroed
+     * both threshold outputs, silently discarding whatever
+     * floor the caller already had -- including an explicit --threshold
+     * the user passed on the command line. 60% line coverage against an
+     * explicit --threshold 70 must still fail even under --dal DAL-D,
+     * exactly as it would with no --dal flag at all. */
+    char lcov[256];
+    snprintf(lcov, sizeof(lcov), "%s/dal_d_explicit.info", COVA_DIR);
+    write_lcov("dal_d_explicit.info", 100, 60, 10, 6); /* 60% line, 60% branch */
+    char *argv[] = {"cfusa", "--lcov", lcov, "--threshold", "70",
+                     "--dal", "DAL-D", NULL};
+    int rc = cmd_coverage(7, argv);
+    TEST_ASSERT_EQUAL(1, rc);
+}
+
+//cfusa:req REQ-COV020
+//cfusa:test REQ-COV020
+void test_dal_d_leaves_default_threshold_passing_case_alone(void)
+{
+    /* Control: with the (non-explicit) 80% default threshold and 100%
+     * line/branch coverage, --dal DAL-D still passes -- DAL-D truly means
+     * "no additional DO-178C requirement on top of whatever's already
+     * there", not "force a failure". */
+    char lcov[256];
+    snprintf(lcov, sizeof(lcov), "%s/dal_d_default.info", COVA_DIR);
+    write_lcov("dal_d_default.info", 100, 100, 10, 10);
+    char *argv[] = {"cfusa", "--lcov", lcov, "--dal", "DAL-D", NULL};
+    int rc = cmd_coverage(5, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
+/* ---- issue #152: --dal DAL-A / --asil ASIL-D floor --mcdc-threshold to 100 ---- */
+
+//cfusa:req REQ-COV020
+//cfusa:test REQ-COV020
+void test_dal_a_floors_weak_explicit_mcdc_threshold_to_100(void)
+{
+    /* 60% MC/DC condition coverage would PASS against an explicit
+     * --mcdc-threshold 50 on its own, but --dal DAL-A requires 100%
+     * MC/DC -- the weaker explicit threshold must be raised to 100,
+     * turning this into a FAIL. */
+    char lcov[256], mcdc[256], out[256];
+    snprintf(lcov, sizeof(lcov), "%s/dal_a_mcdc.info", COVA_DIR);
+    snprintf(mcdc, sizeof(mcdc), "%s/dal_a_mcdc.json", COVA_DIR);
+    snprintf(out,  sizeof(out),  "%s/dal_a_mcdc_out.json", COVA_DIR);
+    write_lcov("dal_a_mcdc.info", 100, 100, 10, 10);
+    write_mcdc("dal_a_mcdc.json",
+        "{\"data\":[{\"totals\":{\"mcdc\":"
+        "{\"count\":5,\"covered\":3,\"notcovered\":2,\"percent\":60}}}]}");
+    char *argv[] = {"cfusa", "--lcov", lcov, "--dal", "DAL-A",
+                     "--mcdc-file", mcdc, "--mcdc-threshold", "50",
+                     "--format", "json", "--output", out, NULL};
+    int rc = cmd_coverage(13, argv);
+    TEST_ASSERT_EQUAL(1, rc);
+
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096] = "";
+        size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        TEST_ASSERT_EQUAL(0, fclose(f));
+        /* the floored threshold (100), not the weaker requested one (50) */
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"threshold\": 100"));
+        (void)remove(out);
+    }
+}
+
+//cfusa:req REQ-COV020
+//cfusa:test REQ-COV020
+void test_asil_d_floors_weak_explicit_mcdc_threshold_to_100(void)
+{
+    /* Same as above but via --asil ASIL-D (rank 4) instead of --dal DAL-A. */
+    char lcov[256], mcdc[256];
+    snprintf(lcov, sizeof(lcov), "%s/asil_d_mcdc.info", COVA_DIR);
+    snprintf(mcdc, sizeof(mcdc), "%s/asil_d_mcdc.json", COVA_DIR);
+    write_lcov("asil_d_mcdc.info", 100, 100, 10, 10);
+    write_mcdc("asil_d_mcdc.json",
+        "{\"data\":[{\"totals\":{\"mcdc\":"
+        "{\"count\":5,\"covered\":3,\"notcovered\":2,\"percent\":60}}}]}");
+    char *argv[] = {"cfusa", "--lcov", lcov, "--asil", "ASIL-D",
+                     "--mcdc-file", mcdc, "--mcdc-threshold", "50", NULL};
+    int rc = cmd_coverage(9, argv);
+    TEST_ASSERT_EQUAL(1, rc);
+}
+
+//cfusa:req REQ-COV020
+//cfusa:test REQ-COV020
+void test_mcdc_threshold_not_floored_without_dal_a_or_asil_d(void)
+{
+    /* Control: the same 60%-covered MC/DC file with the same explicit
+     * --mcdc-threshold 50, but with no --dal/--asil (or a lower tier)
+     * present -- must NOT be floored, and passes on its own terms. */
+    char lcov[256], mcdc[256];
+    snprintf(lcov, sizeof(lcov), "%s/no_dal_mcdc.info", COVA_DIR);
+    snprintf(mcdc, sizeof(mcdc), "%s/no_dal_mcdc.json", COVA_DIR);
+    write_lcov("no_dal_mcdc.info", 100, 100, 10, 10);
+    write_mcdc("no_dal_mcdc.json",
+        "{\"data\":[{\"totals\":{\"mcdc\":"
+        "{\"count\":5,\"covered\":3,\"notcovered\":2,\"percent\":60}}}]}");
+    char *argv[] = {"cfusa", "--lcov", lcov, "--mcdc-file", mcdc,
+                     "--mcdc-threshold", "50", NULL};
+    int rc = cmd_coverage(7, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -402,5 +514,10 @@ int main(void)
     RUN_TEST(test_coverage_empty_lcov_json_reports_not_passed);
     RUN_TEST(test_coverage_unreadable_lcov_fails);
     RUN_TEST(test_coverage_real_lcov_still_passes);
+    RUN_TEST(test_dal_d_does_not_discard_explicit_threshold);
+    RUN_TEST(test_dal_d_leaves_default_threshold_passing_case_alone);
+    RUN_TEST(test_dal_a_floors_weak_explicit_mcdc_threshold_to_100);
+    RUN_TEST(test_asil_d_floors_weak_explicit_mcdc_threshold_to_100);
+    RUN_TEST(test_mcdc_threshold_not_floored_without_dal_a_or_asil_d);
     return UNITY_END();
 }
