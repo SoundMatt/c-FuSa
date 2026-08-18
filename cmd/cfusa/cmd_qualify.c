@@ -655,6 +655,15 @@ int cmd_qualify(int argc, char **argv)
     }
 
     const char *badge  = qualification_badge(qual_method);          /* REQ-QUAL006 */
+    //cfusa:req REQ-QUAL007
+    /* issue #128: `qualified` and `qualificationBadge` used to be computed
+     * independently (self-test pass/fail vs. --qualification-method alone),
+     * so omitting --qualification-method produced a self-contradictory
+     * report: qualified=true next to qualificationBadge="unqualified". A
+     * record can only be "qualified" if both the self-tests passed AND a
+     * real qualification method was actually declared — the two fields
+     * must never disagree. */
+    int is_qualified = (total_fail == 0) && strcmp(badge, "unqualified") != 0;
     const char *indep  = independence_status(impl_author, ind_reviewer); /* REQ-VV004 */
     /* REQ-VV005: always computed now, never a raw pass-through. */
     const char *achievable_asil =
@@ -685,6 +694,17 @@ int cmd_qualify(int argc, char **argv)
         }
     }
 
+    /* issue #128: surface the footgun loudly instead of letting a
+     * silently-self-contradictory report ship (this exact gap let a CI
+     * workflow regress by dropping --qualification-method and shipping
+     * qualified=true / qualificationBadge="unqualified" as a real
+     * release artifact). */
+    if (!strcmp(badge, "unqualified"))
+        fprintf(stderr,
+            "cfusa qualify: WARNING: --qualification-method not set — "
+            "this record cannot be marked qualified regardless of "
+            "self-test results (qualificationBadge: unqualified)\n");
+
     if (!strcmp(fmt_s, "json")) {
         fprintf(out,
             "{\n"
@@ -703,7 +723,7 @@ int cmd_qualify(int argc, char **argv)
             "  \"independenceStatus\": \"%s\"",
             CFUSA_VERSION_STRING, ts, bin_hash,
             total, total_pass, total_fail,
-            (total_fail == 0) ? "true" : "false",
+            is_qualified ? "true" : "false",
             badge, indep);
         /* Feature 2 optional fields (REQ-QUAL003) */
         if (qual_method && qual_method[0])
@@ -756,7 +776,7 @@ int cmd_qualify(int argc, char **argv)
                 g_cases[i].passed ? "PASS" : "FAIL", g_cases[i].name);
         fprintf(out, "\nResult: %d passed, %d failed  —  %s\n",
             total_pass, total_fail,
-            (total_fail == 0) ? "QUALIFIED" : "NOT QUALIFIED");
+            is_qualified ? "QUALIFIED" : "NOT QUALIFIED");
         /* REQ-QUAL006: qualification badge */
         fprintf(out, "Qualification badge: %s\n", badge);
         /* REQ-VV004: independence status */
