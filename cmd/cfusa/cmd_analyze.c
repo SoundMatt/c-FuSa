@@ -36,14 +36,14 @@ static void a001_line(const char *path,int lineno,const char *line,void *vctx)
     const char *p=line;
     while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
+    /* issue #151: cfusa_find_token_outside_string() keeps scanning the
+     * rest of the line, character by character, after a boundary-
+     * rejected match — the old strstr()-then-boundary-check code
+     * abandoned the ENTIRE pattern after its first (possibly substring)
+     * hit failed the boundary check, so a real "strcpy(" later on the
+     * same line as an earlier "mystrcpy(" was silently never seen. */
     for(int i=0; dangerous_str_fns[i]; i++) {
-        const char *fp = strstr(line, dangerous_str_fns[i]);
-        if (!fp) continue;
-        /* word-boundary: skip substrings (e.g. "gets(" inside "fgets(") */
-        if (fp > line && (*(fp-1)=='_' || (*(fp-1)>='a'&&*(fp-1)<='z')
-                          || (*(fp-1)>='A'&&*(fp-1)<='Z')
-                          || (*(fp-1)>='0'&&*(fp-1)<='9'))) continue;
-        if (!cfusa_match_outside_string(line, dangerous_str_fns[i])) continue;
+        if (!cfusa_find_token_outside_string(line, dangerous_str_fns[i])) continue;
         cfusa_report_add(ctx->rpt,
             "CFUSA-A001", CFUSA_CATEGORY_ANALYZE, SEV_WARNING,
             path, lineno,
@@ -178,17 +178,34 @@ static void a003_collect_line(const char *path, int lineno, const char *line, vo
             char after = p[tlen];
             if (isalnum((unsigned char)after) || after == '_') continue;
 
+            /* issue #150: "size_t a, b, c;" — the original scan only
+             * captured the first declarator ("a") under the type keyword;
+             * "b"/"c" (equally size_t) were never recorded as known-
+             * unsigned. Now loops over every comma-separated declarator
+             * under the same type keyword until it hits something that
+             * isn't another "*<ident>[<subscript>]," declarator. */
             const char *q = p + tlen;
             while (*q == ' ' || *q == '\t' || *q == '*') q++;
-            const char *id_start = q;
-            while (isalnum((unsigned char)*q) || *q == '_') q++;
-            size_t idlen = (size_t)(q - id_start);
-            if (idlen > 0 && idlen < A003_NAME_LEN && ctx->count < A003_MAX_NAMES) {
-                memcpy(ctx->names[ctx->count], id_start, idlen);
-                ctx->names[ctx->count][idlen] = '\0';
-                ctx->count++;
+            for (;;) {
+                const char *id_start = q;
+                while (isalnum((unsigned char)*q) || *q == '_') q++;
+                size_t idlen = (size_t)(q - id_start);
+                if (idlen > 0 && idlen < A003_NAME_LEN && ctx->count < A003_MAX_NAMES) {
+                    memcpy(ctx->names[ctx->count], id_start, idlen);
+                    ctx->names[ctx->count][idlen] = '\0';
+                    ctx->count++;
+                }
+                /* skip an array-subscript declarator, e.g. "buf[16]" */
+                while (*q == '[') { while (*q && *q != ']') q++; if (*q == ']') q++; }
+                while (*q == ' ' || *q == '\t') q++;
+                if (idlen > 0 && *q == ',') {
+                    q++;
+                    while (*q == ' ' || *q == '\t' || *q == '*') q++;
+                    continue;
+                }
+                break;
             }
-            p = q - 1; /* resume scanning after the captured identifier */
+            p = q - 1; /* resume scanning after the captured identifier(s) */
             break;
         }
     }
@@ -209,6 +226,28 @@ static size_t a003_operand_before(const char *line_start, const char *at, const 
     return (size_t)(end - p);
 }
 
+/* issue #169: finds the first "<op>[ \t]*sizeof" occurrence on `line` via
+ * a manual scan tolerant of zero-or-more spaces/tabs between the operator
+ * and "sizeof" — the old fixed "<op> sizeof" (exactly one space) pattern
+ * silently missed the equally-common no-space idiom "n<sizeof(int)". */
+static const char *a003_find_op_sizeof(const char *line)
+{
+    for (const char *p = line; *p; p++) {
+        size_t oplen;
+        if ((p[0]=='<'&&p[1]=='=') || (p[0]=='>'&&p[1]=='=') ||
+            (p[0]=='='&&p[1]=='=') || (p[0]=='!'&&p[1]=='='))
+            oplen = 2;
+        else if (p[0]=='<' || p[0]=='>')
+            oplen = 1;
+        else
+            continue;
+        const char *q = p + oplen;
+        while (*q==' ' || *q=='\t') q++;
+        if (strncmp(q, "sizeof", 6) == 0) return p;
+    }
+    return NULL;
+}
+
 /* Pass 2: the actual A003 check, now consulting pass 1's known-unsigned
  * name set before flagging. */
 static void a003_line(const char *path,int lineno,const char *line,void *vctx)
@@ -218,12 +257,9 @@ static void a003_line(const char *path,int lineno,const char *line,void *vctx)
     while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
 
-    static const char * const ops[] = {"<=", ">=", "==", "!=", "<", ">", NULL};
-    for (int oi = 0; ops[oi]; oi++) {
-        char pat[16];
-        snprintf(pat, sizeof(pat), "%s sizeof", ops[oi]);
-        const char *m = strstr(line, pat);
-        if (!m) continue;
+    {
+        const char *m = a003_find_op_sizeof(line);
+        if (!m) return;
         if (strstr(line,"(size_t)") || strstr(line,"(int)sizeof")) return;
 
         const char *id;
@@ -379,8 +415,14 @@ static int a006_has_star_ident(const char *line, const char *ident)
         if (*p == '"') { in_str = 1; continue; }
         if (*p == '\'') { in_chr = 1; continue; }
         if (*p == '*' && strncmp(p + 1, ident, ilen) == 0) {
+            /* issue #149: also require the '*' itself is not glued to a
+             * preceding identifier — otherwise a binary self-multiply
+             * like "side*side" matches "*side" as if it were a
+             * dereference of "side", when it's really just int*int. */
             unsigned char after = (unsigned char)p[1 + ilen];
-            if (!(isalnum(after) || after == '_')) return 1;
+            int before_ok = (p == line) ||
+                !(isalnum((unsigned char)p[-1]) || p[-1] == '_');
+            if (before_ok && !(isalnum(after) || after == '_')) return 1;
         }
     }
     return 0;
@@ -480,14 +522,12 @@ static void a007_line(const char *path,int lineno,const char *line,void *vctx)
     const char *p=line;
     while(*p==' '||*p=='\t') p++;
     if(*p=='/'||*p=='*') return;
+    /* issue #151: same fix as a001_line() — cfusa_find_token_outside_string()
+     * keeps scanning the rest of the line after a boundary-rejected match
+     * instead of abandoning the pattern entirely, so a real "close(" call
+     * later on the same line as an earlier "fclose(" is no longer missed. */
     for(int i=0; syscall_fns[i]; i++) {
-        const char *fp = strstr(line, syscall_fns[i]);
-        if (!fp) continue;
-        /* word-boundary: skip substrings (e.g. "close(" inside "fclose(") */
-        if (fp > line && (*(fp-1)=='_' || (*(fp-1)>='a'&&*(fp-1)<='z')
-                          || (*(fp-1)>='A'&&*(fp-1)<='Z')
-                          || (*(fp-1)>='0'&&*(fp-1)<='9'))) continue;
-        if (!cfusa_match_outside_string(line, syscall_fns[i])) continue;
+        if (!cfusa_find_token_outside_string(line, syscall_fns[i])) continue;
         /* Flag bare calls (no assignment or conditional) */
         if (!strstr(line,"=") && !strstr(line,"if ") && !strstr(line,"while "))
             cfusa_report_add(ctx->rpt,
