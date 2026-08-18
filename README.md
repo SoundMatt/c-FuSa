@@ -415,12 +415,38 @@ Copy `.cfusa.json.template` and `.cfusa-reqs.json.template` to start a new proje
 
 ## GitHub Actions Integration
 
+A first-party composite action (`action.yml`, this repo) installs a pinned
+`cfusa` release binary, runs `cfusa check`, and uploads results to the
+GitHub Security tab as SARIF — no manual build step needed in the calling
+repo:
+
+```yaml
+- uses: actions/checkout@v4
+
+- name: c-FuSa safety & security check
+  uses: SoundMatt/c-FuSa@v0.6.1     # pin a release tag, or use "main"
+  with:
+    dir: src/                       # default: "."
+    strict: 'false'                 # gate on WARNING too, not just ERROR
+    changed-since: ${{ github.event_name == 'pull_request' && 'origin/main' || '' }}
+    fail-on-error: 'true'           # default: fail the step on gated findings
+```
+
+SARIF is always uploaded (via `github/codeql-action/upload-sarif`) even
+when `fail-on-error: false`, so findings still surface as code-scanning
+annotations without blocking the build. See
+[`action.yml`](action.yml) for every input/output, and
+[`.github/workflows/action-smoke-test.yml`](.github/workflows/action-smoke-test.yml)
+for a working end-to-end example (this repo dogfoods its own action).
+
+Prefer to build from source instead of installing a release binary (e.g.
+to check an unreleased fix)? Do it directly:
+
 ```yaml
 - name: cfusa safety check
   run: |
     cmake -B build && cmake --build build
     ./build/cfusa check --dir src/ --format sarif --output results.sarif
-    ./build/cfusa trace --req-coverage 80 --sec-tested 70
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v3
