@@ -247,6 +247,27 @@ void test_l011_octal_in_string_silent(void)
     cfusa_report_free(&rpt);
 }
 
+/* issue #204: L011 already skipped octal-looking text inside a string
+ * literal, but had no awareness of a TRAILING comment on an otherwise
+ * real code line (only checked whether the line's first non-whitespace
+ * character was '/' or '*') -- an octal-looking id number in a trailing
+ * comment (e.g. this project's own test_hlr_llr.c has a trailing
+ * comment reading "HLR-0550 deliberately left uncovered" right after
+ * real code) used to false-positive. Migrating L011 onto the engine's shared
+ * cfusa_lex_strip_line() fixes this for free. */
+//cfusa:req REQ-LINT015
+//cfusa:test REQ-LINT015
+void test_l011_octal_in_trailing_comment_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "void fn(int i) {\n"
+        "    if (i == 550) continue; /* HLR-0550 deliberately left uncovered */\n"
+        "}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt,"CFUSA-L011"));
+    cfusa_report_free(&rpt);
+}
+
 /* ---- L012: keyword-named macro (MISRA-C 2012 Rule 20.4) — issue #108 ---- */
 
 //cfusa:req REQ-LINT016
@@ -301,6 +322,7 @@ int main(void)
     RUN_TEST(test_l011_plain_zero_silent);
     RUN_TEST(test_l011_float_literal_silent);
     RUN_TEST(test_l011_octal_in_string_silent);
+    RUN_TEST(test_l011_octal_in_trailing_comment_silent);
     RUN_TEST(test_l012_keyword_macro_fires);
     RUN_TEST(test_l012_non_keyword_macro_silent);
     RUN_TEST(test_l012_keyword_prefixed_identifier_silent);
