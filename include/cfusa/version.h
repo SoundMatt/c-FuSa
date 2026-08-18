@@ -3,9 +3,46 @@
 
 #define CFUSA_VERSION_MAJOR  0
 #define CFUSA_VERSION_MINOR  6
-#define CFUSA_VERSION_PATCH  0
-#define CFUSA_VERSION_STRING "0.6.0"
-/* v0.6.0 — 2026-08-18 nine fixes, seven from an issue-tracker sweep
+#define CFUSA_VERSION_PATCH  1
+#define CFUSA_VERSION_STRING "0.6.1"
+/* v0.6.1 — 2026-08-18 forty-three fixes from a 40-agent deep-audit
+ * sweep of the codebase (#141-#182) plus one more found and fixed the
+ * same session (#187). Patch bump — precision/correctness fixes only,
+ * no new user-facing flags or behaviors. Highlights: disposition JSON
+ * loading/writing hardened (whitespace-tolerant parsing, atomic
+ * locked writes, bare-array fallback; #143-144, #158-159, #175-176);
+ * DISP001 now defers to the real fingerprint-scoped disposition
+ * mechanism instead of a substring match (#148); project_root is set
+ * consistently across commands so fingerprints (and disposition
+ * matching) agree everywhere (#153); cmd_req.c canonical filename
+ * resolution + a real --sec-tested gate (#146-147, #166); five
+ * CFUSA-CY rules and the legacy REQ: scanner/config exclude_dirs
+ * switched to identifier/path-segment-boundary matching, removing
+ * several substring false-positive classes (#154-157, #173-174, #180);
+ * cmd_lint.c L001/L002/L003/L006 precision and persistent
+ * block-comment-tracking fixes (#161-163, #177); cmd_analyze.c
+ * A001/A003/A006/A007 precision fixes (#149-151, #169); a
+ * silent-truncation trio fixed — lcov empty/unreadable-file handling,
+ * dynamically-sized HLR/LLR arrays, HARA nested-ref truncation
+ * warnings (#142, #160, #167); report.c --strict/summary-table/CSV
+ * consistency fixes plus a new RFC 4180 CSV writer (#164-165,
+ * #178-179); a failed report write now exits 3 as documented instead
+ * of silently exiting 0 (#141); cmd_hara.c's top-level parsing is now
+ * key-order-independent (#145); cfusa_config_save() persists every
+ * declared standard, not just the first (#168); --dal DAL-D no longer
+ * discards an explicit --threshold, and --dal DAL-A/--asil ASIL-D now
+ * floor --mcdc-threshold to the 100% they document (#152, #172); a
+ * getopt_long platform-reset (BSD optreset / glibc nextchar) sweep
+ * across all ~41 commands, not just 3 (#170-171); COUP001's extern
+ * match is now anchored and comment-aware, and COUP001/COUP002/COMP001
+ * now honor the run()-returns-finding-count contract (#181-182);
+ * CFUSA-L004's self-call detector is now comment-aware, not just
+ * string-literal-aware (#187). Every fix ships with regression tests
+ * verified to fail against the pre-fix code and pass against the fix;
+ * 44/44 test suites pass, self-check clean. See CHANGELOG.md for the
+ * itemised, PR-linked list.
+ *
+ * v0.6.0 — 2026-08-18 nine fixes, seven from an issue-tracker sweep
  * (#128, #124, #126, #97, #127, #125, #122) plus two more (#129, #137)
  * found and fixed the same session: (1) `cfusa qualify`'s
  * qualified/qualificationBadge fields could disagree — now
