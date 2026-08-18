@@ -929,6 +929,79 @@ void test_trace_dangling_test_tag_warning(void)
     rm_file("dangling.c");
 }
 
+//cfusa:req REQ-UTIL019
+//cfusa:test REQ-UTIL019
+void test_trace_legacy_req_scanner_ignores_substring_collision(void)
+{
+    /* issue #180: "// SAMPLE_FREQ: 48000" contains "REQ:" as a bare
+     * substring inside "FREQ:" — a boundary-less scanner used to
+     * misparse this as a legacy "// REQ: <id>" tag, registering a bogus
+     * requirement id "48000" and emitting a spurious dangling-reference
+     * warning about it. */
+    write_file("audio.c",
+        "// SAMPLE_FREQ: 48000\nvoid fn(void) {}\n");
+
+    char errpath[256];
+    snprintf(errpath, sizeof(errpath), "%s/stderr_capture2.txt", RTC_DIR);
+    fflush(stderr);
+    int saved_fd = dup(STDERR_FILENO);
+    FILE *redirected = freopen(errpath, "w", stderr);
+    TEST_ASSERT_NOT_NULL(redirected);
+
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, NULL};
+    int rc = cmd_trace(3, argv);
+    (void)rc;
+
+    fflush(stderr);
+    dup2(saved_fd, STDERR_FILENO);
+    close(saved_fd);
+
+    FILE *f = fopen(errpath, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NULL(strstr(buf, "48000"));
+    }
+    remove(errpath);
+    rm_file("audio.c");
+}
+
+//cfusa:req REQ-UTIL019
+//cfusa:test REQ-UTIL019
+void test_trace_legacy_req_scanner_genuine_tag_still_works(void)
+{
+    /* a real "// REQ: <id>" legacy tag naming an actual requirement must
+     * still be recognized (no dangling warning) after the boundary fix. */
+    write_file("legacy.c",
+        "// REQ: REQ-A001\nvoid fn(void) {}\n");
+
+    char errpath[256];
+    snprintf(errpath, sizeof(errpath), "%s/stderr_capture3.txt", RTC_DIR);
+    fflush(stderr);
+    int saved_fd = dup(STDERR_FILENO);
+    FILE *redirected = freopen(errpath, "w", stderr);
+    TEST_ASSERT_NOT_NULL(redirected);
+
+    char *argv[] = {"cfusa", "--dir", RTC_DIR, NULL};
+    int rc = cmd_trace(3, argv);
+    (void)rc;
+
+    fflush(stderr);
+    dup2(saved_fd, STDERR_FILENO);
+    close(saved_fd);
+
+    FILE *f = fopen(errpath, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NULL(strstr(buf, "dangling"));
+    }
+    remove(errpath);
+    rm_file("legacy.c");
+}
+
 /* ---- catalogs larger than the old fixed-array caps (issue #100) ---- */
 
 //cfusa:req REQ-REQCAP001
@@ -1130,6 +1203,8 @@ int main(void)
     RUN_TEST(test_trace_func_coverage_strict_zero_disabled);
     RUN_TEST(test_trace_func_coverage_strict_na_empty);
     RUN_TEST(test_trace_dangling_test_tag_warning);
+    RUN_TEST(test_trace_legacy_req_scanner_ignores_substring_collision);
+    RUN_TEST(test_trace_legacy_req_scanner_genuine_tag_still_works);
     RUN_TEST(test_trace_more_than_1024_reqs_not_truncated);
     RUN_TEST(test_req_more_than_1024_reqs_not_truncated);
     RUN_TEST(test_trace_more_than_4096_tags_not_truncated);
