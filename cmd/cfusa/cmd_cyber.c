@@ -705,6 +705,7 @@ int cmd_cyber(int argc, char **argv)
 
     cfusa_report_t rpt;
     cfusa_report_init(&rpt);
+    rpt.strict = cfg.strict; /* issue #164: printed Result must match the exit-code gate below */
     strncpy(rpt.project,  cfg.project, sizeof(rpt.project)  - 1);
     strncpy(rpt.version,  cfg.version, sizeof(rpt.version)  - 1);
     strncpy(rpt.standard, "ISO 21434 / CWE / CERT-C", sizeof(rpt.standard) - 1);

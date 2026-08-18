@@ -111,7 +111,7 @@ void test_sarif_has_results(void)
     free(out);
 }
 
-/* ---- CSV format (falls to text; dedicated CSV not yet implemented) ---- */
+/* ---- CSV format ---- */
 
 //cfusa:req REQ-RPT006
 //cfusa:test REQ-RPT006
@@ -122,6 +122,38 @@ void test_csv_has_rule_id(void)
     TEST_ASSERT_NOT_NULL(out);
     TEST_ASSERT_TRUE(strstr(out, "CFUSA-L001") != NULL);
     free(out);
+}
+
+//cfusa:req REQ-RPT006
+//cfusa:test REQ-RPT006
+void test_csv_is_real_comma_separated_output(void)
+{
+    /* issue #179: --format csv used to be silently accepted then
+     * downgraded to print_text()'s human-readable block report — a real
+     * CSV consumer must see an actual header row and comma-separated
+     * quoted fields, not "cfusa report  project=..." prose. */
+    cfusa_report_write(&rpt, RPT_TMP, FMT_CSV);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    TEST_ASSERT_NOT_NULL(strstr(out, "severity,ruleId,category,file,line,message"));
+    TEST_ASSERT_NOT_NULL(strstr(out, "\"ERROR\",\"CFUSA-L001\",\"lint\",\"foo.c\",10,"));
+    TEST_ASSERT_NULL(strstr(out, "cfusa report  project="));
+    free(out);
+}
+
+//cfusa:req REQ-RPT006
+//cfusa:test REQ-RPT006
+void test_csv_embedded_quote_is_doubled(void)
+{
+    cfusa_report_t r; cfusa_report_init(&r);
+    cfusa_report_add(&r, "CFUSA-A001", "analyze", SEV_WARNING, "q.c", 1,
+                      "quotes \"here\" and, a comma");
+    cfusa_report_write(&r, RPT_TMP, FMT_CSV);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    TEST_ASSERT_NOT_NULL(strstr(out, "quotes \"\"here\"\" and, a comma"));
+    free(out);
+    cfusa_report_free(&r);
 }
 
 /* ---- Text format ---- */
@@ -315,6 +347,106 @@ void test_text_always_has_summary_line(void)
     free(out);
 }
 
+/* ---- issue #164: printed Result must match the --strict exit-code gate ---- */
+
+//cfusa:req REQ-RPT007
+//cfusa:test REQ-RPT007
+void test_result_pass_when_no_errors_and_not_strict(void)
+{
+    /* setUp()'s shared fixture has 1 error, so use a dedicated 0-error/
+     * 1-warning report here instead — not strict, so PASS is expected. */
+    cfusa_report_t r; cfusa_report_init(&r);
+    cfusa_report_add(&r, "CFUSA-CY001", "cyber", SEV_WARNING, "bar.c", 20, "strcpy");
+    cfusa_report_write(&r, RPT_TMP, FMT_TEXT);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    TEST_ASSERT_NOT_NULL(strstr(out, "Result:  PASS"));
+    free(out);
+    cfusa_report_free(&r);
+}
+
+//cfusa:req REQ-RPT007
+//cfusa:test REQ-RPT007
+void test_result_fails_under_strict_with_only_warnings(void)
+{
+    /* 0 errors, 1 warning — under --strict this must print FAIL, matching
+     * every caller's own exit-code expression (error_count>0 ||
+     * (strict && warning_count>0)), not just "were there errors?". */
+    rpt.strict = 1;
+    cfusa_report_write(&rpt, RPT_TMP, FMT_TEXT);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    TEST_ASSERT_NOT_NULL(strstr(out, "Result:  FAIL"));
+    free(out);
+}
+
+/* ---- issue #165: SUMMARY/TOP RULES must exclude dispositioned findings ---- */
+
+//cfusa:req REQ-RPT007
+//cfusa:test REQ-RPT007
+void test_summary_table_omits_dispositioned_finding(void)
+{
+    /* Directly tag the ERROR finding as dispositioned, the same way
+     * cfusa_report_apply_dispositions() would (fingerprint matching
+     * itself is exercised elsewhere; this test is about SUMMARY/TOP
+     * RULES honoring the tag, not about how it gets set). setUp()'s
+     * fixture's only "lint"-category finding is L001 (the ERROR) — before
+     * the fix, its category row still counted this ERROR while the Total
+     * row (driven by rpt->error_count, already decremented) did not, so
+     * they visibly disagreed in the same report. */
+    strncpy(rpt.findings[0].disposition_id, "DISP-0001",
+            sizeof(rpt.findings[0].disposition_id) - 1);
+    rpt.error_count--; /* mirrors what cfusa_report_apply_dispositions() does */
+    rpt.dispositioned_count++;
+
+    cfusa_report_write(&rpt, RPT_TMP, FMT_TEXT);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    char *summary = strstr(out, "SUMMARY");
+    TEST_ASSERT_NOT_NULL(summary);
+    /* the dispositioned finding was the ONLY "lint"-category finding, so
+     * that category row must disappear from the table entirely — not
+     * linger showing a stale nonzero error count. */
+    TEST_ASSERT_NULL(strstr(summary, "lint"));
+    /* Total row: 0 errors, 1 warning, 1 info — matches rpt->error_count/
+     * warning_count/info_count exactly (2 = sum of the two rows that
+     * remain: security 0/1/0 + safety 0/0/1). */
+    TEST_ASSERT_NOT_NULL(strstr(summary,
+        "Total                  0         1         1         2"));
+    /* CFUSA-L001 (the dispositioned rule) must not appear in TOP RULES. */
+    char *top_rules = strstr(out, "TOP RULES");
+    TEST_ASSERT_NOT_NULL(top_rules);
+    TEST_ASSERT_NULL(strstr(top_rules, "CFUSA-L001"));
+    free(out);
+}
+
+/* ---- issue #178: a message rich in quote/backslash chars must not be
+ * silently truncated in JSON/SARIF output ---- */
+
+//cfusa:req REQ-RPT007
+//cfusa:test REQ-RPT007
+void test_json_message_with_many_quotes_not_truncated(void)
+{
+    /* Every character here becomes a 2-byte JSON escape — a fixed
+     * 768-byte esc_msg buffer used to silently cut this off partway
+     * through well before all 512 source bytes were processed. */
+    char msg[500];
+    size_t i = 0;
+    while (i + 4 < sizeof(msg)) { memcpy(msg + i, "\\\"ab", 4); i += 4; }
+    msg[i] = '\0';
+
+    cfusa_report_t r; cfusa_report_init(&r);
+    cfusa_report_add(&r, "CFUSA-A001", "analyze", SEV_WARNING, "q.c", 1, "%s", msg);
+    cfusa_report_write(&r, RPT_TMP, FMT_JSON);
+    char *out = read_tmp();
+    TEST_ASSERT_NOT_NULL(out);
+    /* the message's final characters must survive to the end of the
+     * escaped output, proving no mid-string truncation occurred */
+    TEST_ASSERT_NOT_NULL(strstr(out, "ab\", \"fingerprint\""));
+    free(out);
+    cfusa_report_free(&r);
+}
+
 /* ---- Format parse ---- */
 
 //cfusa:req REQ-RPT002
@@ -336,6 +468,8 @@ int main(void)
     RUN_TEST(test_sarif_has_runs);
     RUN_TEST(test_sarif_has_results);
     RUN_TEST(test_csv_has_rule_id);
+    RUN_TEST(test_csv_is_real_comma_separated_output);
+    RUN_TEST(test_csv_embedded_quote_is_doubled);
     RUN_TEST(test_text_contains_rule_id);
     RUN_TEST(test_text_contains_filename);
     RUN_TEST(test_markdown_has_heading);
@@ -359,5 +493,9 @@ int main(void)
     RUN_TEST(test_text_summary_block_present_by_default);
     RUN_TEST(test_text_no_summary_suppresses_block);
     RUN_TEST(test_text_always_has_summary_line);
+    RUN_TEST(test_result_pass_when_no_errors_and_not_strict);
+    RUN_TEST(test_result_fails_under_strict_with_only_warnings);
+    RUN_TEST(test_summary_table_omits_dispositioned_finding);
+    RUN_TEST(test_json_message_with_many_quotes_not_truncated);
     return UNITY_END();
 }

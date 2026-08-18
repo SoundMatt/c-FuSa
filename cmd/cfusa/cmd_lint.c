@@ -834,6 +834,7 @@ int cmd_lint(int argc, char **argv)
 
     cfusa_report_t rpt;
     cfusa_report_init(&rpt);
+    rpt.strict = cfg.strict; /* issue #164: printed Result must match the exit-code gate below */
     strncpy(rpt.project,  cfg.project,  sizeof(rpt.project)  - 1);
     strncpy(rpt.version,  cfg.version,  sizeof(rpt.version)  - 1);
     strncpy(rpt.standard, "MISRA-C:2012 / CERT-C", sizeof(rpt.standard) - 1);

@@ -52,6 +52,12 @@ typedef struct {
     char             project_root[512];
     char             kind[32];
     int              no_summary; /* if non-zero, suppress SUMMARY/TOP-RULES block in text output */
+    /* issue #164: set by the caller to the same --strict flag it uses to
+     * compute its own exit code (rc = error_count>0 || (strict &&
+     * warning_count>0)). print_text()'s "Result:" line reads this instead
+     * of just error_count, so the printed verdict can never disagree with
+     * the process's actual exit code the way it silently could before. */
+    int              strict;
 } cfusa_report_t;
 
 typedef enum {
