@@ -727,8 +727,15 @@ int cmd_cyber(int argc, char **argv)
     cfusa_engine_run_category(CFUSA_CATEGORY_CYBER, dir, &cfg, &rpt);
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
-    if (output) cfusa_report_write(&rpt, output, fmt);
-    else        cfusa_report_print(&rpt, stdout, fmt);
+    if (output) {
+        /* issue #141: see the matching comment in cmd_check.c. */
+        if (cfusa_report_write(&rpt, output, fmt) != 0) {
+            cfusa_report_free(&rpt);
+            return 3;
+        }
+    } else {
+        cfusa_report_print(&rpt, stdout, fmt);
+    }
 
     printf("\nCyber findings: %d error  %d warning  %d info\n",
            rpt.error_count, rpt.warning_count, rpt.info_count);
