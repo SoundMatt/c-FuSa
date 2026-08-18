@@ -123,11 +123,16 @@ static void write_goal_with_20_fssr_refs(void)
     char path[256];
     snprintf(path, sizeof(path), "%s/.fusa-hara.json", HSA_DIR);
 
+    /* strlen(refs), not snprintf()'s return value, tracks how much space
+     * remains — snprintf() can report more characters than it actually
+     * wrote when truncated, which would drive an accumulated offset past
+     * sizeof(refs) on the next call. */
     char refs[512] = "";
-    size_t off = 0;
-    for (int i = 1; i <= 20; i++)
-        off += (size_t)snprintf(refs + off, sizeof(refs) - off,
-                                 "%s\"REQ-FSR-%03d\"", (i > 1) ? "," : "", i);
+    for (int i = 1; i <= 20; i++) {
+        size_t off = strlen(refs);
+        snprintf(refs + off, sizeof(refs) - off,
+                 "%s\"REQ-FSR-%03d\"", (i > 1) ? "," : "", i);
+    }
 
     FILE *f = cfusa_fopen_write(path);
     TEST_ASSERT_NOT_NULL(f);

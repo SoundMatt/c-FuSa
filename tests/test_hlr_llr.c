@@ -229,21 +229,30 @@ void test_text_output_has_hlrllr_line(void)
 //cfusa:test REQ-HLR003
 void test_strict_hlr_llr_beyond_512_not_silently_truncated(void)
 {
+    /* strlen(buf), not snprintf()'s return value, tracks how much space
+     * remains — snprintf() can report more characters than it actually
+     * wrote when truncated, which would drive an accumulated offset past
+     * sizeof(buf) on the next call. */
     static char buf[200000];
-    size_t n = 0;
-    n += (size_t)snprintf(buf + n, sizeof(buf) - n, "{\"requirements\":[");
+    buf[0] = '\0';
+    snprintf(buf, sizeof(buf), "{\"requirements\":[");
     for (int i = 1; i <= 600; i++) {
-        n += (size_t)snprintf(buf + n, sizeof(buf) - n,
+        size_t n = strlen(buf);
+        snprintf(buf + n, sizeof(buf) - n,
             "{\"id\":\"HLR-%04d\",\"title\":\"h\",\"level\":\"HLR\"},", i);
     }
     for (int i = 1; i <= 600; i++) {
         if (i == 550) continue; /* HLR-0550 deliberately left uncovered */
-        n += (size_t)snprintf(buf + n, sizeof(buf) - n,
+        size_t n = strlen(buf);
+        snprintf(buf + n, sizeof(buf) - n,
             "{\"id\":\"LLR-%04d\",\"title\":\"l\",\"level\":\"LLR\","
             "\"parentId\":\"HLR-%04d\"}%s", i, i, (i < 600) ? "," : "");
     }
-    n += (size_t)snprintf(buf + n, sizeof(buf) - n, "]}");
-    TEST_ASSERT_TRUE(n < sizeof(buf));
+    {
+        size_t n = strlen(buf);
+        snprintf(buf + n, sizeof(buf) - n, "]}");
+    }
+    TEST_ASSERT_TRUE(strlen(buf) < sizeof(buf) - 1);
     write_file(".fusa-reqs.json", buf);
 
     char *argv[] = {"cfusa", "--dir", HLR_TEST_DIR,
@@ -257,18 +266,24 @@ void test_strict_hlr_llr_beyond_512_not_silently_truncated(void)
 //cfusa:test REQ-HLR003
 void test_json_output_hlrllr_summary_counts_beyond_512(void)
 {
+    /* strlen(buf), not snprintf()'s return value — see the comment in
+     * test_strict_hlr_llr_beyond_512_not_silently_truncated() above. */
     static char buf[200000];
-    size_t n = 0;
-    n += (size_t)snprintf(buf + n, sizeof(buf) - n, "{\"requirements\":[");
+    buf[0] = '\0';
+    snprintf(buf, sizeof(buf), "{\"requirements\":[");
     for (int i = 1; i <= 600; i++) {
-        n += (size_t)snprintf(buf + n, sizeof(buf) - n,
+        size_t n = strlen(buf);
+        snprintf(buf + n, sizeof(buf) - n,
             "{\"id\":\"HLR-%04d\",\"title\":\"h\",\"level\":\"HLR\"},"
             "{\"id\":\"LLR-%04d\",\"title\":\"l\",\"level\":\"LLR\","
             "\"parentId\":\"HLR-%04d\"}%s",
             i, i, i, (i < 600) ? "," : "");
     }
-    n += (size_t)snprintf(buf + n, sizeof(buf) - n, "]}");
-    TEST_ASSERT_TRUE(n < sizeof(buf));
+    {
+        size_t n = strlen(buf);
+        snprintf(buf + n, sizeof(buf) - n, "]}");
+    }
+    TEST_ASSERT_TRUE(strlen(buf) < sizeof(buf) - 1);
     write_file(".fusa-reqs.json", buf);
 
     char *argv[] = {"cfusa", "--dir", HLR_TEST_DIR,
