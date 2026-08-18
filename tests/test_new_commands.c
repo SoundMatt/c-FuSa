@@ -225,6 +225,64 @@ void test_disposition_add_reviewer_action(void)
     TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "\"createdAt\""));
 }
 
+//cfusa:req REQ-DISP-FP001
+//cfusa:test REQ-DISP-FP001
+void test_disposition_add_preserves_bare_array_legacy_shape(void)
+{
+    /* issue #144: do_add()'s merge logic only preserved prior entries when
+     * it found the exact `{"dispositions":[...]}` wrapper. This repo's own
+     * real .cfusa-dispositions.json (and any file migrated from the legacy
+     * schema, or written by hand) is a bare array `[ {...}, {...} ]` with
+     * no wrapper key at all — without the fallback, adding a new entry to
+     * such a file would silently discard every prior disposition. */
+    write_file(".fusa-dispositions.json",
+        "[\n  {\"id\":\"DISP-0001\",\"rule\":\"CFUSA-L003\",\"action\":\"accept\","
+        "\"rationale\":\"legacy entry\",\"owner\":\"matt\",\"created\":\"2026-06-09\"}\n]\n");
+
+    char *argv[] = {"cfusa disposition", "add",
+                    "--dir",       NC_DIR,
+                    "--rule",      "CFUSA-A001",
+                    "--action",    "accept",
+                    "--reviewer",  "dana",
+                    "--rationale", "new entry", NULL};
+    int rc = cmd_disposition(12, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+
+    /* prior legacy entry must survive the merge */
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "DISP-0001"));
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "legacy entry"));
+    /* new entry must also be present */
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "\"rule\":\"CFUSA-A001\""));
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "\"reviewer\":\"dana\""));
+}
+
+//cfusa:req REQ-DISP-FP001
+//cfusa:test REQ-DISP-FP001
+void test_disposition_add_preserves_prior_entry_with_bracket_in_rationale(void)
+{
+    /* find_array_end() must locate the array's real closing ']' even when
+     * a string value contains a literal, unescaped ']' — a plain
+     * strrchr(arr, ']') would stop at the wrong bracket here. */
+    write_file(".fusa-dispositions.json",
+        "{\"dispositions\":[\n"
+        "  {\"id\":\"DISP-0001\",\"rule\":\"CFUSA-L003\",\"action\":\"accept\","
+        "\"rationale\":\"see ticket [ABC-123]\"}\n"
+        "]}\n");
+
+    char *argv[] = {"cfusa disposition", "add",
+                    "--dir",       NC_DIR,
+                    "--rule",      "CFUSA-A001",
+                    "--action",    "accept",
+                    "--reviewer",  "erin",
+                    "--rationale", "second entry", NULL};
+    int rc = cmd_disposition(12, argv);
+    TEST_ASSERT_EQUAL_INT(0, rc);
+
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "DISP-0001"));
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "[ABC-123]"));
+    TEST_ASSERT_TRUE(file_contains(".fusa-dispositions.json", "\"reviewer\":\"erin\""));
+}
+
 void test_disposition_list_shows_reviewer(void)
 {
     char *add[] = {"cfusa disposition", "add",
@@ -435,6 +493,8 @@ int main(void)
     RUN_TEST(test_unece_bad_format_returns_3);
     /* disposition */
     RUN_TEST(test_disposition_add_reviewer_action);
+    RUN_TEST(test_disposition_add_preserves_bare_array_legacy_shape);
+    RUN_TEST(test_disposition_add_preserves_prior_entry_with_bracket_in_rationale);
     RUN_TEST(test_disposition_list_shows_reviewer);
     RUN_TEST(test_disposition_add_requires_rule);
     RUN_TEST(test_disposition_no_subcmd_returns_2);
