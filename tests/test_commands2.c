@@ -2,6 +2,7 @@
  * Smoke tests for: vuln, sci, coverage, sas, metrics, pr, hooks, template, fix, do178.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -456,6 +457,177 @@ void test_fix_cy006_guidance_present(void)
     remove(src_path);
 }
 
+/* issue #210: coverage was ~19 rules out of ~39; spot-check a handful of
+ * the newly-added guidance entries actually surface end-to-end. */
+//cfusa:req REQ-FIX007
+//cfusa:test REQ-FIX007
+void test_fix_guidance_covers_previously_missing_rules(void)
+{
+    char src_path[256];
+    snprintf(src_path, sizeof(src_path), "%s/fix_coverage_src.c", CMD2_DIR);
+    FILE *sf = cfusa_fopen_write(src_path);
+    TEST_ASSERT_NOT_NULL(sf);
+    if (sf) {
+        /* L008 (void*), A007 (unchecked write() return), CY011 (curl URL
+         * from a variable) — three rules that had no FIXES entry before
+         * this change. */
+        fputs("void fn(void *p) {\n"
+              "    (void)p;\n"
+              "    write(1, \"x\", 1);\n"
+              "    curl_easy_setopt(curl, CURLOPT_URL, url);\n"
+              "}\n", sf);
+        if (fclose(sf) != 0) TEST_FAIL_MESSAGE("fclose failed");
+    }
+
+    char capture_path[256];
+    snprintf(capture_path, sizeof(capture_path), "%s/fix_coverage_stdout.txt", CMD2_DIR);
+    fflush(stdout);
+    int saved_fd = dup(STDOUT_FILENO);
+    FILE *redirected = freopen(capture_path, "w", stdout);
+    TEST_ASSERT_NOT_NULL(redirected);
+
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, NULL};
+    int rc = cmd_fix(3, argv);
+
+    fflush(stdout);
+    dup2(saved_fd, STDOUT_FILENO);
+    close(saved_fd);
+    TEST_ASSERT_EQUAL_INT(1, rc);
+
+    FILE *f = fopen(capture_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "CFUSA-L008"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Replace void* with a concrete pointer type"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "CFUSA-A007"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Check the return value of the system call"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "CFUSA-CY011"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "Validate or whitelist URLs/proxies before use"));
+    }
+    remove(capture_path);
+    remove(src_path);
+}
+
+/* issue #210: real autofix — --dry-run must preview the CY006
+ * null-after-free rewrite without touching the source file. */
+//cfusa:req REQ-FIX006
+//cfusa:test REQ-FIX006
+void test_fix_dry_run_previews_without_writing(void)
+{
+    char src_path[256];
+    snprintf(src_path, sizeof(src_path), "%s/fix_dryrun_src.c", CMD2_DIR);
+    const char *original = "void fn(void *ptr) {\n    free(ptr);\n}\n";
+    FILE *sf = cfusa_fopen_write(src_path);
+    TEST_ASSERT_NOT_NULL(sf);
+    if (sf) {
+        fputs(original, sf);
+        if (fclose(sf) != 0) TEST_FAIL_MESSAGE("fclose failed");
+    }
+
+    char capture_path[256];
+    snprintf(capture_path, sizeof(capture_path), "%s/fix_dryrun_stdout.txt", CMD2_DIR);
+    fflush(stdout);
+    int saved_fd = dup(STDOUT_FILENO);
+    FILE *redirected = freopen(capture_path, "w", stdout);
+    TEST_ASSERT_NOT_NULL(redirected);
+
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, "--dry-run", NULL};
+    int rc = cmd_fix(4, argv);
+
+    fflush(stdout);
+    dup2(saved_fd, STDOUT_FILENO);
+    close(saved_fd);
+    TEST_ASSERT_EQUAL_INT(1, rc);
+
+    FILE *f = fopen(capture_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf)-1, f);
+        buf[n] = '\0'; fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "dry-run"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "ptr = NULL;"));
+    }
+    remove(capture_path);
+
+    /* The whole point of --dry-run: the source file must be byte-for-byte
+     * unchanged. */
+    size_t after_len = 0;
+    char *after = cfusa_read_file(src_path, &after_len);
+    TEST_ASSERT_NOT_NULL(after);
+    if (after) {
+        TEST_ASSERT_EQUAL_STRING(original, after);
+        free(after);
+    }
+    remove(src_path);
+}
+
+/* issue #210: --apply actually rewrites the source, inserting the NULL-out
+ * immediately after the free() call and leaving everything else intact. */
+//cfusa:req REQ-FIX006
+//cfusa:test REQ-FIX006
+void test_fix_apply_inserts_null_after_free(void)
+{
+    char src_path[256];
+    snprintf(src_path, sizeof(src_path), "%s/fix_apply_src.c", CMD2_DIR);
+    FILE *sf = cfusa_fopen_write(src_path);
+    TEST_ASSERT_NOT_NULL(sf);
+    if (sf) {
+        fputs("void fn(void *ptr) {\n"
+              "    free(ptr);\n"
+              "    return;\n"
+              "}\n", sf);
+        if (fclose(sf) != 0) TEST_FAIL_MESSAGE("fclose failed");
+    }
+
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, "--apply", NULL};
+    int rc = cmd_fix(4, argv);
+    TEST_ASSERT_EQUAL_INT(1, rc);
+
+    size_t len = 0;
+    char *content = cfusa_read_file(src_path, &len);
+    TEST_ASSERT_NOT_NULL(content);
+    if (content) {
+        TEST_ASSERT_NOT_NULL(strstr(content, "free(ptr);\n    ptr = NULL;\n"));
+        /* The rest of the function must survive untouched. */
+        TEST_ASSERT_NOT_NULL(strstr(content, "return;"));
+        free(content);
+    }
+    remove(src_path);
+}
+
+/* issue #210: --apply must be a no-op (never insert a duplicate) when the
+ * pointer is already NULL'd on the very next line. */
+//cfusa:req REQ-FIX006
+//cfusa:test REQ-FIX006
+void test_fix_apply_skips_already_nulled_pointer(void)
+{
+    char src_path[256];
+    snprintf(src_path, sizeof(src_path), "%s/fix_apply_skip_src.c", CMD2_DIR);
+    const char *original =
+        "void fn(void *ptr) {\n    free(ptr);\n    ptr = NULL;\n}\n";
+    FILE *sf = cfusa_fopen_write(src_path);
+    TEST_ASSERT_NOT_NULL(sf);
+    if (sf) {
+        fputs(original, sf);
+        if (fclose(sf) != 0) TEST_FAIL_MESSAGE("fclose failed");
+    }
+
+    char *argv[] = {"cfusa", "--dir", CMD2_DIR, "--apply", NULL};
+    int rc = cmd_fix(4, argv);
+    TEST_ASSERT_EQUAL_INT(1, rc);
+
+    size_t len = 0;
+    char *content = cfusa_read_file(src_path, &len);
+    TEST_ASSERT_NOT_NULL(content);
+    if (content) {
+        TEST_ASSERT_EQUAL_STRING(original, content);
+        free(content);
+    }
+    remove(src_path);
+}
+
 /* ---- do178 ---- */
 
 //cfusa:req REQ-DO178
@@ -671,6 +843,10 @@ int main(void)
     RUN_TEST(test_fix_help_returns_zero);
     RUN_TEST(test_fix_runs_no_crash);
     RUN_TEST(test_fix_cy006_guidance_present);
+    RUN_TEST(test_fix_guidance_covers_previously_missing_rules);
+    RUN_TEST(test_fix_dry_run_previews_without_writing);
+    RUN_TEST(test_fix_apply_inserts_null_after_free);
+    RUN_TEST(test_fix_apply_skips_already_nulled_pointer);
     RUN_TEST(test_do178_help_returns_zero);
     RUN_TEST(test_do178_runs_no_crash);
     RUN_TEST(test_do178_invalid_dal_returns_2);
