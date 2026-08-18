@@ -115,6 +115,69 @@ static char *extract_bracket(const char *json, const char *key, char open, char 
     return extract_bracket_at(json, key, open, close, NULL);
 }
 
+/* Extracts the balanced bracket/brace substring (inclusive) for the
+ * TOP-LEVEL "key" member of `json`'s root object only — i.e. a key
+ * whose "key": appears at brace/bracket depth 1 relative to the
+ * document root — never a same-named key nested deeper (e.g. a safety
+ * goal's own "hazards": [...] reference array, or a hazard's own
+ * "safetyGoals": [...] reference array). Caller frees the result.
+ *
+ * issue #145: extract_bracket_at()'s scoped-strstr() trick (find the
+ * first occurrence anywhere, then have the CALLER pass a search offset
+ * past an earlier sibling to dodge that sibling's own nested same-named
+ * key) implicitly assumed a fixed key order. A syntactically valid
+ * .fusa-hara.json that lists "safetyGoals" before "hazards" (order is
+ * insignificant per the JSON spec) made the "hazards" search — started
+ * from the very beginning of the document — match the FIRST safety
+ * goal's own nested "hazards" reference array instead of the real
+ * top-level collection, silently corrupting both collections (blank
+ * id/description fields, wrong counts) with no error or warning. This
+ * helper is immune to key reordering: it tracks nesting depth from the
+ * document root and only matches a "key" whose colon it finds while
+ * depth == 1, so a same-named key anywhere inside a nested object/array
+ * is never mistaken for the top-level one, regardless of what order the
+ * top-level keys themselves appear in. */
+static char *extract_toplevel_bracket(const char *json, const char *key, char open, char close)
+{
+    char pat[64];
+    snprintf(pat, sizeof(pat), "\"%s\"", key);
+    size_t patlen = strlen(pat);
+
+    const char *p = json;
+    while (*p && *p != '{') p++;
+    if (!*p) return NULL;
+    int depth = 1;
+    p++;
+
+    int in_str = 0;
+    const char *key_at = NULL;
+    for (; *p; p++) {
+        if (in_str) {
+            if (*p == '\\' && p[1]) { p++; continue; }
+            if (*p == '"') in_str = 0;
+            continue;
+        }
+        if (*p == '"') {
+            if (depth == 1 && strncmp(p, pat, patlen) == 0) {
+                const char *q = p + patlen;
+                while (*q == ' ' || *q == '\t' || *q == '\n' || *q == '\r') q++;
+                /* A real key's closing quote is always followed (after
+                 * whitespace) by ':' — a string VALUE that merely equals
+                 * the key text never is (JSON only allows ',' or a
+                 * closing bracket/brace after a value). */
+                if (*q == ':') { key_at = p; break; }
+            }
+            in_str = 1;
+            continue;
+        }
+        if (*p == '{' || *p == '[') depth++;
+        else if (*p == '}' || *p == ']') { depth--; if (depth == 0) break; }
+    }
+    if (!key_at) return NULL;
+
+    return extract_bracket_at(key_at, key, open, close, NULL);
+}
+
 /* Frees the heap-allocated elements a split_array() call produced. Safe to
  * call with n==0 (no-op). */
 static void free_array_elems(char *elems[], int n)
@@ -255,7 +318,7 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
     extract_str(json, "createdAt", doc->created_at, sizeof(doc->created_at));
     cfusa_qb_attestation_read(json, len, &doc->attestation);
 
-    char *os_arr = extract_bracket(json, "operationalSituations", '[', ']');
+    char *os_arr = extract_toplevel_bracket(json, "operationalSituations", '[', ']');
     if (os_arr) {
         char *elems[MAX_ITEMS];
         int truncated = 0;
@@ -273,8 +336,7 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
                              "than %d entries — extra entries were dropped\n", MAX_ITEMS);
     }
 
-    const char *hz_end_ptr = NULL;
-    char *hz_arr = extract_bracket_at(json, "hazards", '[', ']', &hz_end_ptr);
+    char *hz_arr = extract_toplevel_bracket(json, "hazards", '[', ']');
     if (hz_arr) {
         char *elems[MAX_ITEMS];
         int truncated = 0;
@@ -336,10 +398,7 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
                              "entries — extra entries were dropped\n", MAX_ITEMS);
     }
 
-    /* Scoped to start *after* the hazards array (when present) so this
-     * doesn't match the first hazard's own nested "safetyGoals": [...]
-     * reference array instead of the document's top-level collection. */
-    char *sg_arr_top = extract_bracket(hz_end_ptr ? hz_end_ptr : json, "safetyGoals", '[', ']');
+    char *sg_arr_top = extract_toplevel_bracket(json, "safetyGoals", '[', ']');
     if (sg_arr_top) {
         char *elems[MAX_ITEMS];
         int truncated = 0;

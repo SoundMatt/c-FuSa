@@ -237,6 +237,49 @@ void test_hara_show_fssr_ref_not_dangling_with_pretty_printed_reqs(void)
     remove(outpath);
 }
 
+//cfusa:req REQ-HARA-SCHEMA001
+//cfusa:test REQ-HARA-SCHEMA001
+void test_hara_show_top_level_keys_reordered_not_corrupted(void)
+{
+    /* issue #145: a syntactically valid .fusa-hara.json listing
+     * "safetyGoals" before "hazards" at the top level (order is
+     * insignificant per the JSON spec) used to make the top-level
+     * "hazards" search — started from the very beginning of the
+     * document — match the FIRST safety goal's own nested "hazards"
+     * reference array (a bare string array, ["H-1"]) instead of the
+     * real top-level hazards collection, silently corrupting both
+     * collections: hazards parsed with blank id/description/ASIL
+     * fields, no error or warning of any kind. */
+    write_file(".fusa-hara.json",
+        "{\"schemaVersion\":\"1.14.0\",\"kind\":\"hara\",\"operationalSituations\":[],"
+        "\"safetyGoals\":[{\"id\":\"SG-1\",\"description\":\"Prevent unintended accel\","
+        "\"hazards\":[\"H-1\"],\"asil\":\"ASIL-C\",\"safeState\":\"Engine off\","
+        "\"fssrRefs\":[\"REQ-1\"]}],"
+        "\"hazards\":[{\"id\":\"H-1\",\"description\":\"Unintended acceleration\","
+        "\"situations\":[],"
+        "\"risk\":{\"severity\":\"S3\",\"exposure\":\"E3\",\"controllability\":\"C2\","
+        "\"asil\":\"ASIL-C\"},\"safetyGoals\":[\"SG-1\"]}]}");
+
+    char outpath[512];
+    snprintf(outpath, sizeof(outpath), "%s/show_reordered.txt", HARA_DIR);
+    char *argv[] = {"cfusa", "show", "--dir", HARA_DIR, "--output", outpath, NULL};
+    int rc = cmd_hara(6, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    char *buf = slurp("show_reordered.txt");
+    TEST_ASSERT_NOT_NULL(buf);
+    TEST_ASSERT_NOT_NULL(strstr(buf, "Hazards (1):"));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "H-1  [ASIL-C]"));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "Description: Unintended acceleration"));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "Safety Goals (1):"));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "SG-1  [ASIL-C]"));
+    free(buf);
+
+    char p[512];
+    snprintf(p, sizeof(p), "%s/.fusa-hara.json", HARA_DIR); remove(p);
+    remove(outpath);
+}
+
 /* ---- help ---- */
 
 //cfusa:req REQ-HARA009
@@ -273,6 +316,7 @@ int main(void)
     RUN_TEST(test_hara_init_creates_file);
     RUN_TEST(test_hara_show_missing_file_no_crash);
     RUN_TEST(test_hara_show_fssr_ref_not_dangling_with_pretty_printed_reqs);
+    RUN_TEST(test_hara_show_top_level_keys_reordered_not_corrupted);
     RUN_TEST(test_hara_help_returns_zero);
     return UNITY_END();
 }
