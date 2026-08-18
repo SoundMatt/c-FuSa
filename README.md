@@ -284,6 +284,7 @@ cfusa misra --gaps                        # MISRA C:2012 uncovered rules only
 
 ```bash
 cfusa disposition add --rule CFUSA-L003 \
+    --fingerprint sha256:<from cfusa check/lint output> \
     --action accept \
     --rationale "Heap used only at startup under supervision" \
     --reviewer "jane.doe" \
@@ -292,7 +293,7 @@ cfusa disposition list
 cfusa disposition show DISP-0001
 ```
 
-Dispositions are stored in `.fusa-dispositions.json` (`.cfusa-dispositions.json` is still read as a legacy fallback). This is a log, not a gate today — `cfusa check`/`cfusa lint` don't read it back, so recording a disposition doesn't suppress the finding or change the exit code yet ([issue #122](https://github.com/SoundMatt/c-FuSa/issues/122)).
+Dispositions are stored in `.fusa-dispositions.json` (`.cfusa-dispositions.json` is still read as a legacy fallback). `cfusa check`/`cfusa lint` load it and enforce `accept`/`mitigate`-action entries: a finding whose fingerprint matches (shown next to every finding in text output, and as `"fingerprint"` in JSON) is excluded from the exit-code gate — never dropped from the report, just tagged `[DISPOSITIONED accept: DISP-0001]` inline, with its own `"dispositioned"` count in the JSON summary. `--rule` alone never suppresses (too coarse — it would exempt every future finding under that rule, anywhere); `--fingerprint` is the actual key. A `fix`-action entry is a historical note only and never suppresses either.
 
 ---
 

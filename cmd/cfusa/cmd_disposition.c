@@ -40,8 +40,10 @@ static int count_dispositions(const char *path)
     return n;
 }
 
+//cfusa:req REQ-DISP-FP001
 static void do_add(const char *dir, const char *rule, const char *rationale,
-                   const char *action, const char *reviewer, const char *ref)
+                   const char *action, const char *reviewer, const char *ref,
+                   const char *fingerprint)
 {
     char path[512];
     cfusa_path_join(path, sizeof(path), dir, DISP_FILE);
@@ -52,13 +54,16 @@ static void do_add(const char *dir, const char *rule, const char *rationale,
     int id_num = count_dispositions(path) + 1;
     char ts[32]; cfusa_timestamp_now(ts);
 
-    char esc_rat[512], esc_rev[128], esc_rule[64], esc_ref[128];
-    cfusa_str_escape_json(rationale, esc_rat,  sizeof(esc_rat));
-    cfusa_str_escape_json(reviewer,  esc_rev,  sizeof(esc_rev));
-    cfusa_str_escape_json(rule,      esc_rule, sizeof(esc_rule));
-    cfusa_str_escape_json(ref,       esc_ref,  sizeof(esc_ref));
+    char esc_rat[512], esc_rev[128], esc_rule[64], esc_ref[128], esc_fp[80];
+    cfusa_str_escape_json(rationale,   esc_rat,  sizeof(esc_rat));
+    cfusa_str_escape_json(reviewer,    esc_rev,  sizeof(esc_rev));
+    cfusa_str_escape_json(rule,        esc_rule, sizeof(esc_rule));
+    cfusa_str_escape_json(ref,         esc_ref,  sizeof(esc_ref));
+    cfusa_str_escape_json(fingerprint, esc_fp,   sizeof(esc_fp));
 
-    FILE *f = fopen(path, "w");
+    /* cfusa_fopen_write(): explicit 0600, not fopen()'s umask-dependent
+     * mode (which could leave .fusa-dispositions.json world-writable). */
+    FILE *f = cfusa_fopen_write(path);
     if (!f) { perror(path); free(existing); return; }
 
     write_dispositions_header(f);
@@ -83,14 +88,25 @@ static void do_add(const char *dir, const char *rule, const char *rationale,
 
     fprintf(f,
         "    {\"id\":\"DISP-%04d\",\"rule\":\"%s\","
+        "\"fingerprint\":\"%s\","
         "\"action\":\"%s\",\"rationale\":\"%s\","
         "\"reviewer\":\"%s\",\"ref\":\"%s\",\"createdAt\":\"%s\"}\n",
-        id_num, esc_rule, action, esc_rat, esc_rev, esc_ref, ts);
+        id_num, esc_rule, esc_fp, action, esc_rat, esc_rev, esc_ref, ts);
 
     write_dispositions_footer(f);
     fclose(f);
 
     printf("Added DISP-%04d: rule=%s action=%s\n", id_num, rule, action);
+    if (!fingerprint[0])
+        fprintf(stderr,
+            "cfusa disposition add: WARNING: no --fingerprint given — this "
+            "entry is recorded as an audit note only and will NOT suppress "
+            "any finding in 'cfusa check'/'cfusa lint' (rule-only scoping "
+            "would be too coarse: it would exempt every future finding "
+            "under rule '%s', anywhere in the codebase). Pass "
+            "--fingerprint <sha256:...> (shown in 'cfusa check'/'cfusa "
+            "lint' text output) to make this disposition enforceable.\n",
+            rule);
 }
 
 static void do_list(const char *dir)
@@ -154,8 +170,9 @@ static void do_show(const char *dir, const char *disp_id)
         char *fp = p;
         sscanf(fp, "\"id\":\"%15[^\"]", id);
         if (!strcmp(id, disp_id)) {
-            char rule[32]="", action[16]="", rat[512]="", reviewer[64]="", ref[128]="", created[32]="";
-            if ((fp = strstr(p, "\"rule\":")))      sscanf(fp, "\"rule\":\"%31[^\"]", rule);
+            char rule[32]="", action[16]="", rat[512]="", reviewer[64]="", ref[128]="", created[32]="", fingerprint[80]="";
+            if ((fp = strstr(p, "\"rule\":")))        sscanf(fp, "\"rule\":\"%31[^\"]", rule);
+            if ((fp = strstr(p, "\"fingerprint\":"))) sscanf(fp, "\"fingerprint\":\"%79[^\"]", fingerprint);
             if ((fp = strstr(p, "\"action\":")))    sscanf(fp, "\"action\":\"%15[^\"]", action);
             if ((fp = strstr(p, "\"rationale\":"))) sscanf(fp, "\"rationale\":\"%511[^\"]", rat);
             if ((fp = strstr(p, "\"reviewer\":")))  sscanf(fp, "\"reviewer\":\"%63[^\"]", reviewer);
@@ -165,6 +182,7 @@ static void do_show(const char *dir, const char *disp_id)
 
             printf("Disposition %s\n", id);
             printf("  Rule:        %s\n", rule);
+            printf("  Fingerprint: %s\n", fingerprint[0] ? fingerprint : "(none — audit note only, does not suppress)");
             printf("  Action:      %s\n", action);
             printf("  Reviewer:    %s\n", reviewer);
             if (ref[0]) printf("  Ref:         %s\n", ref);
@@ -191,6 +209,7 @@ int cmd_disposition(int argc, char **argv)
     const char *reviewer  = NULL;
     const char *ref       = "";
     const char *show_id   = NULL;
+    const char *fingerprint = "";
 
     static const struct option long_opts[] = {
         {"dir",        required_argument, NULL, 'd'},
@@ -199,6 +218,7 @@ int cmd_disposition(int argc, char **argv)
         {"action",     required_argument, NULL, 'a'},
         {"reviewer",   required_argument, NULL, 'v'},
         {"ref",        required_argument, NULL, 'e'},
+        {"fingerprint", required_argument, NULL, 'F'},
         {"help",       no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
@@ -214,7 +234,7 @@ int cmd_disposition(int argc, char **argv)
 
     int c;
     optind = 1;
-    while ((c = getopt_long(argc, argv, "d:r:R:a:v:e:h", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:r:R:a:v:e:F:h", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir      = optarg; break;
         case 'r': rule     = optarg; break;
@@ -222,14 +242,22 @@ int cmd_disposition(int argc, char **argv)
         case 'a': action   = optarg; break;
         case 'v': reviewer = optarg; break;
         case 'e': ref      = optarg; break;
+        case 'F': fingerprint = optarg; break;
         case 'h':
             printf("Usage: cfusa disposition <subcommand> [options]\n\n"
                    "Subcommands:\n"
                    "  add   --rule <ID> --rationale <text> --reviewer <name>\n"
-                   "        [--action accept|fix] [--ref <ticket>]\n"
+                   "        [--action accept|fix|mitigate] [--ref <ticket>]\n"
+                   "        [--fingerprint <sha256:...>]\n"
                    "  list  Show all dispositions\n"
                    "  show  <DISP-ID>  Show single disposition detail\n\n"
-                   "Stored in .fusa-dispositions.json\n");
+                   "Stored in .fusa-dispositions.json\n\n"
+                   "--fingerprint <sha256:...> (shown in 'cfusa check'/'cfusa lint' text\n"
+                   "output next to each finding) is what 'cfusa check'/'cfusa lint' match\n"
+                   "on to suppress a finding's contribution to the exit-code gate for\n"
+                   "accept/mitigate actions. Without it, this entry is an audit note only\n"
+                   "-- --rule alone is deliberately never used to suppress, since that\n"
+                   "would exempt every future finding under that rule ID, anywhere.\n");
             return 0;
         default: return 2;
         }
@@ -262,7 +290,7 @@ int cmd_disposition(int argc, char **argv)
             fprintf(stderr, "cfusa disposition add: invalid --action '%s' (accept|fix|mitigate)\n", action);
             return 2;
         }
-        do_add(dir, rule, rationale, action, reviewer, ref);
+        do_add(dir, rule, rationale, action, reviewer, ref, fingerprint);
     } else if (!strcmp(subcmd, "list")) {
         do_list(dir);
     } else if (!strcmp(subcmd, "show")) {

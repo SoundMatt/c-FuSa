@@ -258,16 +258,29 @@ static void print_text(const cfusa_report_t *rpt, FILE *out)
 
     for (int i = 0; i < rpt->count; i++) {
         const cfusa_finding_t *f = &rpt->findings[i];
-        fprintf(out, "[%s] %s  %s:%d\n  %s\n",
+        /* issue #122: fingerprint now printed in text mode too (previously
+         * JSON/SARIF-only), and a dispositioned finding is tagged inline
+         * rather than dropped — it always stays in the full finding list. */
+        char disp_tag[64] = "";
+        if (f->disposition_id[0])
+            snprintf(disp_tag, sizeof(disp_tag), "  [DISPOSITIONED %s: %s]",
+                     f->disposition_action, f->disposition_id);
+        fprintf(out, "[%s] %s  %s:%d  fingerprint=%s%s\n  %s\n",
                 cfusa_severity_str(f->severity), f->rule_id,
-                f->file[0] ? f->file : ".", f->line, f->message);
+                f->file[0] ? f->file : ".", f->line, f->fingerprint, disp_tag,
+                f->message);
     }
     if (rpt->count == 0)
         fprintf(out, "No findings.\n");
 
-    int total = rpt->error_count + rpt->warning_count + rpt->info_count;
-    fprintf(out, "\nSummary: %d total  %d errors  %d warnings  %d infos\n",
-            total, rpt->error_count, rpt->warning_count, rpt->info_count);
+    /* issue #122: rpt->count (not errors+warnings+infos) is the total —
+     * dispositioned findings are excluded from the three severity buckets
+     * but never removed from the report, so summing just those three
+     * would silently shrink "total" too and look like fewer findings
+     * exist than actually do. */
+    fprintf(out, "\nSummary: %d total  %d errors  %d warnings  %d infos  %d dispositioned\n",
+            rpt->count, rpt->error_count, rpt->warning_count, rpt->info_count,
+            rpt->dispositioned_count);
     fprintf(out, "Result:  %s\n", rpt->error_count > 0 ? "FAIL" : "PASS");
 
     if (!rpt->no_summary && rpt->count > 0) {
@@ -285,8 +298,8 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
     cfusa_str_escape_json(rpt->standard,     esc_std,  sizeof(esc_std));
     cfusa_str_escape_json(rpt->project_root, esc_root, sizeof(esc_root));
 
-    int total = rpt->error_count + rpt->warning_count + rpt->info_count;
-
+    /* issue #122: rpt->count (not errors+warnings+infos) — see the
+     * matching note in print_text() above. */
     fprintf(out,
         "{\n"
         "  \"schemaVersion\": \"" CFUSA_SCHEMA_VERSION "\",\n"
@@ -299,13 +312,14 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
         "  \"project\": \"%s\",\n"
         "  \"standard\": \"%s\",\n"
         "  \"score\": %.1f,\n"
-        "  \"summary\": {\"total\": %d, \"errors\": %d, \"warnings\": %d, \"infos\": %d},\n"
+        "  \"summary\": {\"total\": %d, \"errors\": %d, \"warnings\": %d, \"infos\": %d, \"dispositioned\": %d},\n"
         "  \"findings\": [\n",
         rpt->kind[0] ? rpt->kind : "check-report",
         rpt->version[0] ? rpt->version : CFUSA_VERSION_STRING,
         esc_ts, esc_root, esc_proj, esc_std,
         cfusa_report_score(rpt),
-        total, rpt->error_count, rpt->warning_count, rpt->info_count);
+        rpt->count, rpt->error_count, rpt->warning_count, rpt->info_count,
+        rpt->dispositioned_count);
 
     int nrules = cfusa_engine_rule_count();
     for (int i = 0; i < rpt->count; i++) {
@@ -332,6 +346,15 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
         cfusa_str_escape_json(standard,    esc_rulestd, sizeof(esc_rulestd));
         cfusa_str_escape_json(clause,      esc_clause,  sizeof(esc_clause));
 
+        /* issue #122: present only when this finding was matched against
+         * .fusa-dispositions.json by cfusa_report_apply_dispositions() —
+         * never emitted as empty-string fields. */
+        char disp_json[96] = "";
+        if (f->disposition_id[0])
+            snprintf(disp_json, sizeof(disp_json),
+                     ", \"dispositionId\": \"%s\", \"dispositionAction\": \"%s\"",
+                     f->disposition_id, f->disposition_action);
+
         /* §4 location: file and line are MUST; endLine/endColumn are MAY */
         if (f->end_line > 0 && f->end_column > 0) {
             fprintf(out,
@@ -343,12 +366,12 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
                 " \"fingerprint\": \"%s\","
                 " \"remediation\": \"%s\","
                 " \"standard\": \"%s\","
-                " \"clause\": \"%s\"}%s\n",
+                " \"clause\": \"%s\"%s}%s\n",
                 f->rule_id, f->category,
                 cfusa_severity_str(f->severity),
                 esc_file, f->line, f->end_line, f->end_column, esc_msg,
                 f->fingerprint,
-                esc_rem, esc_rulestd, esc_clause,
+                esc_rem, esc_rulestd, esc_clause, disp_json,
                 (i < rpt->count - 1) ? "," : "");
         } else if (f->end_line > 0) {
             fprintf(out,
@@ -360,12 +383,12 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
                 " \"fingerprint\": \"%s\","
                 " \"remediation\": \"%s\","
                 " \"standard\": \"%s\","
-                " \"clause\": \"%s\"}%s\n",
+                " \"clause\": \"%s\"%s}%s\n",
                 f->rule_id, f->category,
                 cfusa_severity_str(f->severity),
                 esc_file, f->line, f->end_line, esc_msg,
                 f->fingerprint,
-                esc_rem, esc_rulestd, esc_clause,
+                esc_rem, esc_rulestd, esc_clause, disp_json,
                 (i < rpt->count - 1) ? "," : "");
         } else {
             fprintf(out,
@@ -376,12 +399,12 @@ static void print_json(const cfusa_report_t *rpt, FILE *out)
                 " \"fingerprint\": \"%s\","
                 " \"remediation\": \"%s\","
                 " \"standard\": \"%s\","
-                " \"clause\": \"%s\"}%s\n",
+                " \"clause\": \"%s\"%s}%s\n",
                 f->rule_id, f->category,
                 cfusa_severity_str(f->severity),
                 esc_file, f->line, esc_msg,
                 f->fingerprint,
-                esc_rem, esc_rulestd, esc_clause,
+                esc_rem, esc_rulestd, esc_clause, disp_json,
                 (i < rpt->count - 1) ? "," : "");
         }
     }

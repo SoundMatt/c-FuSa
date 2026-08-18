@@ -1,0 +1,437 @@
+/*
+ * Regression tests for issue #122: wiring .fusa-dispositions.json into
+ * cfusa check/lint enforcement. Previously `cfusa disposition add` was a
+ * standalone audit log — nothing ever read it back, so a recorded
+ * disposition had no effect on a later run's findings or exit code.
+ *
+ * Covers: cfusa_dispositions_load()/cfusa_report_apply_dispositions()
+ * (unit level) and cmd_check/cmd_lint/cmd_disposition end-to-end.
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include "../vendor/unity/unity.h"
+#include "../include/cfusa/report.h"
+#include "../include/cfusa/disposition.h"
+#include "../include/cfusa/utils.h"
+
+extern int cmd_check(int argc, char **argv);
+extern int cmd_lint(int argc, char **argv);
+extern int cmd_disposition(int argc, char **argv);
+
+#define DE_DIR "/tmp/cfusa_dispenf_testdir"
+
+void setUp(void)    { (void)mkdir(DE_DIR, 0700); }
+void tearDown(void) {}
+
+static void write_disp_json(const char *content)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.fusa-dispositions.json", DE_DIR);
+    FILE *f = cfusa_fopen_write(path);
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) { fputs(content, f); if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed"); }
+}
+
+static void rm_disp_json(void)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.fusa-dispositions.json", DE_DIR);
+    remove(path);
+}
+
+/* ---- cfusa_dispositions_load() ---- */
+
+//cfusa:req REQ-DISP-ENFORCE001
+//cfusa:test REQ-DISP-ENFORCE001
+void test_dispositions_load_missing_file_is_not_an_error(void)
+{
+    rm_disp_json();
+    cfusa_disposition_list_t list;
+    int ok = cfusa_dispositions_load(DE_DIR, &list);
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_EQUAL_INT(0, list.count);
+    cfusa_dispositions_free(&list);
+}
+
+//cfusa:req REQ-DISP-ENFORCE001
+//cfusa:test REQ-DISP-ENFORCE001
+void test_dispositions_load_parses_fingerprint_field(void)
+{
+    write_disp_json(
+        "{\"dispositions\":[\n"
+        "  {\"id\":\"DISP-0001\",\"rule\":\"CFUSA-L003\","
+        "\"fingerprint\":\"sha256:abcd1234\",\"action\":\"accept\","
+        "\"rationale\":\"reviewed\",\"reviewer\":\"Jane\"}\n"
+        "]}\n");
+
+    cfusa_disposition_list_t list;
+    int ok = cfusa_dispositions_load(DE_DIR, &list);
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_EQUAL_INT(1, list.count);
+    TEST_ASSERT_EQUAL_STRING("DISP-0001", list.items[0].id);
+    TEST_ASSERT_EQUAL_STRING("CFUSA-L003", list.items[0].rule);
+    TEST_ASSERT_EQUAL_STRING("sha256:abcd1234", list.items[0].fingerprint);
+    TEST_ASSERT_EQUAL_STRING("accept", list.items[0].action);
+    cfusa_dispositions_free(&list);
+    rm_disp_json();
+}
+
+/* ---- cfusa_report_apply_dispositions() ---- */
+
+static void one_finding(cfusa_report_t *rpt, const char *rule, cfusa_severity_t sev)
+{
+    cfusa_report_init(rpt);
+    cfusa_report_add(rpt, rule, "lint", sev, "f.c", 1, "msg");
+}
+
+//cfusa:req REQ-DISP-ENFORCE002
+//cfusa:test REQ-DISP-ENFORCE002
+void test_apply_dispositions_accept_suppresses_matching_fingerprint(void)
+{
+    cfusa_report_t rpt;
+    one_finding(&rpt, "CFUSA-L003", SEV_WARNING);
+
+    cfusa_disposition_list_t list;
+    memset(&list, 0, sizeof(list));
+    list.items = malloc(sizeof(cfusa_disposition_t));
+    list.count = 1; list.cap = 1;
+    memset(&list.items[0], 0, sizeof(cfusa_disposition_t));
+    strcpy(list.items[0].id, "DISP-0001");
+    strcpy(list.items[0].fingerprint, rpt.findings[0].fingerprint);
+    strcpy(list.items[0].action, "accept");
+
+    cfusa_report_apply_dispositions(&rpt, &list);
+
+    TEST_ASSERT_EQUAL_INT(0, rpt.warning_count);
+    TEST_ASSERT_EQUAL_INT(1, rpt.dispositioned_count);
+    TEST_ASSERT_EQUAL_INT(1, rpt.count); /* finding still present, never dropped */
+    TEST_ASSERT_EQUAL_STRING("DISP-0001", rpt.findings[0].disposition_id);
+    TEST_ASSERT_EQUAL_STRING("accept", rpt.findings[0].disposition_action);
+
+    free(list.items);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-DISP-ENFORCE002
+//cfusa:test REQ-DISP-ENFORCE002
+void test_apply_dispositions_mitigate_also_suppresses(void)
+{
+    cfusa_report_t rpt;
+    one_finding(&rpt, "CFUSA-A002", SEV_ERROR);
+
+    cfusa_disposition_list_t list;
+    memset(&list, 0, sizeof(list));
+    list.items = malloc(sizeof(cfusa_disposition_t));
+    list.count = 1; list.cap = 1;
+    memset(&list.items[0], 0, sizeof(cfusa_disposition_t));
+    strcpy(list.items[0].id, "DISP-0002");
+    strcpy(list.items[0].fingerprint, rpt.findings[0].fingerprint);
+    strcpy(list.items[0].action, "mitigate");
+
+    cfusa_report_apply_dispositions(&rpt, &list);
+
+    TEST_ASSERT_EQUAL_INT(0, rpt.error_count);
+    TEST_ASSERT_EQUAL_INT(1, rpt.dispositioned_count);
+
+    free(list.items);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-DISP-ENFORCE002
+//cfusa:test REQ-DISP-ENFORCE002
+void test_apply_dispositions_fix_action_does_not_suppress(void)
+{
+    cfusa_report_t rpt;
+    one_finding(&rpt, "CFUSA-L003", SEV_WARNING);
+
+    cfusa_disposition_list_t list;
+    memset(&list, 0, sizeof(list));
+    list.items = malloc(sizeof(cfusa_disposition_t));
+    list.count = 1; list.cap = 1;
+    memset(&list.items[0], 0, sizeof(cfusa_disposition_t));
+    strcpy(list.items[0].id, "DISP-0003");
+    strcpy(list.items[0].fingerprint, rpt.findings[0].fingerprint);
+    strcpy(list.items[0].action, "fix");
+
+    cfusa_report_apply_dispositions(&rpt, &list);
+
+    TEST_ASSERT_EQUAL_INT(1, rpt.warning_count); /* unaffected */
+    TEST_ASSERT_EQUAL_INT(0, rpt.dispositioned_count);
+    TEST_ASSERT_EQUAL_STRING("", rpt.findings[0].disposition_id);
+
+    free(list.items);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-DISP-ENFORCE002
+//cfusa:test REQ-DISP-ENFORCE002
+void test_apply_dispositions_rule_only_no_fingerprint_does_not_suppress(void)
+{
+    cfusa_report_t rpt;
+    one_finding(&rpt, "CFUSA-L003", SEV_WARNING);
+
+    cfusa_disposition_list_t list;
+    memset(&list, 0, sizeof(list));
+    list.items = malloc(sizeof(cfusa_disposition_t));
+    list.count = 1; list.cap = 1;
+    memset(&list.items[0], 0, sizeof(cfusa_disposition_t));
+    strcpy(list.items[0].id, "DISP-0004");
+    strcpy(list.items[0].rule, "CFUSA-L003");
+    /* deliberately no fingerprint set — rule-only entry */
+    strcpy(list.items[0].action, "accept");
+
+    cfusa_report_apply_dispositions(&rpt, &list);
+
+    TEST_ASSERT_EQUAL_INT(1, rpt.warning_count); /* unaffected: no rule-wide leakage */
+    TEST_ASSERT_EQUAL_INT(0, rpt.dispositioned_count);
+
+    free(list.items);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-DISP-ENFORCE002
+//cfusa:test REQ-DISP-ENFORCE002
+void test_apply_dispositions_different_fingerprint_same_rule_unaffected(void)
+{
+    /* Two findings under the same rule, different fingerprints (different
+     * messages) — dispositioning one must not affect the other. */
+    cfusa_report_t rpt;
+    cfusa_report_init(&rpt);
+    cfusa_report_add(&rpt, "CFUSA-A006", "analyze", SEV_WARNING, "f.c", 1, "pointer 'x'");
+    cfusa_report_add(&rpt, "CFUSA-A006", "analyze", SEV_WARNING, "f.c", 2, "pointer 'y'");
+    TEST_ASSERT_TRUE(strcmp(rpt.findings[0].fingerprint, rpt.findings[1].fingerprint) != 0);
+
+    cfusa_disposition_list_t list;
+    memset(&list, 0, sizeof(list));
+    list.items = malloc(sizeof(cfusa_disposition_t));
+    list.count = 1; list.cap = 1;
+    memset(&list.items[0], 0, sizeof(cfusa_disposition_t));
+    strcpy(list.items[0].id, "DISP-0005");
+    strcpy(list.items[0].fingerprint, rpt.findings[0].fingerprint);
+    strcpy(list.items[0].action, "accept");
+
+    cfusa_report_apply_dispositions(&rpt, &list);
+
+    TEST_ASSERT_EQUAL_INT(1, rpt.warning_count); /* only findings[1] still counts */
+    TEST_ASSERT_EQUAL_INT(1, rpt.dispositioned_count);
+    TEST_ASSERT_TRUE(rpt.findings[0].disposition_id[0] != '\0');
+    TEST_ASSERT_TRUE(rpt.findings[1].disposition_id[0] == '\0');
+
+    free(list.items);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-DISP-ENFORCE002
+//cfusa:test REQ-DISP-ENFORCE002
+void test_apply_dispositions_empty_list_is_noop(void)
+{
+    cfusa_report_t rpt;
+    one_finding(&rpt, "CFUSA-L003", SEV_ERROR);
+
+    cfusa_disposition_list_t list;
+    memset(&list, 0, sizeof(list));
+
+    cfusa_report_apply_dispositions(&rpt, &list);
+
+    TEST_ASSERT_EQUAL_INT(1, rpt.error_count);
+    TEST_ASSERT_EQUAL_INT(0, rpt.dispositioned_count);
+
+    cfusa_report_free(&rpt);
+}
+
+/* ---- end-to-end: cmd_check / cmd_lint / cmd_disposition ---- */
+
+static void write_bad_source(void)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/bad.c", DE_DIR);
+    FILE *f = cfusa_fopen_write(path);
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        /* A typed (not void*) pointer so this triggers exactly one lint
+         * finding (CFUSA-L003) and one analyze finding (CFUSA-A002),
+         * not also CFUSA-L008 ("avoid void*") as collateral noise. */
+        fputs("void fn(void) {\n    char *p = malloc(64);\n}\n", f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
+    }
+}
+
+/* Gets the fingerprint `cmd` (cmd_check or cmd_lint) would itself compute
+ * for `rule` in DE_DIR, by actually running `cmd --format json` and
+ * reading the value back out of its own output — rather than
+ * re-invoking the engine directly and computing one independently.
+ *
+ * This indirection matters, and the two commands are NOT
+ * interchangeable here: cmd_check sets rpt.project_root via
+ * realpath(dir) before scanning (which cfusa_report_add() then uses to
+ * relativize each finding's file path into the fingerprint's canonical
+ * input); cmd_lint does not set project_root at all, so its findings'
+ * file paths — and therefore fingerprints — stay unrelativized
+ * (absolute). A caller computing a fingerprint independently of the
+ * command it's meant to match can silently diverge from what that
+ * command actually produces, and — worse — can appear to work on one
+ * platform and not another: on macOS, realpath("/tmp/...") re-prefixes
+ * "/private", so cmd_check's project_root doesn't even match
+ * cfusa_walk_sources()'s own literal "/tmp/..." path prefix either,
+ * leaving cmd_check's fingerprint unrelativized too (by a different,
+ * coincidental reason) — so a naive direct-engine lookup happened to
+ * match cmd_check there. On Linux, where /tmp isn't a symlink, realpath
+ * matches the literal prefix and cmd_check's relativization actually
+ * kicks in, while a direct-engine lookup stays absolute — a real,
+ * silent, platform-dependent fingerprint mismatch. Always fetching the
+ * fingerprint from the exact command under test avoids the whole class
+ * of bug, on every platform. */
+static void get_fingerprint_for_rule(int (*cmd)(int, char **), const char *rule,
+                                      char *out, size_t out_sz)
+{
+    out[0] = '\0';
+
+    char jpath[256];
+    snprintf(jpath, sizeof(jpath), "%s/fp_lookup.json", DE_DIR);
+    char *argv[] = {"cfusa", "--dir", DE_DIR, "--format", "json",
+                     "--output", jpath, NULL};
+    cmd(7, argv);
+
+    size_t len = 0;
+    char *buf = cfusa_read_file(jpath, &len);
+    remove(jpath);
+    if (!buf) return;
+
+    char pat[64];
+    snprintf(pat, sizeof(pat), "\"ruleId\": \"%s\"", rule);
+    char *p = strstr(buf, pat);
+    if (p) {
+        char *fp = strstr(p, "\"fingerprint\":");
+        if (fp) sscanf(fp, "\"fingerprint\": \"%79[^\"]", out);
+        /* out_sz is always >= 80 at every call site; guard anyway */
+        if (out_sz < 80) out[out_sz - 1] = '\0';
+    }
+    free(buf);
+}
+
+/* issue #122 core end-to-end scenario, at cmd_check's level. Uses JSON
+ * output rather than the overall exit code: DE_DIR has no .fusa.json/
+ * README/LICENSE/CI config/etc, so cmd_check's safety-scaffolding rules
+ * (FUSA001-005, HARA001, ...) always also fire in this directory —
+ * legitimately unrelated ERRORs/WARNINGs that no CFUSA-A002 disposition
+ * should (or does) suppress, which would make an overall exit-code
+ * assertion here fragile/misleading. The JSON summary's per-field deltas
+ * are the precise, meaningful thing to check instead; the full
+ * exit-code-flip guarantee is proven directly against cmd_lint below,
+ * where no such collateral findings exist. */
+//cfusa:req REQ-DISP-ENFORCE003
+//cfusa:test REQ-DISP-ENFORCE003
+void test_check_json_tags_and_omits_dispositioned_finding_from_gate(void)
+{
+    rm_disp_json();
+    write_bad_source();
+
+    char fp[80];
+    get_fingerprint_for_rule(cmd_check, "CFUSA-A002", fp, sizeof(fp));
+    TEST_ASSERT_TRUE(fp[0] != '\0');
+
+    char *add_argv[] = {"cfusa", "add", "--dir", DE_DIR,
+                         "--rule", "CFUSA-A002", "--fingerprint", fp,
+                         "--action", "accept", "--rationale", "reviewed, ok",
+                         "--reviewer", "Jane", NULL};
+    int add_rc = cmd_disposition(14, add_argv);
+    TEST_ASSERT_EQUAL_INT(0, add_rc);
+
+    char outpath[256];
+    snprintf(outpath, sizeof(outpath), "%s/check_out.json", DE_DIR);
+    char *argv[] = {"cfusa", "--dir", DE_DIR, "--format", "json",
+                     "--output", outpath, NULL};
+    cmd_check(7, argv);
+
+    FILE *f = fopen(outpath, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[16384] = "";
+        size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
+
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"dispositioned\": 1"));
+        /* The CFUSA-A002 finding is still present (never dropped) and
+         * carries the disposition tag. */
+        char *a002 = strstr(buf, "\"CFUSA-A002\"");
+        TEST_ASSERT_NOT_NULL(a002);
+        char *next_finding = strstr(a002 + 1, "\"ruleId\"");
+        size_t span = next_finding ? (size_t)(next_finding - a002) : strlen(a002);
+        char snippet[512] = "";
+        size_t cpy = span < sizeof(snippet) - 1 ? span : sizeof(snippet) - 1;
+        memcpy(snippet, a002, cpy); snippet[cpy] = '\0';
+        TEST_ASSERT_NOT_NULL(strstr(snippet, "\"dispositionId\": \"DISP-0001\""));
+        TEST_ASSERT_NOT_NULL(strstr(snippet, "\"dispositionAction\": \"accept\""));
+
+        remove(outpath);
+    }
+
+    rm_disp_json();
+    char path[256]; snprintf(path, sizeof(path), "%s/bad.c", DE_DIR); remove(path);
+}
+
+/* Same guarantee for cmd_lint independently. */
+//cfusa:req REQ-DISP-ENFORCE003
+//cfusa:test REQ-DISP-ENFORCE003
+void test_lint_exit_code_flips_after_accept_disposition(void)
+{
+    rm_disp_json();
+    write_bad_source();
+
+    char fp[80];
+    get_fingerprint_for_rule(cmd_lint, "CFUSA-L003", fp, sizeof(fp));
+    TEST_ASSERT_TRUE(fp[0] != '\0');
+
+    /* CFUSA-L003 is a warning, not an error -- use --strict so it gates */
+    char *before_strict[] = {"cfusa", "--dir", DE_DIR, "--strict", NULL};
+    int rc_before = cmd_lint(4, before_strict);
+    TEST_ASSERT_TRUE(rc_before != 0);
+
+    char *add_argv[] = {"cfusa", "add", "--dir", DE_DIR,
+                         "--rule", "CFUSA-L003", "--fingerprint", fp,
+                         "--action", "mitigate", "--rationale", "reviewed, ok",
+                         "--reviewer", "Jane", NULL};
+    int add_rc = cmd_disposition(14, add_argv);
+    TEST_ASSERT_EQUAL_INT(0, add_rc);
+
+    char *after_strict[] = {"cfusa", "--dir", DE_DIR, "--strict", NULL};
+    int rc_after = cmd_lint(4, after_strict);
+    TEST_ASSERT_EQUAL_INT(0, rc_after);
+
+    rm_disp_json();
+    char path[256]; snprintf(path, sizeof(path), "%s/bad.c", DE_DIR); remove(path);
+}
+
+/* cmd_check must never crash / must still succeed when no dispositions
+ * file exists at all (the overwhelmingly common case). */
+//cfusa:req REQ-DISP-ENFORCE003
+//cfusa:test REQ-DISP-ENFORCE003
+void test_check_runs_fine_with_no_dispositions_file(void)
+{
+    rm_disp_json();
+    write_bad_source();
+    char *argv[] = {"cfusa", "--dir", DE_DIR, NULL};
+    int rc = cmd_check(3, argv);
+    (void)rc; /* just must not crash */
+    char path[256]; snprintf(path, sizeof(path), "%s/bad.c", DE_DIR); remove(path);
+}
+
+int main(void)
+{
+    UNITY_BEGIN();
+    RUN_TEST(test_dispositions_load_missing_file_is_not_an_error);
+    RUN_TEST(test_dispositions_load_parses_fingerprint_field);
+    RUN_TEST(test_apply_dispositions_accept_suppresses_matching_fingerprint);
+    RUN_TEST(test_apply_dispositions_mitigate_also_suppresses);
+    RUN_TEST(test_apply_dispositions_fix_action_does_not_suppress);
+    RUN_TEST(test_apply_dispositions_rule_only_no_fingerprint_does_not_suppress);
+    RUN_TEST(test_apply_dispositions_different_fingerprint_same_rule_unaffected);
+    RUN_TEST(test_apply_dispositions_empty_list_is_noop);
+    RUN_TEST(test_check_json_tags_and_omits_dispositioned_finding_from_gate);
+    RUN_TEST(test_lint_exit_code_flips_after_accept_disposition);
+    RUN_TEST(test_check_runs_fine_with_no_dispositions_file);
+    return UNITY_END();
+}
