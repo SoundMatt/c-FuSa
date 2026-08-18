@@ -288,11 +288,20 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
             char *sit_arr = extract_bracket(elems[i], "situations", '[', ']');
             if (sit_arr) {
                 char *sub[MAX_REFS];
-                h->situations_count = split_array(sit_arr, sub, MAX_REFS, NULL);
+                int sub_truncated = 0;
+                h->situations_count = split_array(sit_arr, sub, MAX_REFS, &sub_truncated);
                 for (int k = 0; k < h->situations_count; k++)
                     strncpy(h->situations[k], sub[k], REF_LEN - 1);
                 free_array_elems(sub, h->situations_count);
                 free(sit_arr);
+                /* issue #160: same silent-truncation shape already fixed
+                 * for the top-level collections (issue #124) — a nested
+                 * reference array past MAX_REFS entries used to drop the
+                 * extras with zero warning. */
+                if (sub_truncated)
+                    fprintf(stderr, "cfusa hara: WARNING: hazard '%s' situations[] "
+                                     "has more than %d entries — extra entries "
+                                     "were dropped\n", h->id, MAX_REFS);
             }
 
             char *risk = extract_bracket(elems[i], "risk", '{', '}');
@@ -307,11 +316,16 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
             char *sg_arr = extract_bracket(elems[i], "safetyGoals", '[', ']');
             if (sg_arr) {
                 char *sub[MAX_REFS];
-                h->safety_goals_count = split_array(sg_arr, sub, MAX_REFS, NULL);
+                int sub_truncated = 0;
+                h->safety_goals_count = split_array(sg_arr, sub, MAX_REFS, &sub_truncated);
                 for (int k = 0; k < h->safety_goals_count; k++)
                     strncpy(h->safety_goals[k], sub[k], REF_LEN - 1);
                 free_array_elems(sub, h->safety_goals_count);
                 free(sg_arr);
+                if (sub_truncated)
+                    fprintf(stderr, "cfusa hara: WARNING: hazard '%s' safetyGoals[] "
+                                     "has more than %d entries — extra entries "
+                                     "were dropped\n", h->id, MAX_REFS);
             }
         }
         doc->hazards_count = n;
@@ -340,21 +354,31 @@ static void parse_hara_doc(const char *json, size_t len, hara_doc_t *doc)
             char *hz_refs = extract_bracket(elems[i], "hazards", '[', ']');
             if (hz_refs) {
                 char *sub[MAX_REFS];
-                g->hazards_count = split_array(hz_refs, sub, MAX_REFS, NULL);
+                int sub_truncated = 0;
+                g->hazards_count = split_array(hz_refs, sub, MAX_REFS, &sub_truncated);
                 for (int k = 0; k < g->hazards_count; k++)
                     strncpy(g->hazards[k], sub[k], REF_LEN - 1);
                 free_array_elems(sub, g->hazards_count);
                 free(hz_refs);
+                if (sub_truncated)
+                    fprintf(stderr, "cfusa hara: WARNING: safety goal '%s' hazards[] "
+                                     "has more than %d entries — extra entries "
+                                     "were dropped\n", g->id, MAX_REFS);
             }
 
             char *fssr = extract_bracket(elems[i], "fssrRefs", '[', ']');
             if (fssr) {
                 char *sub[MAX_REFS];
-                g->fssr_refs_count = split_array(fssr, sub, MAX_REFS, NULL);
+                int sub_truncated = 0;
+                g->fssr_refs_count = split_array(fssr, sub, MAX_REFS, &sub_truncated);
                 for (int k = 0; k < g->fssr_refs_count; k++)
                     strncpy(g->fssr_refs[k], sub[k], REF_LEN - 1);
                 free_array_elems(sub, g->fssr_refs_count);
                 free(fssr);
+                if (sub_truncated)
+                    fprintf(stderr, "cfusa hara: WARNING: safety goal '%s' fssrRefs[] "
+                                     "has more than %d entries — extra entries "
+                                     "were dropped\n", g->id, MAX_REFS);
             }
         }
         doc->goals_count = n;

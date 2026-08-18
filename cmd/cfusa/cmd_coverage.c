@@ -178,10 +178,13 @@ typedef struct {
     int    in_record;
 } lcov_state_t;
 
-static void parse_lcov(const char *path, lcov_state_t *s)
+/* Returns 1 on a successful open+read (even if the file turned out to
+ * contain no recognized records — the caller separately checks
+ * s->lines_found for that), 0 if the file could not even be opened. */
+static int parse_lcov(const char *path, lcov_state_t *s)
 {
     FILE *f = fopen(path, "r");
-    if (!f) { perror(path); return; }
+    if (!f) { perror(path); return 0; }
 
     char line[4096];
     while (fgets(line, sizeof(line), f)) {
@@ -208,7 +211,8 @@ static void parse_lcov(const char *path, lcov_state_t *s)
             s->branches_hit += atol(line + 4);
         }
     }
-    if (fclose(f) != 0) perror(path);
+    if (fclose(f) != 0) { perror(path); return 0; }
+    return 1;
 }
 
 static double pct(long hit, long found)
@@ -495,12 +499,34 @@ int cmd_coverage(int argc, char **argv)
     }
 
     lcov_state_t state = {0};
+    int lcov_opened = 1;
     if (lcov_in && cfusa_file_exists(lcov_in))
-        parse_lcov(lcov_in, &state);
+        lcov_opened = parse_lcov(lcov_in, &state);
 
     double line_pct   = pct(state.lines_hit,    state.lines_found);
     double func_pct   = pct(state.funcs_hit,    state.funcs_found);
     double branch_pct = pct(state.branches_hit, state.branches_found);
+
+    /* issue #142: an empty, corrupted, or unreadable lcov .info file must
+     * never silently read as 100% coverage via pct(0,0)'s vacuous-pass
+     * default. A real project always has at least one coverable line, so
+     * lines_found == 0 after actually attempting to parse a supplied lcov
+     * file is a reliable signal something went wrong (0-byte file, a
+     * lcov grammar change this string-scan no longer recognizes, or a
+     * permission/read failure) — never a legitimate "0 lines found"
+     * result. Mirrors parse_mcdc_json()'s existing zero-conditions
+     * handling below. */
+    int lcov_data_missing = lcov_in && (!lcov_opened || state.lines_found == 0);
+    char lcov_note[256] = "";
+    if (lcov_data_missing) {
+        snprintf(lcov_note, sizeof(lcov_note),
+            lcov_opened
+                ? "%s parsed but contained no LF:/LH: records — treating "
+                  "as a failed/empty measurement, not 100%% coverage"
+                : "%s could not be opened — treating as a failed "
+                  "measurement, not 100%% coverage",
+            lcov_in);
+    }
 
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
     FILE *out_f = stdout;
@@ -516,9 +542,10 @@ int cmd_coverage(int argc, char **argv)
         have_mcdc_rep = 1;
     }
 
-    int line_pass   = !lcov_in || line_pct   >= threshold;
-    int branch_pass = !lcov_in || threshold_branch <= 0.0 || branch_pct >= threshold_branch;
-    int mcdc_pass   = !mcdc    || !lcov_in   || branch_pct >= 100.0;
+    int line_pass   = !lcov_in || (!lcov_data_missing && line_pct   >= threshold);
+    int branch_pass = !lcov_in || (!lcov_data_missing &&
+                       (threshold_branch <= 0.0 || branch_pct >= threshold_branch));
+    int mcdc_pass   = !mcdc    || !lcov_in   || (!lcov_data_missing && branch_pct >= 100.0);
     if (have_mcdc_rep) mcdc_pass = mcdc_rep.passed; /* LLVM MC/DC overrides branch proxy */
     int mut_pass    = !mutate  || mutate_score < 0.0 || mutate_score >= 100.0;
     int overall_pass = line_pass && branch_pass && mcdc_pass && mut_pass;
@@ -541,6 +568,8 @@ int cmd_coverage(int argc, char **argv)
             "Provide --mcdc-file <llvm-mcdc.json> (e.g. from "
             "clang -fcoverage-mcdc) for a real MC/DC gate.\n");
     }
+    if (lcov_data_missing)
+        fprintf(stderr, "cfusa coverage: WARNING: %s\n", lcov_note);
 
     if (fmt == FMT_JSON) {
         fprintf(out_f,
@@ -569,6 +598,8 @@ int cmd_coverage(int argc, char **argv)
             state.branches_hit, state.branches_found, branch_pct,
             threshold,
             overall_pass ? "true" : "false");
+        if (lcov_data_missing)
+            fprintf(out_f, ",\n  \"lcovNote\": \"%s\"", lcov_note);
         /* issue #137: surfaced only when actually enforced (--dal/--asil/
          * --branch-threshold), matching "threshold" above being always
          * shown but "mcdcReport" only appearing when MC/DC is relevant —
@@ -639,6 +670,8 @@ int cmd_coverage(int argc, char **argv)
             fprintf(out_f, "  Branch    coverage: %6.2f%%  (%ld / %ld)  %s\n",
                     branch_pct, state.branches_hit, state.branches_found,
                     branch_pass ? "PASS" : "FAIL");
+            if (lcov_data_missing)
+                fprintf(out_f, "  NOTE: %s\n", lcov_note);
         }
         if (mcdc && lcov_in && !have_mcdc_rep) {
             fprintf(out_f,

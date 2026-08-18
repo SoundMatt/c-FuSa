@@ -79,12 +79,68 @@ static int tags_reserve(int need)
 }
 
 /* ---- HLR/LLR decomposition state (REQ-HLR001) ---- */
-#define MAX_HLR_LLR 512
-static char g_hlr_ids[MAX_HLR_LLR][MAX_ID]; static int g_hlr_count;
-static char g_llr_ids[MAX_HLR_LLR][MAX_ID];
-static char g_llr_parents[MAX_HLR_LLR][MAX_ID]; static int g_llr_count;
-static char g_orphaned[MAX_HLR_LLR][MAX_ID];    static int g_orphaned_count;
-static char g_uncovered[MAX_HLR_LLR][MAX_ID];   static int g_uncovered_count;
+/* issue #167: these five arrays were fixed at a compile-time MAX_HLR_LLR
+ * cap and silently stopped accumulating once full, with no warning —
+ * exactly the "fixed-cap silent truncation" pattern eliminated from
+ * g_reqs/g_tags above for issue #100. Now grow dynamically via realloc,
+ * the same pattern as reqs_reserve()/tags_reserve(). */
+#define HLR_LLR_INITIAL_CAP 64
+static char (*g_hlr_ids)[MAX_ID];      static int g_hlr_count,       g_hlr_cap;
+static char (*g_llr_ids)[MAX_ID];
+static char (*g_llr_parents)[MAX_ID];  static int g_llr_count,       g_llr_cap;
+static char (*g_orphaned)[MAX_ID];     static int g_orphaned_count,  g_orphaned_cap;
+static char (*g_uncovered)[MAX_ID];    static int g_uncovered_count, g_uncovered_cap;
+
+static int hlr_reserve(int need)
+{
+    if (need <= g_hlr_cap) return 1;
+    int new_cap = g_hlr_cap ? g_hlr_cap : HLR_LLR_INITIAL_CAP;
+    while (new_cap < need) new_cap *= 2;
+    char (*tmp)[MAX_ID] = realloc(g_hlr_ids, (size_t)new_cap * sizeof(*g_hlr_ids));
+    if (!tmp) return 0;
+    g_hlr_ids = tmp;
+    g_hlr_cap = new_cap;
+    return 1;
+}
+
+static int llr_reserve(int need)
+{
+    if (need <= g_llr_cap) return 1;
+    int new_cap = g_llr_cap ? g_llr_cap : HLR_LLR_INITIAL_CAP;
+    while (new_cap < need) new_cap *= 2;
+    char (*tmp_ids)[MAX_ID] = realloc(g_llr_ids, (size_t)new_cap * sizeof(*g_llr_ids));
+    if (!tmp_ids) return 0;
+    g_llr_ids = tmp_ids;
+    char (*tmp_parents)[MAX_ID] = realloc(g_llr_parents, (size_t)new_cap * sizeof(*g_llr_parents));
+    if (!tmp_parents) return 0;
+    g_llr_parents = tmp_parents;
+    g_llr_cap = new_cap;
+    return 1;
+}
+
+static int orphaned_reserve(int need)
+{
+    if (need <= g_orphaned_cap) return 1;
+    int new_cap = g_orphaned_cap ? g_orphaned_cap : HLR_LLR_INITIAL_CAP;
+    while (new_cap < need) new_cap *= 2;
+    char (*tmp)[MAX_ID] = realloc(g_orphaned, (size_t)new_cap * sizeof(*g_orphaned));
+    if (!tmp) return 0;
+    g_orphaned = tmp;
+    g_orphaned_cap = new_cap;
+    return 1;
+}
+
+static int uncovered_reserve(int need)
+{
+    if (need <= g_uncovered_cap) return 1;
+    int new_cap = g_uncovered_cap ? g_uncovered_cap : HLR_LLR_INITIAL_CAP;
+    while (new_cap < need) new_cap *= 2;
+    char (*tmp)[MAX_ID] = realloc(g_uncovered, (size_t)new_cap * sizeof(*g_uncovered));
+    if (!tmp) return 0;
+    g_uncovered = tmp;
+    g_uncovered_cap = new_cap;
+    return 1;
+}
 
 /* ---- minimal JSON field extractor for { ... } objects ---- */
 static void jfield(const char *obj, const char *key, char *out, size_t sz)
@@ -417,8 +473,10 @@ static void do_scan_funcs(const char *root)
 }
 
 /* ---- HLR/LLR decomposition analysis (REQ-HLR001, REQ-HLR002, REQ-HLR003) ---- */
+/* Returns 1 on a complete computation, 0 if a growth failure (OOM)
+ * occurred partway through — never silently truncates (issue #167). */
 //cfusa:req REQ-HLR001
-static void compute_hlr_llr(void)
+static int compute_hlr_llr(void)
 {
     g_hlr_count = g_llr_count = g_orphaned_count = g_uncovered_count = 0;
 
@@ -429,9 +487,11 @@ static void compute_hlr_llr(void)
         lvl[sizeof(lvl)-1] = '\0';
         for (char *p = lvl; *p; p++) *p = (char)toupper((unsigned char)*p);
 
-        if (!strcmp(lvl, "HLR") && g_hlr_count < MAX_HLR_LLR) {
+        if (!strcmp(lvl, "HLR")) {
+            if (!hlr_reserve(g_hlr_count + 1)) return 0;
             strncpy(g_hlr_ids[g_hlr_count++], g_reqs[i].id, MAX_ID - 1);
-        } else if (!strcmp(lvl, "LLR") && g_llr_count < MAX_HLR_LLR) {
+        } else if (!strcmp(lvl, "LLR")) {
+            if (!llr_reserve(g_llr_count + 1)) return 0;
             strncpy(g_llr_ids[g_llr_count],    g_reqs[i].id,        MAX_ID - 1);
             strncpy(g_llr_parents[g_llr_count], g_reqs[i].parent_id, MAX_ID - 1);
             g_llr_count++;
@@ -446,8 +506,10 @@ static void compute_hlr_llr(void)
                 if (!strcmp(g_llr_parents[i], g_hlr_ids[j])) { valid = 1; break; }
             }
         }
-        if (!valid && g_orphaned_count < MAX_HLR_LLR)
+        if (!valid) {
+            if (!orphaned_reserve(g_orphaned_count + 1)) return 0;
             strncpy(g_orphaned[g_orphaned_count++], g_llr_ids[i], MAX_ID - 1);
+        }
     }
 
     /* REQ-HLR003: every HLR must have at least one LLR child */
@@ -456,9 +518,12 @@ static void compute_hlr_llr(void)
         for (int i = 0; i < g_llr_count; i++) {
             if (!strcmp(g_llr_parents[i], g_hlr_ids[j])) { covered = 1; break; }
         }
-        if (!covered && g_uncovered_count < MAX_HLR_LLR)
+        if (!covered) {
+            if (!uncovered_reserve(g_uncovered_count + 1)) return 0;
             strncpy(g_uncovered[g_uncovered_count++], g_hlr_ids[j], MAX_ID - 1);
+        }
     }
+    return 1;
 }
 
 int cmd_trace(int argc, char **argv)
@@ -587,7 +652,11 @@ int cmd_trace(int argc, char **argv)
         }
     }
 
-    compute_hlr_llr(); /* REQ-HLR001 */
+    if (!compute_hlr_llr()) { /* REQ-HLR001 */
+        fprintf(stderr, "cfusa trace: aborting — HLR/LLR decomposition analysis "
+                "failed to complete in full (out of memory)\n");
+        return 3;
+    }
 
     int total = g_req_count;
     int traced, tested, sec_tested_count;

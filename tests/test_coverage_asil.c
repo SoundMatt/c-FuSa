@@ -304,6 +304,82 @@ void test_branch_threshold_help_returns_zero(void)
     TEST_ASSERT_EQUAL(0, rc);
 }
 
+/* ---- issue #142: empty/corrupt/unreadable lcov must never read as 100% ---- */
+
+//cfusa:req REQ-COV001
+//cfusa:test REQ-COV001
+void test_coverage_empty_lcov_fails_not_100pct(void)
+{
+    /* A 0-byte lcov file contains no LF:/LH: records at all — pct(0,0)
+     * used to default to 100.0 with no zero-found guard, so this
+     * silently reported full coverage and PASS. */
+    char path[256];
+    snprintf(path, sizeof(path), "%s/empty.info", COVA_DIR);
+    FILE *f = cfusa_fopen_write(path);
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) TEST_ASSERT_EQUAL(0, fclose(f));
+
+    char *argv[] = {"cfusa", "--lcov", path, "--threshold", "50", NULL};
+    int rc = cmd_coverage(5, argv);
+    TEST_ASSERT_TRUE(rc != 0);
+}
+
+//cfusa:req REQ-COV001
+//cfusa:test REQ-COV001
+void test_coverage_empty_lcov_json_reports_not_passed(void)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/empty2.info", COVA_DIR);
+    FILE *f = cfusa_fopen_write(path);
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) TEST_ASSERT_EQUAL(0, fclose(f));
+
+    char outpath[256];
+    snprintf(outpath, sizeof(outpath), "%s/empty2_out.json", COVA_DIR);
+    char *argv[] = {"cfusa", "--lcov", path, "--threshold", "50",
+                     "--format", "json", "--output", outpath, NULL};
+    int rc = cmd_coverage(9, argv);
+    TEST_ASSERT_TRUE(rc != 0);
+
+    FILE *jf = fopen(outpath, "r");
+    TEST_ASSERT_NOT_NULL(jf);
+    if (jf) {
+        char buf[4096]; size_t n = fread(buf, 1, sizeof(buf)-1, jf); buf[n] = '\0';
+        TEST_ASSERT_EQUAL(0, fclose(jf));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"passed\": false"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"lcovNote\""));
+    }
+}
+
+//cfusa:req REQ-COV001
+//cfusa:test REQ-COV001
+void test_coverage_unreadable_lcov_fails(void)
+{
+    /* A path that cfusa_file_exists() sees but fopen() can't open (e.g.
+     * a directory given by mistake instead of a file) must fail the
+     * same way, not silently report 100%. */
+    char dirpath[256];
+    snprintf(dirpath, sizeof(dirpath), "%s/not_a_file.info", COVA_DIR);
+    (void)mkdir(dirpath, 0700);
+
+    char *argv[] = {"cfusa", "--lcov", dirpath, "--threshold", "50", NULL};
+    int rc = cmd_coverage(5, argv);
+    TEST_ASSERT_TRUE(rc != 0);
+}
+
+//cfusa:req REQ-COV001
+//cfusa:test REQ-COV001
+void test_coverage_real_lcov_still_passes(void)
+{
+    /* Sanity check the fix doesn't overcorrect into failing genuine data. */
+    write_lcov("real.info", 10, 10, 4, 4);
+    char path[256];
+    snprintf(path, sizeof(path), "%s/real.info", COVA_DIR);
+    char *argv[] = {"cfusa", "--lcov", path, "--threshold", "50", NULL};
+    int rc = cmd_coverage(5, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -322,5 +398,9 @@ int main(void)
     RUN_TEST(test_branch_threshold_does_not_weaken_dal_requirement);
     RUN_TEST(test_branch_threshold_raises_above_dal_requirement);
     RUN_TEST(test_branch_threshold_help_returns_zero);
+    RUN_TEST(test_coverage_empty_lcov_fails_not_100pct);
+    RUN_TEST(test_coverage_empty_lcov_json_reports_not_passed);
+    RUN_TEST(test_coverage_unreadable_lcov_fails);
+    RUN_TEST(test_coverage_real_lcov_still_passes);
     return UNITY_END();
 }

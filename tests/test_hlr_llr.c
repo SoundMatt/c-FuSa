@@ -4,6 +4,7 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -217,6 +218,88 @@ void test_text_output_has_hlrllr_line(void)
     remove_file(".fusa-reqs.json");
 }
 
+/* issue #167: the HLR/LLR arrays used to be fixed at a compile-time
+ * MAX_HLR_LLR=512 cap and silently stopped accumulating once full — a
+ * decomposition violation on any requirement past the 512th HLR was
+ * invisible to --strict-hlr-llr, with zero warning. Build 600 HLRs, each
+ * with a matching LLR child EXCEPT the 550th one — that one must still
+ * be detected as UNCOVERED, proving the classification isn't silently
+ * capped at 512. */
+//cfusa:req REQ-HLR003
+//cfusa:test REQ-HLR003
+void test_strict_hlr_llr_beyond_512_not_silently_truncated(void)
+{
+    static char buf[200000];
+    size_t n = 0;
+    n += (size_t)snprintf(buf + n, sizeof(buf) - n, "{\"requirements\":[");
+    for (int i = 1; i <= 600; i++) {
+        n += (size_t)snprintf(buf + n, sizeof(buf) - n,
+            "{\"id\":\"HLR-%04d\",\"title\":\"h\",\"level\":\"HLR\"},", i);
+    }
+    for (int i = 1; i <= 600; i++) {
+        if (i == 550) continue; /* HLR-0550 deliberately left uncovered */
+        n += (size_t)snprintf(buf + n, sizeof(buf) - n,
+            "{\"id\":\"LLR-%04d\",\"title\":\"l\",\"level\":\"LLR\","
+            "\"parentId\":\"HLR-%04d\"}%s", i, i, (i < 600) ? "," : "");
+    }
+    n += (size_t)snprintf(buf + n, sizeof(buf) - n, "]}");
+    TEST_ASSERT_TRUE(n < sizeof(buf));
+    write_file(".fusa-reqs.json", buf);
+
+    char *argv[] = {"cfusa", "--dir", HLR_TEST_DIR,
+                    "--strict-hlr-llr", NULL};
+    int rc = cmd_trace(4, argv);
+    TEST_ASSERT_EQUAL(1, rc); /* HLR-0550 uncovered -> gate fails */
+    remove_file(".fusa-reqs.json");
+}
+
+//cfusa:req REQ-HLR003
+//cfusa:test REQ-HLR003
+void test_json_output_hlrllr_summary_counts_beyond_512(void)
+{
+    static char buf[200000];
+    size_t n = 0;
+    n += (size_t)snprintf(buf + n, sizeof(buf) - n, "{\"requirements\":[");
+    for (int i = 1; i <= 600; i++) {
+        n += (size_t)snprintf(buf + n, sizeof(buf) - n,
+            "{\"id\":\"HLR-%04d\",\"title\":\"h\",\"level\":\"HLR\"},"
+            "{\"id\":\"LLR-%04d\",\"title\":\"l\",\"level\":\"LLR\","
+            "\"parentId\":\"HLR-%04d\"}%s",
+            i, i, i, (i < 600) ? "," : "");
+    }
+    n += (size_t)snprintf(buf + n, sizeof(buf) - n, "]}");
+    TEST_ASSERT_TRUE(n < sizeof(buf));
+    write_file(".fusa-reqs.json", buf);
+
+    char *argv[] = {"cfusa", "--dir", HLR_TEST_DIR,
+                    "--format", "json",
+                    "--output", "/tmp/cfusa_hlr_llr_600.json", NULL};
+    int rc = cmd_trace(7, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen("/tmp/cfusa_hlr_llr_600.json", "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        long sz = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        TEST_ASSERT_TRUE(sz > 0);
+        char *out = malloc((size_t)sz + 1);
+        TEST_ASSERT_NOT_NULL(out);
+        if (out) {
+            size_t got = fread(out, 1, (size_t)sz, f);
+            out[got] = '\0';
+            /* all 600 HLRs and 600 LLRs must be counted, not capped at 512 */
+            TEST_ASSERT_NOT_NULL(strstr(out, "\"hlrCount\": 600"));
+            TEST_ASSERT_NOT_NULL(strstr(out, "\"llrCount\": 600"));
+            free(out);
+        }
+        fclose(f);
+        (void)remove("/tmp/cfusa_hlr_llr_600.json");
+    }
+    remove_file(".fusa-reqs.json");
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -228,5 +311,7 @@ int main(void)
     RUN_TEST(test_json_output_has_hlrllr_summary);
     RUN_TEST(test_json_output_has_parent_id);
     RUN_TEST(test_text_output_has_hlrllr_line);
+    RUN_TEST(test_strict_hlr_llr_beyond_512_not_silently_truncated);
+    RUN_TEST(test_json_output_hlrllr_summary_counts_beyond_512);
     return UNITY_END();
 }
