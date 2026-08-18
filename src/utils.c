@@ -122,6 +122,42 @@ int cfusa_dir_exists(const char *path)
     return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
+/* Case-insensitive equality — kept local rather than pulling in
+ * strcasecmp() (POSIX, not C99), matching the project's existing
+ * convention (see severity.c's str_ieq(), qualitybar.c's
+ * qb_str_ieq_trim()). */
+static int utils_str_ieq(const char *a, const char *b)
+{
+    while (*a && *b) {
+        if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) return 0;
+        a++; b++;
+    }
+    return *a == '\0' && *b == '\0';
+}
+
+int cfusa_find_file_ci(const char *dir, const char *name,
+                        char *out_path, size_t out_sz)
+{
+    DIR *d = opendir(dir);
+    if (!d) return 0;
+
+    int found = 0;
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL) {
+        if (!utils_str_ieq(ent->d_name, name)) continue;
+        char candidate[512];
+        cfusa_path_join(candidate, sizeof(candidate), dir, ent->d_name);
+        struct stat st;
+        if (stat(candidate, &st) == 0 && S_ISREG(st.st_mode)) {
+            cfusa_path_join(out_path, out_sz, dir, ent->d_name);
+            found = 1;
+            break;
+        }
+    }
+    closedir(d);
+    return found;
+}
+
 int cfusa_mkdir_p(const char *path)
 {
     char tmp[512];

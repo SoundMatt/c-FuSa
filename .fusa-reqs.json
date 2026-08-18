@@ -380,6 +380,7 @@
 
     {"id":"REQ-SC002","title":"cfusa safety-case --format json emits nodes[]/edges[]/completeness using the six GSN node types","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
     {"id":"REQ-SC003","title":"cfusa safety-case solution nodes cite evidence only for files that actually exist in the project","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
+    {"id":"REQ-SC004","title":"cfusa safety-case matches evidence filenames (hara.md, safety-plan.md, tara.md, fmea.md, etc.) case-insensitively against the real directory listing, citing the on-disk casing, rather than a hardcoded exact-lowercase match that silently drops evidence on case-sensitive filesystems","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
     {"id":"REQ-SC-SCHEMA001","title":"cfusa safety-case JSON node/edge types conform to the GSN Community Standard v3 vocabulary","standard":"x-FuSa spec §9.2","level":"ASIL-B"},
 
     {"id":"REQ-SAS-SCHEMA001","title":"cfusa sas --format json emits checklist[]/summary and always writes the sas.md companion","standard":"x-FuSa spec §9.3","level":"ASIL-A"},

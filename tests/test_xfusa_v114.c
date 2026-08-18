@@ -763,6 +763,57 @@ void test_safety_case_json_has_gsn_node_types(void)
     char p[512]; snprintf(p, sizeof(p), "%s/safety-case.json", V114_DIR); remove(p);
 }
 
+/* issue #97: an uppercase-cased evidence filename (a defensible, common
+ * convention some downstream projects use, e.g. HARA.md) must still be
+ * found and cited — not silently treated as absent because of a
+ * hardcoded exact-lowercase match on a case-sensitive filesystem. */
+//cfusa:req REQ-SC004
+//cfusa:test REQ-SC004
+void test_safety_case_finds_uppercase_hara_evidence(void)
+{
+    write_file("HARA.md", "# HARA\n\nHazard analysis content.\n");
+
+    char *argv[] = {"cfusa", "--dir", V114_DIR, "--format", "json", NULL};
+    int rc = cmd_safety_case(5, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    size_t len;
+    char *buf = slurp("safety-case.json", &len);
+    TEST_ASSERT_NOT_NULL(buf);
+    TEST_ASSERT_NOT_NULL(strstr(buf, "\"Sn1\""));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "\"evidence\": \"HARA.md\""));
+
+    char p[512];
+    snprintf(p, sizeof(p), "%s/safety-case.json", V114_DIR); remove(p);
+    snprintf(p, sizeof(p), "%s/HARA.md", V114_DIR); remove(p);
+}
+
+/* Same guarantee for the markdown Evidence Index table (a second,
+ * independent hardcoded-filename call site issue #97 also flagged). */
+//cfusa:req REQ-SC004
+//cfusa:test REQ-SC004
+void test_safety_case_markdown_evidence_index_finds_uppercase_files(void)
+{
+    write_file("SAFETY-PLAN.md", "# Safety Plan\n");
+
+    char out[512]; snprintf(out, sizeof(out), "%s/safety-case-case-test.md", V114_DIR);
+    char *argv[] = {"cfusa", "--dir", V114_DIR, "--output", out, NULL};
+    int rc = cmd_safety_case(5, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    FILE *f = fopen(out, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192] = "";
+        size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
+        TEST_ASSERT_NOT_NULL(strstr(buf, "SAFETY-PLAN.md | present"));
+        remove(out);
+    }
+    char p[512]; snprintf(p, sizeof(p), "%s/SAFETY-PLAN.md", V114_DIR); remove(p);
+}
+
 /* ================================================================== */
 /* sas checklist/summary schema                                        */
 /* ================================================================== */
@@ -898,6 +949,8 @@ int main(void)
     RUN_TEST(test_tara_coveragepct_never_exceeds_100_with_test_tree);
 
     RUN_TEST(test_safety_case_json_has_gsn_node_types);
+    RUN_TEST(test_safety_case_finds_uppercase_hara_evidence);
+    RUN_TEST(test_safety_case_markdown_evidence_index_finds_uppercase_files);
 
     RUN_TEST(test_sas_json_has_checklist_and_summary);
 
