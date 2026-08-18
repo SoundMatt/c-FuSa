@@ -2,10 +2,37 @@
 #define CFUSA_VERSION_H
 
 #define CFUSA_VERSION_MAJOR  0
-#define CFUSA_VERSION_MINOR  5
-#define CFUSA_VERSION_PATCH  54
-#define CFUSA_VERSION_STRING "0.5.54"
-/* v0.5.54 — 2026-08-14 three fixes from a direct quality review: (1) all
+#define CFUSA_VERSION_MINOR  6
+#define CFUSA_VERSION_PATCH  0
+#define CFUSA_VERSION_STRING "0.6.0"
+/* v0.6.0 — 2026-08-18 nine fixes, seven from an issue-tracker sweep
+ * (#128, #124, #126, #97, #127, #125, #122) plus two more (#129, #137)
+ * found and fixed the same session: (1) `cfusa qualify`'s
+ * qualified/qualificationBadge fields could disagree — now
+ * qualified requires both self-tests passing AND a declared
+ * --qualification-method. (2) `cmd_hara.c`'s split_array() silently
+ * dropped any JSON array element >=511 bytes — a real HARA could read 0
+ * hazards; now heap-allocates each element at its exact length. (3)
+ * CFUSA-A003 (signed/unsigned vs sizeof) was near-100% false positives on
+ * real code — now type-aware via a two-pass locally-visible-name scan.
+ * (4) `cfusa safety-case` hardcoded exact lowercase evidence filenames,
+ * case-sensitive via stat() — broke on Linux for projects naming files
+ * e.g. HARA.md; new cfusa_find_file_ci() does a real case-insensitive
+ * match. (5) `cfusa fix` gained remediation guidance for CFUSA-CY006
+ * (free-without-NULL). (6) new `cfusa trace --func-coverage-strict` — a
+ * genuinely per-function annotation-density gate, additive alongside the
+ * unchanged file-level --func-coverage. (7) `.fusa-dispositions.json` is
+ * now actually enforced by `cfusa check`/`cfusa lint` (fingerprint-scoped,
+ * never rule-wide) instead of being a standalone audit log. (8) `cfusa
+ * coverage --mcdc-file` parsed a schema that never matched real `llvm-cov
+ * export` output — verified and fixed against an actual captured export.
+ * (9) new `cfusa coverage --branch-threshold` — an independent
+ * branch-coverage regression floor, separate from --threshold's
+ * line-only gate. Minor version bump (not patch): includes three new
+ * user-facing flags/behaviors (--func-coverage-strict,
+ * --branch-threshold, disposition enforcement), not just bug fixes.
+ *
+ * v0.5.54 — 2026-08-14 three fixes from a direct quality review: (1) all
  * previously-flagged CFUSA-A007 (unchecked fclose()) sites now check the
  * return value — 39 sites across 9 files, product code gets real error
  * handling, test code fails loudly via TEST_FAIL_MESSAGE. (2) CFUSA-A006
