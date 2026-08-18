@@ -2,9 +2,11 @@
  * Advanced HARA tests: all ASIL levels, boundary values, file operations.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include "../vendor/unity/unity.h"
+#include "cfusa/utils.h"
 
 extern int cmd_hara(int argc, char **argv);
 
@@ -12,6 +14,30 @@ extern int cmd_hara(int argc, char **argv);
 
 void setUp(void)   { (void)mkdir(HARA_DIR, 0700); }
 void tearDown(void) {}
+
+static void write_file(const char *name, const char *body)
+{
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s", HARA_DIR, name);
+    FILE *f = cfusa_fopen_write(path);
+    if (f) { fputs(body, f); fclose(f); }
+}
+
+static char *slurp(const char *name)
+{
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s", HARA_DIR, name);
+    FILE *f = fopen(path, "r");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *buf = malloc((size_t)len + 1);
+    size_t n = fread(buf, 1, (size_t)len, f);
+    buf[n] = '\0';
+    fclose(f);
+    return buf;
+}
 
 static int asil(const char *s, const char *e, const char *c)
 {
@@ -175,6 +201,42 @@ void test_hara_show_missing_file_no_crash(void)
     (void)rc;
 }
 
+//cfusa:req REQ-UTIL018
+//cfusa:test REQ-UTIL018
+void test_hara_show_fssr_ref_not_dangling_with_pretty_printed_reqs(void)
+{
+    /* issue #176: load_req_ids() used a rigid, whitespace-intolerant
+     * sscanf on ".fusa-reqs.json" — a pretty-printed reqs file (space
+     * after the colon) meant every REQ-ID load silently failed, so every
+     * safetyGoal.fssrRefs entry was misreported as a dangling reference. */
+    write_file(".fusa-hara.json",
+        "{\"schemaVersion\":\"1.14.0\",\"kind\":\"hara\",\"operationalSituations\":[],"
+        "\"hazards\":[],"
+        "\"safetyGoals\":[{\"id\":\"SG-1\",\"description\":\"d\",\"hazards\":[],"
+        "\"asil\":\"ASIL-C\",\"safeState\":\"Engine off\","
+        "\"fssrRefs\":[\"REQ-1\"]}]}");
+    write_file(".fusa-reqs.json",
+        "{\n  \"requirements\": [\n    {\n      \"id\": \"REQ-1\",\n"
+        "      \"title\": \"t\",\n      \"standard\": \"ISO 26262\",\n"
+        "      \"level\": \"ASIL-C\"\n    }\n  ]\n}\n");
+
+    char outpath[512];
+    snprintf(outpath, sizeof(outpath), "%s/show_out.txt", HARA_DIR);
+    char *argv[] = {"cfusa", "show", "--dir", HARA_DIR, "--output", outpath, NULL};
+    int rc = cmd_hara(6, argv);
+    TEST_ASSERT_EQUAL(0, rc);
+
+    char *buf = slurp("show_out.txt");
+    TEST_ASSERT_NOT_NULL(buf);
+    TEST_ASSERT_NOT_NULL(strstr(buf, "danglingReferences:      0\n"));
+    free(buf);
+
+    char p[512];
+    snprintf(p, sizeof(p), "%s/.fusa-hara.json", HARA_DIR); remove(p);
+    snprintf(p, sizeof(p), "%s/.fusa-reqs.json",  HARA_DIR); remove(p);
+    remove(outpath);
+}
+
 /* ---- help ---- */
 
 //cfusa:req REQ-HARA009
@@ -210,6 +272,7 @@ int main(void)
     RUN_TEST(test_hara_s5_returns_error);
     RUN_TEST(test_hara_init_creates_file);
     RUN_TEST(test_hara_show_missing_file_no_crash);
+    RUN_TEST(test_hara_show_fssr_ref_not_dangling_with_pretty_printed_reqs);
     RUN_TEST(test_hara_help_returns_zero);
     return UNITY_END();
 }

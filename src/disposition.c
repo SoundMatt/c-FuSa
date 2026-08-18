@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,20 @@ static int disp_reserve(cfusa_disposition_list_t *list, int need)
     return 1;
 }
 
+/* issue #175: a hand-edited or migrated dispositions file naturally spells
+ * the action past-tense ("accepted"/"mitigated"/"fixed") or with different
+ * casing ("Accept"/"ACCEPT") — lowercases in place and canonicalizes those
+ * synonyms to the "accept"/"fix"/"mitigate" values
+ * cfusa_report_apply_dispositions() actually matches on, so a naturally
+ * -spelled entry still suppresses instead of silently never matching. */
+static void disp_normalize_action(char *action)
+{
+    for (char *c = action; *c; c++) *c = (char)tolower((unsigned char)*c);
+    if      (strcmp(action, "accepted")  == 0) strcpy(action, "accept");
+    else if (strcmp(action, "mitigated") == 0) strcpy(action, "mitigate");
+    else if (strcmp(action, "fixed")     == 0) strcpy(action, "fix");
+}
+
 //cfusa:req REQ-DISP-ENFORCE001
 int cfusa_dispositions_load(const char *dir, cfusa_disposition_list_t *list)
 {
@@ -41,11 +56,21 @@ int cfusa_dispositions_load(const char *dir, cfusa_disposition_list_t *list)
     char *p = content;
     while ((p = strstr(p, "\"id\"")) != NULL) {
         char id[16] = "", rule[64] = "", fingerprint[72] = "", action[16] = "";
-        char *fp;
-        if ((fp = strstr(p, "\"id\":")))         sscanf(fp, "\"id\":\"%15[^\"]", id);
-        if ((fp = strstr(p, "\"rule\":")))        sscanf(fp, "\"rule\":\"%63[^\"]", rule);
-        if ((fp = strstr(p, "\"fingerprint\":"))) sscanf(fp, "\"fingerprint\":\"%71[^\"]", fingerprint);
-        if ((fp = strstr(p, "\"action\":")))      sscanf(fp, "\"action\":\"%15[^\"]", action);
+        cfusa_json_extract_string(p, "id",          id,          sizeof(id));
+        cfusa_json_extract_string(p, "rule",        rule,        sizeof(rule));
+        cfusa_json_extract_string(p, "fingerprint", fingerprint, sizeof(fingerprint));
+        cfusa_json_extract_string(p, "action",      action,      sizeof(action));
+        if (action[0]) {
+            disp_normalize_action(action);
+            if (strcmp(action, "accept") != 0 && strcmp(action, "fix") != 0 &&
+                strcmp(action, "mitigate") != 0) {
+                fprintf(stderr,
+                    "cfusa: WARNING: %s entry %s has unrecognized action "
+                    "'%s' (expected accept|fix|mitigate) — this disposition "
+                    "will not suppress any finding\n",
+                    DISP_FILE, id[0] ? id : "<unknown id>", action);
+            }
+        }
 
         if (id[0]) {
             if (!disp_reserve(list, list->count + 1)) {

@@ -78,6 +78,61 @@ void test_dispositions_load_parses_fingerprint_field(void)
     rm_disp_json();
 }
 
+//cfusa:req REQ-DISP-ENFORCE001
+//cfusa:test REQ-DISP-ENFORCE001
+void test_dispositions_load_tolerates_whitespace_after_colon(void)
+{
+    /* issue #143: a pretty-printed .fusa-dispositions.json (space after
+     * every colon, as json.dump(indent=2)/jq/most editors' format-on-save
+     * produce) used to silently fail to extract every field via the old
+     * rigid `sscanf(p, "\"key\":\"%N[^\"]", ...)` literal-adjacency match. */
+    write_disp_json(
+        "{\n"
+        "  \"dispositions\": [\n"
+        "    {\n"
+        "      \"id\": \"DISP-0002\",\n"
+        "      \"rule\": \"CFUSA-A001\",\n"
+        "      \"fingerprint\": \"sha256:deadbeef\",\n"
+        "      \"action\": \"mitigate\",\n"
+        "      \"rationale\": \"reviewed\"\n"
+        "    }\n"
+        "  ]\n"
+        "}\n");
+
+    cfusa_disposition_list_t list;
+    int ok = cfusa_dispositions_load(DE_DIR, &list);
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_EQUAL_INT(1, list.count);
+    TEST_ASSERT_EQUAL_STRING("DISP-0002", list.items[0].id);
+    TEST_ASSERT_EQUAL_STRING("CFUSA-A001", list.items[0].rule);
+    TEST_ASSERT_EQUAL_STRING("sha256:deadbeef", list.items[0].fingerprint);
+    TEST_ASSERT_EQUAL_STRING("mitigate", list.items[0].action);
+    cfusa_dispositions_free(&list);
+    rm_disp_json();
+}
+
+//cfusa:req REQ-DISP-ENFORCE001
+//cfusa:test REQ-DISP-ENFORCE001
+void test_dispositions_load_normalizes_accepted_to_accept(void)
+{
+    /* issue #175: a hand-edited/migrated entry naturally spelled past-tense
+     * ("accepted") must still normalize to the "accept" value
+     * cfusa_report_apply_dispositions() actually matches on. */
+    write_disp_json(
+        "{\"dispositions\":[\n"
+        "  {\"id\":\"DISP-0003\",\"rule\":\"CFUSA-L003\","
+        "\"fingerprint\":\"sha256:aaaa\",\"action\":\"Accepted\"}\n"
+        "]}\n");
+
+    cfusa_disposition_list_t list;
+    int ok = cfusa_dispositions_load(DE_DIR, &list);
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_EQUAL_INT(1, list.count);
+    TEST_ASSERT_EQUAL_STRING("accept", list.items[0].action);
+    cfusa_dispositions_free(&list);
+    rm_disp_json();
+}
+
 /* ---- cfusa_report_apply_dispositions() ---- */
 
 static void one_finding(cfusa_report_t *rpt, const char *rule, cfusa_severity_t sev)
@@ -424,6 +479,8 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_dispositions_load_missing_file_is_not_an_error);
     RUN_TEST(test_dispositions_load_parses_fingerprint_field);
+    RUN_TEST(test_dispositions_load_tolerates_whitespace_after_colon);
+    RUN_TEST(test_dispositions_load_normalizes_accepted_to_accept);
     RUN_TEST(test_apply_dispositions_accept_suppresses_matching_fingerprint);
     RUN_TEST(test_apply_dispositions_mitigate_also_suppresses);
     RUN_TEST(test_apply_dispositions_fix_action_does_not_suppress);

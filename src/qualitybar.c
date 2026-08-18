@@ -191,11 +191,11 @@ int cfusa_qb_rule_disposed(const char *dir, const char *rule_id)
 
     int disposed = 0;
     char *p = content;
-    while ((p = strstr(p, "\"rule\":")) != NULL) {
+    while ((p = strstr(p, "\"rule\"")) != NULL) {
         char rule[32] = "";
-        sscanf(p, "\"rule\":\"%31[^\"]", rule);
+        cfusa_json_extract_string(p, "rule", rule, sizeof(rule));
         if (strcmp(rule, rule_id) == 0) { disposed = 1; break; }
-        p += 7;
+        p += 6;
     }
     free(content);
     return disposed;
