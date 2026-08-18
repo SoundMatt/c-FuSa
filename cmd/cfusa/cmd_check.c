@@ -10,23 +10,26 @@
 #include "cfusa/config.h"
 #include "cfusa/utils.h"
 #include "cfusa/disposition.h"
+#include "cfusa/gitdiff.h"
 
 //cfusa:req REQ-CLI003 REQ-NOSUMMARY001
 int cmd_check(int argc, char **argv)
 {
-    const char *dir    = ".";
-    const char *fmt_s  = "text";
-    const char *output = NULL;
+    const char *dir           = ".";
+    const char *fmt_s         = "text";
+    const char *output        = NULL;
+    const char *changed_since = NULL;
     int strict = 0, no_summary = 0;
 
     static const struct option long_opts[] = {
-        {"dir",        required_argument, NULL, 'd'},
-        {"format",     required_argument, NULL, 'f'},
-        {"output",     required_argument, NULL, 'o'},
-        {"strict",     no_argument,       NULL, 's'},
-        {"no-color",   no_argument,       NULL, 'C'},
-        {"no-summary", no_argument,       NULL, 'S'},
-        {"help",       no_argument,       NULL, 'h'},
+        {"dir",            required_argument, NULL, 'd'},
+        {"format",         required_argument, NULL, 'f'},
+        {"output",         required_argument, NULL, 'o'},
+        {"strict",         no_argument,       NULL, 's'},
+        {"no-color",       no_argument,       NULL, 'C'},
+        {"no-summary",     no_argument,       NULL, 'S'},
+        {"changed-since",  required_argument, NULL, 'g'},
+        {"help",           no_argument,       NULL, 'h'},
         {NULL,0,NULL,0}
     };
 
@@ -37,20 +40,26 @@ int cmd_check(int argc, char **argv)
 #elif defined(__linux__)
     optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
 #endif
-    while ((c = getopt_long(argc, argv, "d:f:o:sCSh", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:f:o:sCSg:h", long_opts, NULL)) != -1) {
         switch (c) {
-        case 'd': dir        = optarg; break;
-        case 'f': fmt_s      = optarg; break;
-        case 'o': output     = optarg; break;
-        case 's': strict     = 1;     break;
+        case 'd': dir           = optarg; break;
+        case 'f': fmt_s         = optarg; break;
+        case 'o': output        = optarg; break;
+        case 's': strict        = 1;     break;
         case 'C': break; /* no-color: text output has no ANSI codes; accepted for spec compliance */
-        case 'S': no_summary = 1;     break;
+        case 'S': no_summary    = 1;     break;
+        case 'g': changed_since = optarg; break;
         case 'h':
             printf("Usage: cfusa check [--dir <path>] [--format text|json|sarif|html|md]\n"
-                   "                   [--output <file>] [--strict] [--no-color] [--no-summary]\n\n"
+                   "                   [--output <file>] [--strict] [--no-color] [--no-summary]\n"
+                   "                   [--changed-since <git-ref>]\n\n"
                    "Runs all lint + analyze + cyber rules.\n"
                    "Exits 1 on any ERROR; with --strict, exits 1 on any WARNING too.\n"
-                   "--no-summary suppresses the per-category and top-rules summary block.\n");
+                   "--no-summary suppresses the per-category and top-rules summary block.\n"
+                   "--changed-since <ref>: only keep findings on lines changed since <ref>\n"
+                   "  (via `git diff --unified=0 <ref>`). Independent of, and composes with,\n"
+                   "  .fusa-baseline.json (`cfusa baseline`) -- use either or both to adopt\n"
+                   "  c-FuSa on an existing codebase without gating on its full backlog.\n");
             return 0;
         default: return 2;
         }
@@ -91,6 +100,28 @@ int cmd_check(int argc, char **argv)
 
     rpt.no_summary = no_summary;
     cfusa_engine_run_all(dir, &cfg, &rpt);
+
+    //cfusa:req REQ-GITDIFF001
+    /* issue #209: --changed-since scopes the report down to only
+     * findings on lines actually touched since <ref> -- applied FIRST,
+     * before dispositions/baseline, so those lookups never need to
+     * consider a finding this already dropped. Independent of, and
+     * composable with, dispositions/baseline: a project can use either,
+     * both, or neither. */
+    if (changed_since) {
+        cfusa_changed_lines_t changed;
+        if (!cfusa_git_changed_lines_load(dir, changed_since, &changed)) {
+            fprintf(stderr,
+                "cfusa check: ERROR: --changed-since '%s' failed — not a "
+                "git repository, unknown ref, or git not found; refusing "
+                "to silently report against an unfiltered/unknown diff\n",
+                changed_since);
+            cfusa_report_free(&rpt);
+            return 2;
+        }
+        cfusa_report_filter_to_changed_lines(&rpt, &changed);
+        cfusa_git_changed_lines_free(&changed);
+    }
 
     //cfusa:req REQ-DISP-ENFORCE003
     /* issue #122: cross-reference findings against .fusa-dispositions.json
