@@ -60,7 +60,7 @@ int cmd_capabilities(int argc, char **argv)
                "    \"coupling\", \"cyber\", \"vuln\", \"boundary\", \"coverage\", \"diff\", \"badge\",\n"
                "    \"iso26262\", \"iec61508\", \"iec62443\", \"slsa\", \"do178\", \"iso21434\", \"unece\",\n"
                "    \"lint\", \"analyze\", \"disposition\", \"baseline\", \"sign\", \"sas\", \"sci\", \"pr\", \"req\",\n"
-               "    \"fix\", \"hooks\", \"impact\", \"metrics\", \"comp\", \"template\", \"misra\"\n"
+               "    \"fix\", \"explain\", \"hooks\", \"impact\", \"metrics\", \"comp\", \"template\", \"misra\"\n"
                "  ],\n"
                "  \"formats\": {\n"
                "    \"check\":     [\"text\", \"json\", \"sarif\", \"html\", \"md\"],\n"

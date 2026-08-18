@@ -33,6 +33,7 @@ const cfusa_command_t CFUSA_COMMANDS[] = {
     {"badge",       "SVG status badge from report",                     cmd_badge},
     {"req",         "Show source locations for a requirement ID",       cmd_req},
     {"fix",         "Apply mechanical auto-fixes",                      cmd_fix},
+    {"explain",     "Show a rule's description, standard, and fix guidance", cmd_explain},
     {"hooks",       "Install / remove git pre-commit hook",             cmd_hooks},
     {"sign",        "HMAC-SHA256 file signing and verification",        cmd_sign},
     {"do178",       "DO-178C Annex A objective gap report",             cmd_do178},
