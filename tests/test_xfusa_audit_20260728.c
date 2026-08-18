@@ -172,6 +172,81 @@ void test_l004_still_detects_real_recursion(void)
     cfusa_engine_reset();
 }
 
+/* issue #187: a comment inside a function's body that merely mentions
+ * the function's own name followed by '(' (no leading '*' -- a legal,
+ * common C doc-comment continuation-line style) must not be
+ * misreported as recursion. l004_self_call() only ever tracked
+ * string-literal state itself, with no comment-awareness at all. */
+//cfusa:test REQ-LINT004
+void test_l004_ignores_self_mention_in_comment(void)
+{
+    char dir[512]; snprintf(dir, sizeof(dir), "%s/cmt", L004_DIR);
+    l004_reset_dir("cmt");
+    char path[512]; snprintf(path, sizeof(path), "%s/l004_comment.c", dir);
+    FILE *f = cfusa_fopen_write(path);
+    TEST_ASSERT_NOT_NULL(f);
+    fputs(
+        "void setUp(void) {\n"
+        "    /* fixtures created by\n"
+        "     this setUp() writes below\n"
+        "     are cleaned up in tearDown() */\n"
+        "    int x = 1;\n"
+        "    (void)x;\n"
+        "}\n", f);
+    fclose(f);
+
+    cfusa_engine_reset();
+    cfusa_lint_register_rules();
+    cfusa_config_t cfg; cfusa_config_defaults(&cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    cfusa_engine_run_category(CFUSA_CATEGORY_LINT, dir, &cfg, &rpt);
+
+    int l004_count = 0;
+    for (int i = 0; i < rpt.count; i++)
+        if (!strcmp(rpt.findings[i].rule_id, "CFUSA-L004")) l004_count++;
+    TEST_ASSERT_EQUAL(0, l004_count);
+
+    cfusa_report_free(&rpt);
+    cfusa_engine_reset();
+    (void)remove(path);
+}
+
+/* Control: a genuine self-call still fires even when the SAME function
+ * also has an unrelated same-named mention inside a comment -- the fix
+ * must strip comments, not suppress the rule entirely. */
+//cfusa:test REQ-LINT004
+void test_l004_still_detects_recursion_alongside_comment_mention(void)
+{
+    char dir[512]; snprintf(dir, sizeof(dir), "%s/cmt2", L004_DIR);
+    l004_reset_dir("cmt2");
+    char path[512]; snprintf(path, sizeof(path), "%s/l004_comment2.c", dir);
+    FILE *f = cfusa_fopen_write(path);
+    TEST_ASSERT_NOT_NULL(f);
+    fputs(
+        "static int factorial(int n) {\n"
+        "    /* factorial() is documented above; this comment just\n"
+        "     mentions factorial() again for context */\n"
+        "    if (n <= 1) return 1;\n"
+        "    return n * factorial(n - 1);\n"
+        "}\n", f);
+    fclose(f);
+
+    cfusa_engine_reset();
+    cfusa_lint_register_rules();
+    cfusa_config_t cfg; cfusa_config_defaults(&cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    cfusa_engine_run_category(CFUSA_CATEGORY_LINT, dir, &cfg, &rpt);
+
+    int l004_count = 0;
+    for (int i = 0; i < rpt.count; i++)
+        if (!strcmp(rpt.findings[i].rule_id, "CFUSA-L004")) l004_count++;
+    TEST_ASSERT_EQUAL(1, l004_count);
+
+    cfusa_report_free(&rpt);
+    cfusa_engine_reset();
+    (void)remove(path);
+}
+
 /* ================================================================== */
 /* #83 — attestation carry-forward preserved-as-stale                  */
 /* ================================================================== */
@@ -483,6 +558,8 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_l004_no_false_positive_on_suffix_match);
     RUN_TEST(test_l004_still_detects_real_recursion);
+    RUN_TEST(test_l004_ignores_self_mention_in_comment);
+    RUN_TEST(test_l004_still_detects_recursion_alongside_comment_mention);
 
     RUN_TEST(test_fmea_attestation_carried_forward_when_content_changes);
 
