@@ -214,6 +214,47 @@ void test_qualify_runs_no_crash(void)
     (void)rc;
 }
 
+/* ---- issue #171: cmd_qualify's getopt reset was missing the __linux__
+ * (glibc nextchar) branch that cmd_coverage.c/cmd_trace.c both carry ---- */
+
+//cfusa:req REQ-CLI001
+//cfusa:test REQ-CLI001
+void test_qualify_early_return_from_bundled_cluster_does_not_corrupt_next_call(void)
+{
+    /* "-hb" bundles 'h' (no argument) ahead of 'b' (requires an
+     * argument) in one short-option cluster; the 'h' case returns 0
+     * before getopt_long ever reaches the 'b' still mid-cluster --
+     * the same shape of early return issue #170 fixed elsewhere. */
+    char *early_argv[] = {"cfusa", "-hb", "/some/binary", NULL};
+    int rc1 = cmd_qualify(3, early_argv);
+    TEST_ASSERT_EQUAL(0, rc1);
+
+    /* A completely unrelated call right after must parse its own argv
+     * from scratch: --binary of cfusa's own real test source file
+     * (any file cfusa_file_exists() sees) must be consumed and hashed,
+     * not skipped/misparsed due to leftover getopt state. */
+    char capture_path[256];
+    snprintf(capture_path, sizeof(capture_path), "%s/qualify_reset_out.json", CLI_TEST_DIR);
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--binary", __FILE__,
+                     "--format", "json", "--output", capture_path, NULL};
+    int rc2 = cmd_qualify(9, argv);
+    (void)rc2;
+
+    FILE *f = fopen(capture_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        TEST_ASSERT_EQUAL(0, fclose(f));
+        /* an unset/skipped --binary emits the literal "(not provided)"
+         * placeholder; a real one hashes this file's actual content
+         * into a hex SHA-256 string instead. */
+        TEST_ASSERT_NULL(strstr(buf, "\"binarySha256\": \"(not provided)\""));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"binarySha256\": \""));
+        (void)remove(capture_path);
+    }
+}
+
 /* ---- safety_case ---- */
 
 //cfusa:req REQ-SC001
@@ -918,6 +959,57 @@ void test_iec62443_bad_output_returns_3(void)
     TEST_ASSERT_EQUAL(3, rc);
 }
 
+/* ---- issue #170: getopt_long platform-reset (optreset/nextchar), not
+ * just optind, must be reapplied before every command's own getopt_long
+ * loop ---- */
+
+//cfusa:req REQ-CLI001
+//cfusa:test REQ-CLI001
+void test_iec62443_early_return_from_bundled_cluster_does_not_corrupt_next_call(void)
+{
+    /* "-hs" bundles 'h' (no argument) ahead of 's' (requires an
+     * argument) in one short-option cluster. getopt_long matches 'h'
+     * first, and the 'h' case returns 0 immediately -- well before
+     * getopt_long ever reaches the 's' still sitting mid-cluster. On
+     * BSD/macOS getopt_long, that leaves the internal static `place`
+     * cursor pointing mid-string unless optreset=1 is set before the
+     * NEXT getopt_long call; on glibc, the analogous `nextchar` needs
+     * optind=0, not just optind=1, for the same reason. */
+    char *early_argv[] = {"cfusa", "-hs", "SL-2", NULL};
+    int rc1 = cmd_iec62443(3, early_argv);
+    TEST_ASSERT_EQUAL(0, rc1);
+
+    /* A completely unrelated call right after must parse its own argv
+     * from scratch, not resume mid-cluster from the previous call's
+     * stale getopt state -- proven here by confirming --sl SL-4
+     * actually took effect rather than being skipped/misparsed. */
+    char capture_path[256];
+    snprintf(capture_path, sizeof(capture_path), "%s/iec62443_reset_stdout.txt", CLI_TEST_DIR);
+    fflush(stdout);
+    int saved_fd = dup(STDOUT_FILENO);
+    FILE *redirected = freopen(capture_path, "w", stdout);
+    TEST_ASSERT_NOT_NULL(redirected);
+
+    char *argv[] = {"cfusa", "--dir", CLI_TEST_DIR, "--sl", "SL-4", NULL};
+    int rc2 = cmd_iec62443(5, argv);
+
+    fflush(stdout);
+    dup2(saved_fd, STDOUT_FILENO);
+    close(saved_fd);
+
+    TEST_ASSERT_TRUE(rc2 <= 1);
+
+    FILE *f = fopen(capture_path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[8192]; size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        TEST_ASSERT_EQUAL(0, fclose(f));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "SL-4"));
+        (void)remove(capture_path);
+    }
+}
+
 /* ---- init already-exists returns 2 ---- */
 
 //cfusa:req REQ-INIT-EXISTS001
@@ -1105,6 +1197,7 @@ int main(void)
     RUN_TEST(test_release_runs_no_crash);
     RUN_TEST(test_qualify_help_returns_zero);
     RUN_TEST(test_qualify_runs_no_crash);
+    RUN_TEST(test_qualify_early_return_from_bundled_cluster_does_not_corrupt_next_call);
     RUN_TEST(test_safety_case_runs_no_crash);
     RUN_TEST(test_sign_help_returns_zero);
     RUN_TEST(test_sign_keygen_creates_key_file);
@@ -1147,6 +1240,7 @@ int main(void)
     RUN_TEST(test_iec62443_text_header);
     RUN_TEST(test_iec62443_output_writes_file);
     RUN_TEST(test_iec62443_bad_output_returns_3);
+    RUN_TEST(test_iec62443_early_return_from_bundled_cluster_does_not_corrupt_next_call);
     RUN_TEST(test_init_already_exists_returns_2);
     RUN_TEST(test_init_module_flag_accepted);
     RUN_TEST(test_sas_prepared_by);

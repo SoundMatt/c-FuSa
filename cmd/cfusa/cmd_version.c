@@ -13,6 +13,11 @@ int cmd_version(int argc, char **argv)
         {NULL,0,NULL,0}
     };
     int c; optind = 1;
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    { extern int optreset; optreset = 1; }
+#elif defined(__linux__)
+    optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
+#endif
     while ((c = getopt_long(argc, argv, "f:", lo, NULL)) != -1) {
         if (c == 'f') fmt = optarg;
     }

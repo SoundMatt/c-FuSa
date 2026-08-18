@@ -93,6 +93,11 @@ int cmd_iec61508(int argc, char **argv)
 
     int c;
     optind = 1;
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    { extern int optreset; optreset = 1; }
+#elif defined(__linux__)
+    optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
+#endif
     while ((c = getopt_long(argc, argv, "d:s:f:o:h", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir    = optarg; break;
