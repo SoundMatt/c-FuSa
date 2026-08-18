@@ -752,6 +752,20 @@ int cmd_lint(int argc, char **argv)
     strncpy(rpt.project,  cfg.project,  sizeof(rpt.project)  - 1);
     strncpy(rpt.version,  cfg.version,  sizeof(rpt.version)  - 1);
     strncpy(rpt.standard, "MISRA-C:2012 / CERT-C", sizeof(rpt.standard) - 1);
+    /* issue #153: without project_root, cfusa_report_add() leaves `file`
+     * absolute instead of relativizing it like cmd_check.c does — so the
+     * same real finding gets a different fingerprint (and therefore
+     * silently fails to match a recorded disposition) depending on
+     * whether `cfusa check` or `cfusa lint` produced it. */
+    {
+        char *abs = realpath(dir, NULL);
+        if (abs) {
+            strncpy(rpt.project_root, abs, sizeof(rpt.project_root) - 1);
+            free(abs);
+        } else {
+            strncpy(rpt.project_root, dir, sizeof(rpt.project_root) - 1);
+        }
+    }
 
     cfusa_engine_run_category(CFUSA_CATEGORY_LINT, dir, &cfg, &rpt);
 
