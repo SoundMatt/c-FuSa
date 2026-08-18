@@ -271,7 +271,17 @@ typedef struct {
  * requires an identifier boundary immediately before the candidate match
  * — otherwise a callee whose name merely *ends with* the caller's name
  * (e.g. static int evaluate(...) calling helper_evaluate(...), or
- * rcp_e2e_wd_evaluate(...)) is misreported as recursion. */
+ * rcp_e2e_wd_evaluate(...)) is misreported as recursion.
+ *
+ * issue #187: the caller (l004_file() below) now passes a comment- and
+ * string-stripped view of the line, built by the same skip-block/
+ * line-comment/string-literal logic its brace-depth tracker already
+ * applies -- so a doc-comment merely mentioning the function's own name
+ * followed by '(' (e.g. "this setUp() writes below") can no longer be
+ * misread as a real self-call. The in_str tracking below is kept as a
+ * defensive no-op (string content is already absent from that stripped
+ * view) rather than removed, in case this is ever called with a raw
+ * line in the future. */
 static int l004_self_call(const char *line, const char *fn_name)
 {
     size_t flen = strlen(fn_name);
@@ -346,7 +356,15 @@ static int l004_file(const char *path, void *vctx)
         }
 
         /* Update brace depth, skipping block comments, line comments, and
-         * string/character literals so embedded braces don't corrupt depth. */
+         * string/character literals so embedded braces don't corrupt depth.
+         * issue #187: the same surviving characters (i.e. everything
+         * outside a comment or a string/character literal) are also
+         * collected into `code_only`, which is what the self-call check
+         * below scans instead of the raw `line` -- otherwise a comment
+         * merely mentioning the function's own name followed by '(' is
+         * misread as a real recursive call. */
+        char code_only[4096];
+        size_t code_n = 0;
         {
             const char *p = line;
             while (*p) {
@@ -386,14 +404,16 @@ static int l004_file(const char *path, void *vctx)
                         ctx->fn_name[0] = '\0';
                     }
                 }
+                if (code_n < sizeof(code_only) - 1) code_only[code_n++] = *p;
                 p++;
             }
         }
+        code_only[code_n] = '\0';
 
         /* Self-call check.  Skip the line where the function was first
          * detected: the signature always contains "fn_name(" naturally. */
         if (!fn_just_detected && ctx->in_fn && ctx->fn_name[0] && brace > 0) {
-            if (l004_self_call(line, ctx->fn_name)) {
+            if (l004_self_call(code_only, ctx->fn_name)) {
                 cfusa_report_add(ctx->rpt,
                     "CFUSA-L004", CFUSA_CATEGORY_LINT, SEV_ERROR,
                     path, lineno,
