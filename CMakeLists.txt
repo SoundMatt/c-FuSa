@@ -41,6 +41,7 @@ add_library(cfusa_core STATIC
     src/asil.c
     src/severity.c
     src/disposition.c
+    src/lex.c
 )
 target_include_directories(cfusa_core PUBLIC include)
 set_target_properties(cfusa_core PROPERTIES
@@ -132,6 +133,7 @@ cfusa_test(test_cyber_rules)
 cfusa_test(test_analyze_rules)
 cfusa_test(test_hara)
 cfusa_test(test_match_outside_string)
+cfusa_test(test_lex)
 cfusa_test(test_asil_table)
 cfusa_test(test_report_formats)
 cfusa_test(test_impact)
