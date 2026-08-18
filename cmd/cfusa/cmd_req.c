@@ -181,8 +181,10 @@ static void scan_line(const char *path, int lineno,
         add_tag(path, lineno, p + 13, KIND_TEST);
     if ((p = strstr(line, "//cfusa:sec-test ")))
         add_tag(path, lineno, p + 17, KIND_SEC_TEST);
-    /* legacy */
-    if ((p = strstr(line, "REQ:"))) {
+    /* legacy. issue #180: identifier-boundary + string-literal-aware
+     * match — without it, this fired on any text merely containing the
+     * substring "REQ:" (e.g. a plain "// SAMPLE_FREQ: 48000" comment). */
+    if ((p = cfusa_find_token_outside_string(line, "REQ:"))) {
         p += 4;
         while (*p == ' ' || *p == '\t') p++;
         char buf[512]; strncpy(buf, p, sizeof(buf) - 1);

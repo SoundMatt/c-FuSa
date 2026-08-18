@@ -205,6 +205,27 @@ void test_exclude_nested_path_excluded(void)
     TEST_ASSERT_TRUE(rc != 0);
 }
 
+//cfusa:req REQ-CFG005
+//cfusa:test REQ-CFG005
+void test_exclude_substring_collision_not_excluded(void)
+{
+    /* issue #174: "build" must match only a real path SEGMENT — a bare
+     * substring match previously also excluded unrelated real source
+     * files that merely contain "build" somewhere in their name. */
+    cfusa_config_t cfg;
+    cfusa_config_defaults(&cfg);
+    cfg.exclude_count = 1;
+    strncpy(cfg.exclude_dirs[0], "build", sizeof(cfg.exclude_dirs[0]));
+
+    TEST_ASSERT_EQUAL(0, cfusa_config_is_excluded(&cfg, "src/rebuild_utils.c"));
+    TEST_ASSERT_EQUAL(0, cfusa_config_is_excluded(&cfg, "docs/build-notes.md"));
+    TEST_ASSERT_EQUAL(0, cfusa_config_is_excluded(&cfg, "third_party/buildtools/parser.c"));
+    /* genuine matches at every valid boundary position must still work */
+    TEST_ASSERT_TRUE(cfusa_config_is_excluded(&cfg, "build/output.c") != 0);
+    TEST_ASSERT_TRUE(cfusa_config_is_excluded(&cfg, "src/build/output.c") != 0);
+    TEST_ASSERT_TRUE(cfusa_config_is_excluded(&cfg, "build") != 0);
+}
+
 /* ---- strict flag ---- */
 
 //cfusa:req REQ-CFG006
@@ -257,6 +278,7 @@ int main(void)
     RUN_TEST(test_exclude_non_matching_dir_not_excluded);
     RUN_TEST(test_exclude_multiple_dirs);
     RUN_TEST(test_exclude_nested_path_excluded);
+    RUN_TEST(test_exclude_substring_collision_not_excluded);
     RUN_TEST(test_strict_defaults_value);
     RUN_TEST(test_strict_roundtrip);
     return UNITY_END();

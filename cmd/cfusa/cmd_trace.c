@@ -229,7 +229,12 @@ static void trace_line_cb(const char *path, int lineno,
         add_tag(path, lineno, p + 13, KIND_TEST);
     if ((p = strstr(line, "//cfusa:sec-test ")))
         add_tag(path, lineno, p + 17, KIND_SEC_TEST);
-    if (ctx->legacy && (p = strstr(line, "REQ:"))) {
+    /* issue #180: identifier-boundary + string-literal-aware match —
+     * without it, this fired on any text merely containing the substring
+     * "REQ:" (e.g. a plain "// SAMPLE_FREQ: 48000" comment, or this very
+     * file's own --help string literal mentioning "//cfusa:req REQ-ID"),
+     * fabricating bogus requirement tags. */
+    if (ctx->legacy && (p = cfusa_find_token_outside_string(line, "REQ:"))) {
         p += 4;
         while (*p == ' ' || *p == '\t') p++;
         char buf[512]; strncpy(buf, p, sizeof(buf) - 1);

@@ -222,11 +222,27 @@ int cfusa_config_save(const char *dir, const cfusa_config_t *cfg)
     return 0;
 }
 
+/* issue #174: cfg->exclude_dirs[i] (e.g. "build", stored from a config
+ * entry like "build/**") must match a real path SEGMENT, not just any
+ * substring — a bare strstr() match previously also excluded unrelated
+ * paths like "src/rebuild_utils.c" or "third_party/buildtools/parser.c"
+ * purely because they happen to contain the exclude entry as a
+ * substring, silently dropping real source files from analysis with no
+ * diagnostic. Requires the match to be preceded by '/' (or be at the
+ * very start of `path`) and followed by '/' (or be the end of `path`). */
 int cfusa_config_is_excluded(const cfusa_config_t *cfg, const char *path)
 {
     for (int i = 0; i < cfg->exclude_count; i++) {
-        if (strstr(path, cfg->exclude_dirs[i]))
-            return 1;
+        const char *dir = cfg->exclude_dirs[i];
+        size_t dlen = strlen(dir);
+        if (dlen == 0) continue;
+        const char *p = path;
+        while ((p = strstr(p, dir)) != NULL) {
+            int left_ok  = (p == path) || (p[-1] == '/');
+            int right_ok = (p[dlen] == '\0') || (p[dlen] == '/');
+            if (left_ok && right_ok) return 1;
+            p += dlen; /* advance past this non-boundary match */
+        }
     }
     return 0;
 }
