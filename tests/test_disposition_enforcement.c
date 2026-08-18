@@ -20,6 +20,7 @@ extern int cmd_check(int argc, char **argv);
 extern int cmd_lint(int argc, char **argv);
 extern int cmd_analyze(int argc, char **argv);
 extern int cmd_disposition(int argc, char **argv);
+extern int cmd_baseline(int argc, char **argv);
 
 #define DE_DIR "/tmp/cfusa_dispenf_testdir"
 
@@ -140,6 +141,53 @@ static void one_finding(cfusa_report_t *rpt, const char *rule, cfusa_severity_t 
 {
     cfusa_report_init(rpt);
     cfusa_report_add(rpt, rule, "lint", sev, "f.c", 1, "msg");
+}
+
+/* Gets the fingerprint `cmd` (cmd_check, cmd_lint, or cmd_analyze) would
+ * itself compute for `rule` in DE_DIR, by actually running `cmd --format
+ * json` and reading the value back out of its own output — rather than
+ * re-invoking the engine directly and computing one independently.
+ *
+ * This indirection matters: a caller computing a fingerprint
+ * independently of the command it's meant to match can silently diverge
+ * from what that command actually produces. It used to matter even more
+ * — until issue #153 was fixed, cmd_check set rpt.project_root via
+ * realpath(dir) before scanning (which cfusa_report_add() then uses to
+ * relativize each finding's file path into the fingerprint's canonical
+ * input) while cmd_lint/cmd_analyze/cmd_cyber did not, so the identical
+ * real finding got a different fingerprint depending on which command
+ * produced it — see test_check_and_lint_fingerprints_match_for_same_rule
+ * / test_check_and_analyze_fingerprints_match_for_same_rule below, which
+ * exist specifically to guard against that regressing. Always fetching
+ * the fingerprint from the exact command under test (rather than a
+ * fixed reference command) still avoids the whole class of bug, on every
+ * platform, regardless of whether all commands agree. */
+static void get_fingerprint_for_rule(int (*cmd)(int, char **), const char *rule,
+                                      char *out, size_t out_sz)
+{
+    out[0] = '\0';
+
+    char jpath[256];
+    snprintf(jpath, sizeof(jpath), "%s/fp_lookup.json", DE_DIR);
+    char *argv[] = {"cfusa", "--dir", DE_DIR, "--format", "json",
+                     "--output", jpath, NULL};
+    cmd(7, argv);
+
+    size_t len = 0;
+    char *buf = cfusa_read_file(jpath, &len);
+    remove(jpath);
+    if (!buf) return;
+
+    char pat[64];
+    snprintf(pat, sizeof(pat), "\"ruleId\": \"%s\"", rule);
+    char *p = strstr(buf, pat);
+    if (p) {
+        char *fp = strstr(p, "\"fingerprint\":");
+        if (fp) sscanf(fp, "\"fingerprint\": \"%79[^\"]", out);
+        /* out_sz is always >= 80 at every call site; guard anyway */
+        if (out_sz < 80) out[out_sz - 1] = '\0';
+    }
+    free(buf);
 }
 
 //cfusa:req REQ-DISP-ENFORCE002
@@ -297,6 +345,252 @@ void test_apply_dispositions_empty_list_is_noop(void)
     cfusa_report_free(&rpt);
 }
 
+/* ---- issue #208: findings baseline ---- */
+
+static void write_baseline_json(const char *content)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.fusa-baseline.json", DE_DIR);
+    FILE *f = cfusa_fopen_write(path);
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) { fputs(content, f); if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed"); }
+}
+
+static void rm_baseline_json(void)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.fusa-baseline.json", DE_DIR);
+    remove(path);
+}
+
+//cfusa:req REQ-BASELINE001
+//cfusa:test REQ-BASELINE001
+void test_baseline_load_missing_file_is_not_an_error(void)
+{
+    rm_baseline_json();
+    cfusa_disposition_list_t list;
+    int ok = cfusa_baseline_load(DE_DIR, &list);
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_EQUAL_INT(0, list.count);
+    cfusa_dispositions_free(&list);
+}
+
+//cfusa:req REQ-BASELINE001
+//cfusa:test REQ-BASELINE001
+void test_baseline_load_parses_baseline_action_entry(void)
+{
+    write_baseline_json(
+        "{\n  \"baseline\": [\n"
+        "    {\"id\":\"BASELINE-0001\",\"rule\":\"CFUSA-L003\","
+        "\"fingerprint\":\"sha256:aaaa\",\"action\":\"baseline\"}\n"
+        "  ]\n}\n");
+    cfusa_disposition_list_t list;
+    int ok = cfusa_baseline_load(DE_DIR, &list);
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_EQUAL_INT(1, list.count);
+    TEST_ASSERT_EQUAL_STRING("BASELINE-0001", list.items[0].id);
+    TEST_ASSERT_EQUAL_STRING("sha256:aaaa", list.items[0].fingerprint);
+    TEST_ASSERT_EQUAL_STRING("baseline", list.items[0].action);
+    cfusa_dispositions_free(&list);
+    rm_baseline_json();
+}
+
+//cfusa:req REQ-BASELINE001
+//cfusa:test REQ-BASELINE001
+void test_apply_dispositions_baseline_action_suppresses(void)
+{
+    cfusa_report_t rpt;
+    one_finding(&rpt, "CFUSA-L003", SEV_WARNING);
+
+    cfusa_disposition_list_t list;
+    memset(&list, 0, sizeof(list));
+    list.items = malloc(sizeof(cfusa_disposition_t));
+    list.count = 1; list.cap = 1;
+    memset(&list.items[0], 0, sizeof(cfusa_disposition_t));
+    strcpy(list.items[0].id, "BASELINE-0001");
+    strcpy(list.items[0].fingerprint, rpt.findings[0].fingerprint);
+    strcpy(list.items[0].action, "baseline");
+
+    cfusa_report_apply_dispositions(&rpt, &list);
+
+    TEST_ASSERT_EQUAL_INT(0, rpt.warning_count);
+    TEST_ASSERT_EQUAL_INT(1, rpt.dispositioned_count);
+    TEST_ASSERT_EQUAL_STRING("BASELINE-0001", rpt.findings[0].disposition_id);
+    /* distinct from "accept" -- a report reader must be able to tell
+     * "predates policy enrollment" apart from "reviewed and accepted". */
+    TEST_ASSERT_EQUAL_STRING("baseline", rpt.findings[0].disposition_action);
+
+    free(list.items);
+    cfusa_report_free(&rpt);
+}
+
+//cfusa:req REQ-BASELINE002
+//cfusa:test REQ-BASELINE002
+void test_apply_dispositions_idempotent_across_two_lists(void)
+{
+    /* issue #208: cmd_check.c applies .fusa-dispositions.json, then
+     * .fusa-baseline.json, against the SAME report. A finding matching
+     * an entry in BOTH lists must only ever be suppressed once -- the
+     * second matching call must be a no-op for it, not a second
+     * decrement of warning_count/dispositioned_count. */
+    cfusa_report_t rpt;
+    one_finding(&rpt, "CFUSA-L003", SEV_WARNING);
+
+    cfusa_disposition_list_t disp_list;
+    memset(&disp_list, 0, sizeof(disp_list));
+    disp_list.items = malloc(sizeof(cfusa_disposition_t));
+    disp_list.count = 1; disp_list.cap = 1;
+    memset(&disp_list.items[0], 0, sizeof(cfusa_disposition_t));
+    strcpy(disp_list.items[0].id, "DISP-0099");
+    strcpy(disp_list.items[0].fingerprint, rpt.findings[0].fingerprint);
+    strcpy(disp_list.items[0].action, "accept");
+
+    cfusa_disposition_list_t base_list;
+    memset(&base_list, 0, sizeof(base_list));
+    base_list.items = malloc(sizeof(cfusa_disposition_t));
+    base_list.count = 1; base_list.cap = 1;
+    memset(&base_list.items[0], 0, sizeof(cfusa_disposition_t));
+    strcpy(base_list.items[0].id, "BASELINE-0099");
+    strcpy(base_list.items[0].fingerprint, rpt.findings[0].fingerprint);
+    strcpy(base_list.items[0].action, "baseline");
+
+    cfusa_report_apply_dispositions(&rpt, &disp_list);
+    cfusa_report_apply_dispositions(&rpt, &base_list); /* second call: must no-op */
+
+    TEST_ASSERT_EQUAL_INT(0, rpt.warning_count);
+    TEST_ASSERT_EQUAL_INT(1, rpt.dispositioned_count); /* not 2 */
+    /* the FIRST list's tag wins -- the second call never overwrites it */
+    TEST_ASSERT_EQUAL_STRING("DISP-0099", rpt.findings[0].disposition_id);
+    TEST_ASSERT_EQUAL_STRING("accept", rpt.findings[0].disposition_action);
+
+    free(disp_list.items);
+    free(base_list.items);
+    cfusa_report_free(&rpt);
+}
+
+/* ---- end-to-end: cmd_baseline / cmd_check ---- */
+
+static void write_goto_source(void)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/goto.c", DE_DIR);
+    FILE *f = cfusa_fopen_write(path);
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        fputs("void fn(void) {\n    goto end;\nend:;\n}\n", f);
+        if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
+    }
+}
+
+static void rm_goto_source(void)
+{
+    char path[256]; snprintf(path, sizeof(path), "%s/goto.c", DE_DIR); remove(path);
+}
+
+//cfusa:req REQ-BASELINE001
+//cfusa:test REQ-BASELINE001
+void test_cmd_baseline_help_returns_zero(void)
+{
+    char *argv[] = {"cfusa", "--help", NULL};
+    TEST_ASSERT_EQUAL_INT(0, cmd_baseline(2, argv));
+}
+
+//cfusa:req REQ-BASELINE001
+//cfusa:test REQ-BASELINE001
+void test_cmd_baseline_writes_file_and_check_suppresses_it(void)
+{
+    rm_disp_json();
+    rm_baseline_json();
+    write_goto_source();
+
+    /* CFUSA-L002 (goto) is a warning, not an error -- use --strict so the
+     * gate actually depends on it, mirroring
+     * test_lint_exit_code_flips_after_accept_disposition() above. */
+    char *before[] = {"cfusa", "--dir", DE_DIR, "--strict", NULL};
+    int rc_before = cmd_check(4, before);
+    TEST_ASSERT_TRUE(rc_before != 0);
+
+    char *baseline_argv[] = {"cfusa", "--dir", DE_DIR, NULL};
+    int baseline_rc = cmd_baseline(3, baseline_argv);
+    TEST_ASSERT_EQUAL_INT(0, baseline_rc);
+
+    char basepath[256];
+    snprintf(basepath, sizeof(basepath), "%s/.fusa-baseline.json", DE_DIR);
+    TEST_ASSERT_TRUE(cfusa_file_exists(basepath));
+
+    char *after[] = {"cfusa", "--dir", DE_DIR, "--strict", NULL};
+    int rc_after = cmd_check(4, after);
+    TEST_ASSERT_EQUAL_INT(0, rc_after);
+
+    rm_baseline_json();
+    rm_goto_source();
+}
+
+//cfusa:req REQ-BASELINE001
+//cfusa:test REQ-BASELINE001
+void test_cmd_baseline_does_not_hide_finding_introduced_after_snapshot(void)
+{
+    rm_disp_json();
+    rm_baseline_json();
+    write_goto_source();
+
+    char *baseline_argv[] = {"cfusa", "--dir", DE_DIR, NULL};
+    TEST_ASSERT_EQUAL_INT(0, cmd_baseline(3, baseline_argv));
+
+    /* A genuinely different, NOT-yet-baselined finding (distinct rule) --
+     * must still gate even though a baseline file now exists. */
+    char path[256];
+    snprintf(path, sizeof(path), "%s/goto.c", DE_DIR);
+    FILE *f = fopen(path, "a");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) { fputs("#pragma once\n", f); TEST_ASSERT_EQUAL_INT(0, fclose(f)); }
+
+    char *argv[] = {"cfusa", "--dir", DE_DIR, "--strict", NULL};
+    int rc = cmd_check(4, argv);
+    TEST_ASSERT_TRUE(rc != 0);
+
+    rm_baseline_json();
+    rm_goto_source();
+}
+
+//cfusa:req REQ-BASELINE001
+//cfusa:test REQ-BASELINE001
+void test_cmd_baseline_skips_findings_already_dispositioned(void)
+{
+    rm_disp_json();
+    rm_baseline_json();
+    write_goto_source();
+
+    char fp[80];
+    get_fingerprint_for_rule(cmd_check, "CFUSA-L002", fp, sizeof(fp));
+    TEST_ASSERT_TRUE(fp[0] != '\0');
+
+    char *add_argv[] = {"cfusa", "add", "--dir", DE_DIR,
+                         "--rule", "CFUSA-L002", "--fingerprint", fp,
+                         "--action", "accept", "--rationale", "reviewed, ok",
+                         "--reviewer", "Jane", NULL};
+    TEST_ASSERT_EQUAL_INT(0, cmd_disposition(14, add_argv));
+
+    char *baseline_argv[] = {"cfusa", "--dir", DE_DIR, NULL};
+    TEST_ASSERT_EQUAL_INT(0, cmd_baseline(3, baseline_argv));
+
+    char basepath[256];
+    snprintf(basepath, sizeof(basepath), "%s/.fusa-baseline.json", DE_DIR);
+    size_t len = 0;
+    char *content = cfusa_read_file(basepath, &len);
+    TEST_ASSERT_NOT_NULL(content);
+    if (content) {
+        /* the already-dispositioned finding's fingerprint must NOT be
+         * duplicated into the baseline file. */
+        TEST_ASSERT_NULL(strstr(content, fp));
+        free(content);
+    }
+
+    rm_disp_json();
+    rm_baseline_json();
+    rm_goto_source();
+}
+
 /* ---- end-to-end: cmd_check / cmd_lint / cmd_disposition ---- */
 
 static void write_bad_source(void)
@@ -312,53 +606,6 @@ static void write_bad_source(void)
         fputs("void fn(void) {\n    char *p = malloc(64);\n}\n", f);
         if (fclose(f) != 0) TEST_FAIL_MESSAGE("fclose failed");
     }
-}
-
-/* Gets the fingerprint `cmd` (cmd_check, cmd_lint, or cmd_analyze) would
- * itself compute for `rule` in DE_DIR, by actually running `cmd --format
- * json` and reading the value back out of its own output — rather than
- * re-invoking the engine directly and computing one independently.
- *
- * This indirection matters: a caller computing a fingerprint
- * independently of the command it's meant to match can silently diverge
- * from what that command actually produces. It used to matter even more
- * — until issue #153 was fixed, cmd_check set rpt.project_root via
- * realpath(dir) before scanning (which cfusa_report_add() then uses to
- * relativize each finding's file path into the fingerprint's canonical
- * input) while cmd_lint/cmd_analyze/cmd_cyber did not, so the identical
- * real finding got a different fingerprint depending on which command
- * produced it — see test_check_and_lint_fingerprints_match_for_same_rule
- * / test_check_and_analyze_fingerprints_match_for_same_rule below, which
- * exist specifically to guard against that regressing. Always fetching
- * the fingerprint from the exact command under test (rather than a
- * fixed reference command) still avoids the whole class of bug, on every
- * platform, regardless of whether all commands agree. */
-static void get_fingerprint_for_rule(int (*cmd)(int, char **), const char *rule,
-                                      char *out, size_t out_sz)
-{
-    out[0] = '\0';
-
-    char jpath[256];
-    snprintf(jpath, sizeof(jpath), "%s/fp_lookup.json", DE_DIR);
-    char *argv[] = {"cfusa", "--dir", DE_DIR, "--format", "json",
-                     "--output", jpath, NULL};
-    cmd(7, argv);
-
-    size_t len = 0;
-    char *buf = cfusa_read_file(jpath, &len);
-    remove(jpath);
-    if (!buf) return;
-
-    char pat[64];
-    snprintf(pat, sizeof(pat), "\"ruleId\": \"%s\"", rule);
-    char *p = strstr(buf, pat);
-    if (p) {
-        char *fp = strstr(p, "\"fingerprint\":");
-        if (fp) sscanf(fp, "\"fingerprint\": \"%79[^\"]", out);
-        /* out_sz is always >= 80 at every call site; guard anyway */
-        if (out_sz < 80) out[out_sz - 1] = '\0';
-    }
-    free(buf);
 }
 
 /* issue #122 core end-to-end scenario, at cmd_check's level. Uses JSON
@@ -519,6 +766,14 @@ int main(void)
     RUN_TEST(test_apply_dispositions_rule_only_no_fingerprint_does_not_suppress);
     RUN_TEST(test_apply_dispositions_different_fingerprint_same_rule_unaffected);
     RUN_TEST(test_apply_dispositions_empty_list_is_noop);
+    RUN_TEST(test_baseline_load_missing_file_is_not_an_error);
+    RUN_TEST(test_baseline_load_parses_baseline_action_entry);
+    RUN_TEST(test_apply_dispositions_baseline_action_suppresses);
+    RUN_TEST(test_apply_dispositions_idempotent_across_two_lists);
+    RUN_TEST(test_cmd_baseline_help_returns_zero);
+    RUN_TEST(test_cmd_baseline_writes_file_and_check_suppresses_it);
+    RUN_TEST(test_cmd_baseline_does_not_hide_finding_introduced_after_snapshot);
+    RUN_TEST(test_cmd_baseline_skips_findings_already_dispositioned);
     RUN_TEST(test_check_json_tags_and_omits_dispositioned_finding_from_gate);
     RUN_TEST(test_lint_exit_code_flips_after_accept_disposition);
     RUN_TEST(test_check_and_lint_fingerprints_match_for_same_rule);

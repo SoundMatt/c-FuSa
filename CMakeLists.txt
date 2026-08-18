@@ -85,6 +85,7 @@ add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_iec62443.c
     cmd/cfusa/cmd_misra.c
     cmd/cfusa/cmd_disposition.c
+    cmd/cfusa/cmd_baseline.c
     cmd/cfusa/cmd_impact.c
     cmd/cfusa/cmd_metrics.c
     cmd/cfusa/cmd_coupling.c

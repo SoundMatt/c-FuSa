@@ -104,6 +104,18 @@ int cmd_check(int argc, char **argv)
     cfusa_report_apply_dispositions(&rpt, &disps);
     cfusa_dispositions_free(&disps);
 
+    //cfusa:req REQ-BASELINE001
+    /* issue #208: .fusa-baseline.json (written by `cfusa baseline`) is
+     * applied the same way, on top of dispositions -- a finding matching
+     * both would already be excluded by the disposition, and
+     * cfusa_report_apply_dispositions()'s own idempotency guard makes
+     * this second call a safe no-op for it either way. */
+    cfusa_disposition_list_t baseline;
+    if (!cfusa_baseline_load(dir, &baseline))
+        fprintf(stderr, "cfusa check: WARNING: baseline may be incomplete\n");
+    cfusa_report_apply_dispositions(&rpt, &baseline);
+    cfusa_dispositions_free(&baseline);
+
     cfusa_format_t fmt = cfusa_format_parse(fmt_s);
     if (output) {
         /* issue #141: a failed report write (bad --output path, permission
