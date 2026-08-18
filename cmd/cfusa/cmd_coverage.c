@@ -236,9 +236,18 @@ int cmd_coverage(int argc, char **argv)
     const char *dal          = NULL;
     const char *asil         = NULL;  /* REQ-COV020 (issue #106) */
     double threshold         = 80.0;
-    double threshold_branch  = 0.0;   /* 0 = not enforced unless set by DAL/ASIL */
+    double threshold_branch  = 0.0;   /* 0 = not enforced unless set by DAL/ASIL/--branch-threshold */
     int    dal_explicit      = 0;
     int    asil_explicit     = 0;
+    /* issue #137: an independent branch-coverage regression floor,
+     * separate from --threshold's line-only gate — for a project that
+     * wants to enforce "don't regress below the currently-measured
+     * branch number" without committing to --dal/--asil's fixed 100%
+     * bundling. Captured separately from threshold_branch itself (which
+     * --dal/--asil also write to) so it can act as a floor below the
+     * option-parsing loop regardless of flag order — see below. */
+    int    branch_threshold_explicit = 0;
+    double branch_threshold_pct      = 0.0;
     int    mcdc              = 0;
     int    mutate            = 0;
     double mutate_score      = -1.0;  /* <0 = not provided */
@@ -255,6 +264,7 @@ int cmd_coverage(int argc, char **argv)
         {"dal",            required_argument, NULL, 'D'},
         {"asil",           required_argument, NULL, 'A'}, /* REQ-COV020 */
         {"threshold",      required_argument, NULL, 't'},
+        {"branch-threshold", required_argument, NULL, 'B'}, /* REQ-COV022, issue #137 */
         {"mcdc",           no_argument,       NULL, 'm'},
         {"mcdc-file",      required_argument, NULL, 'C'}, /* REQ-COV015 */
         {"mcdc-threshold", required_argument, NULL, 'T'}, /* REQ-COV015 */
@@ -271,7 +281,7 @@ int cmd_coverage(int argc, char **argv)
 #elif defined(__linux__)
     optind = 0; /* glibc: reset nextchar so stale argv pointer is not followed */
 #endif
-    while ((c = getopt_long(argc, argv, "d:L:f:o:D:A:t:mC:T:MS:h", long_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:L:f:o:D:A:t:B:mC:T:MS:h", long_opts, NULL)) != -1) {
         switch (c) {
         case 'd': dir          = optarg;          break;
         case 'L': lcov_in      = optarg;          break;
@@ -282,6 +292,8 @@ int cmd_coverage(int argc, char **argv)
         case 'A': asil          = optarg;
                   asil_explicit = 1;              break; /* REQ-COV020 */
         case 't': threshold    = atof(optarg);    break;
+        case 'B': branch_threshold_pct      = atof(optarg);
+                  branch_threshold_explicit = 1;  break; /* REQ-COV022 */
         case 'm': mcdc         = 1;               break;
         case 'C': mcdc_file    = optarg;
                   mcdc         = 1;               break; /* --mcdc-file implies --mcdc */
@@ -294,7 +306,7 @@ int cmd_coverage(int argc, char **argv)
                    "                      [--format text|json] [--output <file>]\n"
                    "                      [--dal DAL-A|DAL-B|DAL-C|DAL-D]\n"
                    "                      [--asil QM|ASIL-A|ASIL-B|ASIL-C|ASIL-D]\n"
-                   "                      [--threshold <pct>] [--mcdc]\n"
+                   "                      [--threshold <pct>] [--branch-threshold <pct>] [--mcdc]\n"
                    "                      [--mcdc-file <llvm.json>] [--mcdc-threshold <pct>]\n"
                    "                      [--mutate] [--mutate-score <pct>]\n\n"
                    "Parses gcov/lcov output and reports statement, function, and\n"
@@ -310,6 +322,12 @@ int cmd_coverage(int argc, char **argv)
                    "  QM: no coverage threshold (same tier as DAL-D)\n"
                    "--dal and --asil may both be given; the stricter requirement of the two\n"
                    "applies to each of line/branch/MC/DC independently.\n"
+                   "--branch-threshold N gates branch coverage independently of --threshold\n"
+                   "(which is line-only): fail if measured branch coverage is below N%%.\n"
+                   "Acts as a floor even alongside --dal/--asil (never weakened by them,\n"
+                   "only ever raised if their own branch requirement is stricter) — for a\n"
+                   "regression-floor gate below the fixed 100%% --dal/--asil bundle, e.g.\n"
+                   "while working incrementally toward full branch coverage.\n"
                    "--mcdc flags decision coverage <100%%.\n"
                    "--mcdc-file parses an LLVM coverage JSON export for a verified MC/DC gate.\n"
                    "--mcdc-threshold N sets the minimum %% of conditions covered (default 100).\n"
@@ -356,6 +374,17 @@ int cmd_coverage(int argc, char **argv)
         if (asil_branch > threshold_branch) threshold_branch = asil_branch;
         if (asil_mcdc)                      mcdc              = 1;
     }
+
+    //cfusa:req REQ-COV022
+    /* issue #137: an explicit --branch-threshold is applied last, as a
+     * floor — --dal/--asil (above) may have already set threshold_branch
+     * to their own fixed 100%, and an explicit --branch-threshold should
+     * never silently weaken that; it only ever raises threshold_branch
+     * when the user's own value is stricter than whatever --dal/--asil
+     * already computed (mirroring how --asil itself only raises, never
+     * lowers, --dal's threshold_branch just above). */
+    if (branch_threshold_explicit && branch_threshold_pct > threshold_branch)
+        threshold_branch = branch_threshold_pct;
 
     /* Locate lcov file if not specified.
      * Skip auto-detection in MC/DC-file-only mode (REQ-COV015): when
@@ -483,6 +512,12 @@ int cmd_coverage(int argc, char **argv)
             state.branches_hit, state.branches_found, branch_pct,
             threshold,
             overall_pass ? "true" : "false");
+        /* issue #137: surfaced only when actually enforced (--dal/--asil/
+         * --branch-threshold), matching "threshold" above being always
+         * shown but "mcdcReport" only appearing when MC/DC is relevant —
+         * an unenforced 0.0 would misread as "0% required". */
+        if (threshold_branch > 0.0)
+            fprintf(out_f, ",\n  \"branchThreshold\": %.1f", threshold_branch);
         if (mutate && mutate_score >= 0.0) {
             fprintf(out_f,
                 ",\n"
