@@ -186,6 +186,7 @@
     {"id":"REQ-CFGCORE001","title":"cfusa_config_t defaults (project/version/limits/standards/excludes/extensions), save/load round-trip, exclude-pattern matching, and fallback to defaults when the config file is missing","standard":"c-FuSa core","level":"ASIL-A"},
     {"id":"REQ-UTILCORE001","title":"c-FuSa shared utility primitives: SHA-256 and HMAC-SHA256 known-answer vectors, string helpers (contains/starts-with/trim/escape-json), and path helpers (basename/extension/join)","standard":"c-FuSa core","level":"ASIL-A"},
     {"id":"REQ-ANA003","title":"A003 detects a signed/unsigned comparison","standard":"CERT-C","level":"ASIL-B"},
+    {"id":"REQ-ANA010","title":"A003 does not false-positive when the compared operand is a locally-visible size_t/unsigned-typed name (declaration, parameter, or struct member) — sizeof(...) vs. an already-unsigned value is not a signed/unsigned mismatch","standard":"CERT-C","level":"ASIL-B"},
     {"id":"REQ-ANA004","title":"A004 detects integer overflow risk (INT_MAX/UINT_MAX used without a bounds check)","standard":"CERT-C","level":"ASIL-B"},
     {"id":"REQ-ANA005","title":"A005 detects use of assert() in production code (not for safety invariants in release builds)","standard":"CERT-C","level":"ASIL-B"},
     {"id":"REQ-ANA006","title":"A006 detects pointer arithmetic (MISRA-C Rule 18.4)","standard":"CERT-C","level":"ASIL-B"},
