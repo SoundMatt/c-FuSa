@@ -135,12 +135,11 @@ void test_coverage_asil_d_with_precise_mcdc_file_fails_when_incomplete(void)
     snprintf(lcov, sizeof(lcov), "%s/full_both3.info", COVA_DIR);
     snprintf(mcdc, sizeof(mcdc), "%s/half.json", COVA_DIR);
     write_lcov("full_both3.info", 100, 100, 10, 10);
+    /* issue #129: real llvm-cov export schema is data[].totals.mcdc.
+     * {count,covered}, not {"covered_true_count","covered_false_count"}. */
     write_mcdc("half.json",
-        "{\"data\":[{\"functions\":["
-        "{\"name\":\"Foo\",\"mcdc_records\":[{\"conditions\":["
-        "{\"covered_true_count\":3,\"covered_false_count\":2},"
-        "{\"covered_true_count\":0,\"covered_false_count\":1}"
-        "]}]}]}]}");
+        "{\"data\":[{\"totals\":{\"mcdc\":"
+        "{\"count\":2,\"covered\":1,\"notcovered\":1,\"percent\":50}}}]}");
     char *argv[] = {"cfusa", "--lcov", lcov, "--asil", "ASIL-D",
                     "--mcdc-file", mcdc, NULL};
     int rc = cmd_coverage(7, argv);
