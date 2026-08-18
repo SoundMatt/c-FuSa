@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include "../vendor/unity/unity.h"
+#include "cfusa/utils.h"
 
 extern int cmd_hara(int argc, char **argv);
 
@@ -18,7 +19,7 @@ static void write_file(const char *name, const char *body)
 {
     char path[512];
     snprintf(path, sizeof(path), "%s/%s", HARA_DIR, name);
-    FILE *f = fopen(path, "w");
+    FILE *f = cfusa_fopen_write(path);
     if (f) { fputs(body, f); fclose(f); }
 }
 
