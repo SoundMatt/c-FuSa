@@ -113,6 +113,86 @@ void test_save_then_load_roundtrip(void)
     (void)remove(path);
 }
 
+/* issue #168: cfusa_config_save() used to write only standards[0] under
+ * the singular "standard" key, silently dropping every other declared
+ * standard on save — a combined DO-178C DAL + ISO 26262 ASIL declaration
+ * would lose one of the two entries the moment the config was saved. */
+//cfusa:req REQ-CFG002
+//cfusa:test REQ-CFG002
+void test_save_multiple_standards_roundtrip(void)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.fusa.json", CFG_DIR);
+    (void)remove(path);
+
+    cfusa_config_t orig, loaded;
+    cfusa_config_defaults(&orig);
+    strncpy(orig.standards[0], "iso26262:ASIL-B", sizeof(orig.standards[0]) - 1);
+    strncpy(orig.standards[1], "do178c:DAL-A",    sizeof(orig.standards[1]) - 1);
+    orig.standards_count = 2;
+
+    int rc_save = cfusa_config_save(CFG_DIR, &orig);
+    TEST_ASSERT_EQUAL(0, rc_save);
+
+    /* the saved file must actually contain both entries, not just the
+     * first (checked directly, independent of the loader, so this test
+     * still catches a save-side regression even if a future loader bug
+     * masked it). */
+    FILE *f = fopen(path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[1024] = "";
+        size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "iso26262:ASIL-B"));
+        TEST_ASSERT_NOT_NULL(strstr(buf, "do178c:DAL-A"));
+    }
+
+    cfusa_config_defaults(&loaded);
+    int rc_load = cfusa_config_load(CFG_DIR, &loaded);
+    TEST_ASSERT_EQUAL(0, rc_load);
+    TEST_ASSERT_EQUAL_INT(2, loaded.standards_count);
+    TEST_ASSERT_EQUAL_STRING("iso26262:ASIL-B", loaded.standards[0]);
+    TEST_ASSERT_EQUAL_STRING("do178c:DAL-A",    loaded.standards[1]);
+    (void)remove(path);
+}
+
+//cfusa:req REQ-CFG002
+//cfusa:test REQ-CFG002
+void test_save_single_standard_uses_singular_key(void)
+{
+    /* a single declared standard should still round-trip via the
+     * simpler singular "standard" key, not always the array form. */
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.fusa.json", CFG_DIR);
+    (void)remove(path);
+
+    cfusa_config_t orig, loaded;
+    cfusa_config_defaults(&orig);
+    strncpy(orig.standards[0], "iso26262:ASIL-D", sizeof(orig.standards[0]) - 1);
+    orig.standards_count = 1;
+
+    TEST_ASSERT_EQUAL(0, cfusa_config_save(CFG_DIR, &orig));
+
+    FILE *f = fopen(path, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    if (f) {
+        char buf[1024] = "";
+        size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+        buf[n] = '\0';
+        fclose(f);
+        TEST_ASSERT_NOT_NULL(strstr(buf, "\"standard\": \"iso26262:ASIL-D\""));
+        TEST_ASSERT_NULL(strstr(buf, "\"standards\""));
+    }
+
+    cfusa_config_defaults(&loaded);
+    TEST_ASSERT_EQUAL(0, cfusa_config_load(CFG_DIR, &loaded));
+    TEST_ASSERT_EQUAL_INT(1, loaded.standards_count);
+    TEST_ASSERT_EQUAL_STRING("iso26262:ASIL-D", loaded.standards[0]);
+    (void)remove(path);
+}
+
 //cfusa:req REQ-CFG003
 //cfusa:test REQ-CFG003
 void test_load_no_file_returns_nonzero(void)
@@ -271,6 +351,8 @@ int main(void)
     RUN_TEST(test_defaults_two_calls_equal);
     RUN_TEST(test_save_creates_file);
     RUN_TEST(test_save_then_load_roundtrip);
+    RUN_TEST(test_save_multiple_standards_roundtrip);
+    RUN_TEST(test_save_single_standard_uses_singular_key);
     RUN_TEST(test_load_no_file_returns_nonzero);
     RUN_TEST(test_load_malformed_json_graceful);
     RUN_TEST(test_exclude_empty_config_not_excluded);
