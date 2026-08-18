@@ -20,6 +20,20 @@ typedef struct {
      * each file, exactly like every ad hoc in_block_comment field this
      * consolidates did before. */
     int in_block_comment;
+
+    /* issue #205: nesting depth of every #if/#ifdef/#ifndef directive
+     * seen so far in this file (incremented on any of the three,
+     * decremented on #endif) -- tracked unconditionally so a nested
+     * directive inside an already-disabled #if 0 span still lands at
+     * the right depth once the span's own #endif is reached. */
+    int if_depth;
+
+    /* The if_depth value of the #if 0 (or #elif 0) currently suppressing
+     * content, or -1 when nothing is currently suppressed. Only a
+     * LITERAL "0" condition is ever treated as unambiguously dead --
+     * see cfusa_lex_strip_line()'s doc comment for what this
+     * deliberately does NOT attempt. */
+    int disabled_at;
 } cfusa_lex_state_t;
 
 /* Resets `st` for the start of a new file. Equivalent to
@@ -48,6 +62,19 @@ void cfusa_lex_reset(cfusa_lex_state_t *st);
  * literal and char-literal state does NOT persist across lines (a C
  * string literal cannot span an unescaped newline), matching every prior
  * ad hoc implementation this consolidates.
+ *
+ * issue #205: a physical line entirely inside an unconditionally-
+ * disabled `#if 0` ... `#endif` span (a common "commented out via the
+ * preprocessor" idiom) is ALSO blanked, the same way comment/string
+ * content is -- only a LITERAL "0" condition on `#if`/`#elif` is ever
+ * treated as unambiguously dead; an `#else` (or `#elif` with any other
+ * condition) following a disabling `#if 0` resumes normal scanning,
+ * since that branch IS the one actually compiled. Any other `#if`/
+ * `#ifdef`/`#ifndef` condition this can't evaluate is left alone
+ * (scanned normally) -- this deliberately does NOT attempt general
+ * conditional-compilation branch resolution, which needs real macro
+ * definitions and is a different, much bigger problem; it only ever
+ * suppresses content that is unambiguously, syntactically dead.
  *
  * `out` is always NUL-terminated. If `line` is longer than `out_sz - 1`
  * characters, the remainder is dropped, matching this codebase's existing

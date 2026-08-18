@@ -197,6 +197,149 @@ void test_lex_empty_line(void)
     TEST_ASSERT_EQUAL_STRING("", out);
 }
 
+/* ---- issue #205: #if 0 preprocessor-lite awareness ---- */
+
+//cfusa:req REQ-UTIL020
+//cfusa:test REQ-UTIL020
+void test_lex_if0_blanks_content_until_endif(void)
+{
+    cfusa_lex_state_t st; cfusa_lex_reset(&st);
+
+    /* the #if 0 line itself is a structural marker, not dead code --
+     * NOT blanked. */
+    cfusa_lex_strip_line(&st, "#if 0", out, sizeof(out));
+    TEST_ASSERT_EQUAL_STRING("#if 0", out);
+
+    cfusa_lex_strip_line(&st, "extern int legacy_hook(void);", out, sizeof(out));
+    TEST_ASSERT_NULL(strstr(out, "legacy_hook"));
+
+    /* the #endif line itself is also a structural marker -- NOT blanked. */
+    cfusa_lex_strip_line(&st, "#endif", out, sizeof(out));
+    TEST_ASSERT_EQUAL_STRING("#endif", out);
+
+    cfusa_lex_strip_line(&st, "int real_code(void) { return 1; }", out, sizeof(out));
+    TEST_ASSERT_EQUAL_STRING("int real_code(void) { return 1; }", out);
+}
+
+//cfusa:req REQ-UTIL020
+//cfusa:test REQ-UTIL020
+void test_lex_if0_nested_ifdef_does_not_close_early(void)
+{
+    /* a nested #ifdef/#endif inside the dead #if 0 span must not be
+     * mistaken for the #if 0's OWN closing #endif -- content after the
+     * inner #endif but still before the outer one must stay blanked. */
+    cfusa_lex_state_t st; cfusa_lex_reset(&st);
+
+    cfusa_lex_strip_line(&st, "#if 0", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "#ifdef SOME_MACRO", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "int dead_one(void);", out, sizeof(out));
+    TEST_ASSERT_NULL(strstr(out, "dead_one"));
+    cfusa_lex_strip_line(&st, "#endif", out, sizeof(out)); /* closes #ifdef */
+    cfusa_lex_strip_line(&st, "int dead_two(void);", out, sizeof(out));
+    TEST_ASSERT_NULL(strstr(out, "dead_two")); /* still inside outer #if 0 */
+    cfusa_lex_strip_line(&st, "#endif", out, sizeof(out)); /* closes #if 0 */
+    cfusa_lex_strip_line(&st, "int live_code(void);", out, sizeof(out));
+    TEST_ASSERT_NOT_NULL(strstr(out, "live_code"));
+}
+
+//cfusa:req REQ-UTIL020
+//cfusa:test REQ-UTIL020
+void test_lex_if0_else_branch_resumes_scanning(void)
+{
+    /* #else of a known-false #if 0 IS the branch actually compiled. */
+    cfusa_lex_state_t st; cfusa_lex_reset(&st);
+
+    cfusa_lex_strip_line(&st, "#if 0", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "int dead(void);", out, sizeof(out));
+    TEST_ASSERT_NULL(strstr(out, "dead"));
+    cfusa_lex_strip_line(&st, "#else", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "int alive(void);", out, sizeof(out));
+    TEST_ASSERT_NOT_NULL(strstr(out, "alive"));
+    cfusa_lex_strip_line(&st, "#endif", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "int after(void);", out, sizeof(out));
+    TEST_ASSERT_NOT_NULL(strstr(out, "after"));
+}
+
+//cfusa:req REQ-UTIL020
+//cfusa:test REQ-UTIL020
+void test_lex_if0_elif_zero_stays_disabled(void)
+{
+    cfusa_lex_state_t st; cfusa_lex_reset(&st);
+    cfusa_lex_strip_line(&st, "#if 0", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "#elif 0", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "int still_dead(void);", out, sizeof(out));
+    TEST_ASSERT_NULL(strstr(out, "still_dead"));
+}
+
+//cfusa:req REQ-UTIL020
+//cfusa:test REQ-UTIL020
+void test_lex_if0_elif_unknown_condition_resumes_scanning(void)
+{
+    /* an #elif whose condition can't be evaluated is conservatively
+     * treated as "not provably dead" -- scanned, not blanked. */
+    cfusa_lex_state_t st; cfusa_lex_reset(&st);
+    cfusa_lex_strip_line(&st, "#if 0", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "#elif SOME_MACRO", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "int maybe_alive(void);", out, sizeof(out));
+    TEST_ASSERT_NOT_NULL(strstr(out, "maybe_alive"));
+}
+
+//cfusa:req REQ-UTIL020
+//cfusa:test REQ-UTIL020
+void test_lex_unknown_ifdef_condition_not_disabled(void)
+{
+    /* this deliberately does NOT attempt general #ifdef branch
+     * resolution -- an ordinary #ifdef FOO is left alone (scanned
+     * normally on both sides), matching this codebase's status quo
+     * before issue #205 (no worse, only strictly more precise for the
+     * literal #if 0 case). */
+    cfusa_lex_state_t st; cfusa_lex_reset(&st);
+    cfusa_lex_strip_line(&st, "#ifdef SOME_MACRO", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "int fn(void);", out, sizeof(out));
+    TEST_ASSERT_NOT_NULL(strstr(out, "fn"));
+    cfusa_lex_strip_line(&st, "#endif", out, sizeof(out));
+}
+
+//cfusa:req REQ-UTIL020
+//cfusa:test REQ-UTIL020
+void test_lex_if_paren_zero_form_recognized(void)
+{
+    cfusa_lex_state_t st; cfusa_lex_reset(&st);
+    cfusa_lex_strip_line(&st, "#if (0)", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "int dead(void);", out, sizeof(out));
+    TEST_ASSERT_NULL(strstr(out, "dead"));
+    cfusa_lex_strip_line(&st, "#endif", out, sizeof(out));
+}
+
+//cfusa:req REQ-UTIL020
+//cfusa:test REQ-UTIL020
+void test_lex_if0_with_trailing_comment_recognized(void)
+{
+    cfusa_lex_state_t st; cfusa_lex_reset(&st);
+    cfusa_lex_strip_line(&st, "#if 0 /* disabled during bring-up */", out, sizeof(out));
+    cfusa_lex_strip_line(&st, "int dead(void);", out, sizeof(out));
+    TEST_ASSERT_NULL(strstr(out, "dead"));
+    cfusa_lex_strip_line(&st, "#endif", out, sizeof(out));
+}
+
+//cfusa:req REQ-UTIL020
+//cfusa:test REQ-UTIL020
+void test_lex_if0_looking_text_inside_real_comment_not_a_directive(void)
+{
+    /* a genuinely unterminated block comment spanning what LOOKS like a
+     * "#if 0" directive is comment text, not a real directive -- must
+     * not be interpreted as one. */
+    cfusa_lex_state_t st; cfusa_lex_reset(&st);
+    cfusa_lex_strip_line(&st, "/* example:", out, sizeof(out));
+    TEST_ASSERT_EQUAL(1, st.in_block_comment);
+    cfusa_lex_strip_line(&st, "#if 0", out, sizeof(out));
+    TEST_ASSERT_EQUAL(-1, st.disabled_at); /* not treated as a real directive */
+    cfusa_lex_strip_line(&st, "*/", out, sizeof(out));
+    TEST_ASSERT_EQUAL(0, st.in_block_comment);
+    cfusa_lex_strip_line(&st, "int real_code(void);", out, sizeof(out));
+    TEST_ASSERT_NOT_NULL(strstr(out, "real_code"));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -212,5 +355,14 @@ int main(void)
     RUN_TEST(test_lex_output_truncates_safely_on_small_buffer);
     RUN_TEST(test_lex_zero_size_buffer_does_not_write);
     RUN_TEST(test_lex_empty_line);
+    RUN_TEST(test_lex_if0_blanks_content_until_endif);
+    RUN_TEST(test_lex_if0_nested_ifdef_does_not_close_early);
+    RUN_TEST(test_lex_if0_else_branch_resumes_scanning);
+    RUN_TEST(test_lex_if0_elif_zero_stays_disabled);
+    RUN_TEST(test_lex_if0_elif_unknown_condition_resumes_scanning);
+    RUN_TEST(test_lex_unknown_ifdef_condition_not_disabled);
+    RUN_TEST(test_lex_if_paren_zero_form_recognized);
+    RUN_TEST(test_lex_if0_with_trailing_comment_recognized);
+    RUN_TEST(test_lex_if0_looking_text_inside_real_comment_not_a_directive);
     return UNITY_END();
 }
