@@ -23,13 +23,89 @@ typedef struct {
 } mcdc_report_t;
 
 /*
- * Parse LLVM MC/DC coverage JSON export.
- * The file is an array of test-run objects; each contains a "functions" array
- * whose entries each carry an "mcdc_records" array of condition objects with
- * covered_true_count and covered_false_count integer fields.
- * A condition is MC/DC covered when both counts are positive.
+ * issue #129: the previous version of this parser scanned for
+ * {"covered_true_count":N,"covered_false_count":M} objects — a schema
+ * that does not exist in real `llvm-cov export -format=text` output and
+ * never did; verified directly (`grep -c covered_true_count` on a
+ * genuine export is always 0). Real `mcdc_records[]` entries are
+ * positional arrays — [LineStart, ColumnStart, LineEnd, ColumnEnd,
+ * TrueDecisions, FalseDecisions, FileID, ExpandedFileID, Kind,
+ * ConditionsArray] — duplicated at both per-file ("summary") and
+ * per-data-entry aggregate ("totals") scope, which makes counting raw
+ * records directly risk double-counting (confirmed empirically: a
+ * 2-condition decision shows up once under files[].mcdc_records AND
+ * once under functions[].mcdc_records with identical content).
+ *
+ * llvm-cov itself already computes the exact aggregate this tool needs
+ * — data[].totals.mcdc.{count,covered} — the same official summary
+ * `llvm-cov report` surfaces to a human. Reading that directly avoids
+ * the double-counting class of bug entirely and is far less exposed to
+ * mcdc_records[]'s positional-array shape changing between LLVM
+ * versions than re-deriving the aggregate from per-condition booleans
+ * would be. Verified against a real `-fcoverage-mcdc` export (2026-08,
+ * Apple clang 21 / current upstream LLVM lineage): a 2-condition `a &&
+ * b` decision reports totals.mcdc = {"count":2,"covered":2}, matching
+ * ground truth exactly.
+ *
+ * `llvm-cov export` can emit more than one data[] entry when invoked
+ * with multiple `-object` binaries — every "totals":{...} block found is
+ * summed, not just the first, so a multi-binary export isn't silently
+ * under-counted.
  */
-//cfusa:req REQ-COV015
+//cfusa:req REQ-COV015 REQ-COV016
+static void mcdc_field_value(const char *obj, const char *key, long *out)
+{
+    char pat[32];
+    snprintf(pat, sizeof(pat), "\"%s\":", key);
+    const char *p = strstr(obj, pat);
+    *out = p ? atol(p + strlen(pat)) : 0;
+}
+
+/* Finds the next "mcdc":{...} value strictly inside the next top-level
+ * "totals":{...} object starting at *cursor, using string-aware
+ * brace-depth tracking (a filename inside a quoted string could contain
+ * '{'/'}' otherwise) — same technique as cmd_hara.c's
+ * extract_bracket_at(). Advances *cursor past the totals object either
+ * way so repeated calls walk every data[] entry's totals in turn.
+ * Returns a malloc'd "count":N,"covered":M,... fragment (caller frees),
+ * or NULL once no further "totals" object exists. */
+static char *next_totals_mcdc(const char **cursor)
+{
+    const char *tp = strstr(*cursor, "\"totals\":{");
+    if (!tp) { *cursor = NULL; return NULL; }
+    const char *obj_start = tp + strlen("\"totals\":{");
+
+    int depth = 1, in_str = 0;
+    const char *p = obj_start, *totals_end = NULL;
+    for (; *p; p++) {
+        if (in_str) {
+            if (*p == '\\') { p++; continue; }
+            if (*p == '"') in_str = 0;
+            continue;
+        }
+        if (*p == '"') { in_str = 1; continue; }
+        if (*p == '{') depth++;
+        else if (*p == '}') { depth--; if (depth == 0) { totals_end = p; break; } }
+    }
+    *cursor = totals_end ? totals_end + 1 : NULL;
+    if (!totals_end) return NULL;
+
+    const char *mp = strstr(obj_start, "\"mcdc\":{");
+    if (!mp || mp >= totals_end) return NULL;
+    const char *mcdc_start = mp + strlen("\"mcdc\":{");
+    /* mcdc's own value object is flat (count/covered/notcovered/percent,
+     * no nested braces) — its own closing '}' is the first one found. */
+    const char *me = strchr(mcdc_start, '}');
+    if (!me || me > totals_end) return NULL;
+
+    size_t n = (size_t)(me - mcdc_start);
+    char *out = malloc(n + 1);
+    if (!out) return NULL;
+    memcpy(out, mcdc_start, n);
+    out[n] = '\0';
+    return out;
+}
+
 static void parse_mcdc_json(const char *path, int threshold, mcdc_report_t *rep)
 {
     rep->total_conditions = rep->covered_conditions = 0;
@@ -46,34 +122,15 @@ static void parse_mcdc_json(const char *path, int threshold, mcdc_report_t *rep)
         return;
     }
 
-    /*
-     * Walk all {"covered_true_count":N,"covered_false_count":M} objects.
-     * We scan for the key "covered_true_count" and then "covered_false_count"
-     * within the same braced object.
-     */
-    const char *p = json;
-    while ((p = strstr(p, "\"covered_true_count\"")) != NULL) {
-        /* Find the next closing brace for this condition object */
-        const char *obj_end = strchr(p, '}');
-        if (!obj_end) { p++; continue; }
-
-        /* Extract covered_true_count */
-        const char *tp = strchr(p, ':');
-        long true_count = 0, false_count = 0;
-        if (tp && tp < obj_end) true_count = atol(tp + 1);
-
-        /* Extract covered_false_count within the same object */
-        const char *fp = strstr(p, "\"covered_false_count\"");
-        if (fp && fp < obj_end) {
-            fp = strchr(fp, ':');
-            if (fp) false_count = atol(fp + 1);
-        }
-
-        rep->total_conditions++;
-        if (true_count > 0 && false_count > 0)
-            rep->covered_conditions++;
-
-        p = obj_end + 1;
+    const char *cursor = json;
+    char *mcdc_obj;
+    while (cursor && (mcdc_obj = next_totals_mcdc(&cursor)) != NULL) {
+        long count = 0, covered = 0;
+        mcdc_field_value(mcdc_obj, "count", &count);
+        mcdc_field_value(mcdc_obj, "covered", &covered);
+        free(mcdc_obj);
+        rep->total_conditions   += count;
+        rep->covered_conditions += covered;
     }
 
     free(json);
