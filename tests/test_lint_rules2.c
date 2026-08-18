@@ -510,6 +510,32 @@ void test_l007_static_struct_fires(void)
     cfusa_report_free(&rpt);
 }
 
+/* issue #204: L007 previously matched "static " with a bare strstr() on
+ * the raw line, no string-literal awareness at all -- a string-literal
+ * array entry like `"static ", "extern ", NULL` (this project's own
+ * cmd_trace.c has exactly this) contains the text "static " purely as
+ * quoted data, not a real declaration, and used to false-positive.
+ * Migrating L007 onto the engine's shared cfusa_lex_strip_line() (which
+ * every line rule now goes through) fixes this for free. */
+//cfusa:req REQ-LINT011
+//cfusa:test REQ-LINT011
+void test_l007_static_in_string_literal_silent(void)
+{
+    /* Exact repro shape from cmd_trace.c's own kws[] array: the
+     * continuation line carries the closing `};` (so L007's own ";"
+     * requirement is met) and the quoted "static " text, with no
+     * "const"/"(" on that same physical line to otherwise exclude it. */
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "void fn(void) {\n"
+        "    static char *kws[] = {\"typedef \",\n"
+        "                          \"static \", \"extern \", 0};\n"
+        "    (void)kws;\n"
+        "}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L007"));
+    cfusa_report_free(&rpt);
+}
+
 /* ---- L008: void pointer ---- */
 
 //cfusa:req REQ-LINT012
@@ -528,6 +554,26 @@ void test_l008_typed_ptr_silent(void)
 {
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_lint_on("void fn(int *p) { (void)p; }\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L008"));
+    cfusa_report_free(&rpt);
+}
+
+/* issue #204: L008 previously matched "void *" with a bare strstr() on
+ * the raw line, no string-literal awareness at all -- a string literal
+ * containing example/remediation C code that mentions "void *" as text
+ * (this project's own cmd_fix.c ships exactly this kind of remediation
+ * guidance string) used to false-positive. Migrating L008 onto the
+ * engine's shared cfusa_lex_strip_line() fixes this for free. */
+//cfusa:req REQ-LINT012
+//cfusa:test REQ-LINT012
+void test_l008_void_ptr_in_string_literal_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "void fn(void) {\n"
+        "    const char *msg = \"example: void *p = malloc(n);\";\n"
+        "    (void)msg;\n"
+        "}\n", &rpt);
     TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L008"));
     cfusa_report_free(&rpt);
 }
@@ -584,6 +630,26 @@ void test_l010_errno_direct_fires(void)
     cfusa_report_t rpt; cfusa_report_init(&rpt);
     run_lint_on("void fn(void) { if (errno != 0) return; }\n", &rpt);
     TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L010") > 0);
+    cfusa_report_free(&rpt);
+}
+
+/* issue #204: L010 previously matched "errno" with a bare strstr() on
+ * the raw line, no string-literal awareness at all -- a string literal
+ * containing remediation-guidance text that mentions "errno" as prose
+ * (this project's own cmd_fix.c ships exactly this kind of guidance
+ * string for other rules) used to false-positive. Migrating L010 onto
+ * the engine's shared cfusa_lex_strip_line() fixes this for free. */
+//cfusa:req REQ-LINT014
+//cfusa:test REQ-LINT014
+void test_l010_errno_in_string_literal_silent(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    run_lint_on(
+        "void fn(void) {\n"
+        "    const char *msg = \"remember to zero errno before the call\";\n"
+        "    (void)msg;\n"
+        "}\n", &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L010"));
     cfusa_report_free(&rpt);
 }
 
@@ -690,6 +756,30 @@ void test_disabled_rules_suppresses_l004(void)
     cfusa_report_free(&rpt);
 }
 
+/* issue #204: L003 is now registered via cfusa_engine_register_line_rule()
+ * instead of cfusa_engine_register() -- disabled_rules must still suppress
+ * it. This specifically exercises the new single-walk dispatcher's own
+ * cfusa_config_is_rule_disabled() check in cfusa_engine_run_line_rules(),
+ * not just the pre-existing whole-rule check test_disabled_rules_
+ * suppresses_l004() above already covers. */
+//cfusa:req REQ-CFG007
+//cfusa:test REQ-CFG007
+void test_disabled_rules_suppresses_line_rule_l003(void)
+{
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+    cfusa_config_t cfg; cfusa_config_defaults(&cfg);
+    cfg.max_function_lines = 5;
+    strncpy(cfg.disabled_rules[0], "CFUSA-L003", 31);
+    cfg.disabled_rules_count = 1;
+    run_lint_on_cfg("void fn(void) { void *p = malloc(64); (void)p; }\n",
+                     &cfg, &rpt);
+    TEST_ASSERT_EQUAL(0, count_rule(&rpt, "CFUSA-L003"));
+    /* a different, still-enabled line rule scanning the SAME file must be
+     * unaffected -- proves the disabled check is per-rule, not per-file. */
+    TEST_ASSERT_TRUE(count_rule(&rpt, "CFUSA-L008") > 0);
+    cfusa_report_free(&rpt);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -722,6 +812,7 @@ int main(void)
     RUN_TEST(test_l004_brace_in_string_not_recursive);
     RUN_TEST(test_l004_real_recursion_still_fires);
     RUN_TEST(test_disabled_rules_suppresses_l004);
+    RUN_TEST(test_disabled_rules_suppresses_line_rule_l003);
     RUN_TEST(test_l005_single_undef_fires);
     RUN_TEST(test_l005_no_undef_silent);
     RUN_TEST(test_l006_setjmp_fires);
@@ -731,12 +822,15 @@ int main(void)
     RUN_TEST(test_l007_static_global_int_fires);
     RUN_TEST(test_l007_static_const_ptr_silent);
     RUN_TEST(test_l007_static_struct_fires);
+    RUN_TEST(test_l007_static_in_string_literal_silent);
     RUN_TEST(test_l008_void_ptr_param_fires);
     RUN_TEST(test_l008_typed_ptr_silent);
+    RUN_TEST(test_l008_void_ptr_in_string_literal_silent);
     RUN_TEST(test_l009_pragma_optimize_fires);
     RUN_TEST(test_l009_pragma_once_fires);
     RUN_TEST(test_l010_errno_no_include_fires);
     RUN_TEST(test_l010_no_errno_silent);
     RUN_TEST(test_l010_errno_direct_fires);
+    RUN_TEST(test_l010_errno_in_string_literal_silent);
     return UNITY_END();
 }
