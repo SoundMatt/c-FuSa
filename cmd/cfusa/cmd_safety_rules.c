@@ -713,6 +713,25 @@ static int rule_coup003(const char *dir, const cfusa_config_t *cfg,
     return 0;
 }
 
+/* Finds the '}' matching the '{' at `obj` (string-literal-aware, so a
+ * literal '}' inside a quoted message doesn't miscount depth). Returns
+ * NULL if unbalanced. */
+static const char *json_obj_end(const char *obj)
+{
+    int depth = 0, in_str = 0;
+    for (const char *p = obj; *p; p++) {
+        if (in_str) {
+            if (*p == '\\' && p[1]) { p++; continue; }
+            if (*p == '"') in_str = 0;
+            continue;
+        }
+        if (*p == '"') { in_str = 1; continue; }
+        if (*p == '{') depth++;
+        else if (*p == '}') { depth--; if (depth == 0) return p; }
+    }
+    return NULL;
+}
+
 /* ── DISP001 — ERROR findings with no disposition record ──────────────── */
 
 static int rule_disp001(const char *dir, const cfusa_config_t *cfg,
@@ -723,11 +742,6 @@ static int rule_disp001(const char *dir, const cfusa_config_t *cfg,
     size_t clen;
     char *check_json = read_file_at(dir, "check-report.json", &clen);
     if (!check_json) return 0;
-
-    /* Load .fusa-dispositions.json */
-    size_t dlen;
-    char *disp_json = read_file_at(dir, ".fusa-dispositions.json", &dlen);
-    if (!disp_json) disp_json = read_file_at(dir, ".cfusa-dispositions.json", &dlen);
 
     int findings = 0;
     const char *p = check_json;
@@ -753,15 +767,33 @@ static int rule_disp001(const char *dir, const cfusa_config_t *cfg,
             }
 
             if (rule_id[0]) {
-                /* Check disposition file for this rule */
+                /* issue #148: DISP001 used to decide "dispositioned" via a
+                 * raw strstr(disp_json, rule_id) over the ENTIRE
+                 * .fusa-dispositions.json text — matching free-text
+                 * rationale/ref fields that merely *mention* the rule id,
+                 * completely bypassing the fingerprint-scoped matching
+                 * cfusa_report_apply_dispositions() (the one authoritative
+                 * suppression mechanism) actually requires. Rather than
+                 * re-implement that matching here, defer to it entirely:
+                 * cfusa_report_apply_dispositions() already ran when
+                 * check-report.json was generated and stamps a
+                 * "dispositionId" field onto exactly the findings it
+                 * matched (src/report.c print_json) — a real ERROR finding
+                 * is dispositioned if and only if that field is present in
+                 * *this* finding's own JSON object. */
                 int dispositioned = 0;
-                if (disp_json && strstr(disp_json, rule_id)) dispositioned = 1;
+                const char *obj_end = json_obj_end(scan);
+                if (obj_end) {
+                    const char *dp = strstr(scan, "\"dispositionId\":");
+                    if (dp && dp < obj_end) dispositioned = 1;
+                }
                 if (!dispositioned) {
                     cfusa_report_add(rpt, "DISP001", "safety", SEV_WARNING,
                         "check-report.json", 0,
                         "ERROR finding '%s' has no disposition record — "
-                        "run 'cfusa disposition add --rule %s --action accept|fix' "
-                        "(ISO 26262-8 §9 requires findings to be dispositioned)",
+                        "run 'cfusa disposition add --rule %s --action accept|fix "
+                        "--fingerprint <sha256:...>' (ISO 26262-8 §9 requires "
+                        "findings to be dispositioned)",
                         rule_id, rule_id);
                     findings++;
                 }
@@ -771,7 +803,6 @@ static int rule_disp001(const char *dir, const cfusa_config_t *cfg,
     }
 
     free(check_json);
-    if (disp_json) free(disp_json);
     return findings;
 }
 

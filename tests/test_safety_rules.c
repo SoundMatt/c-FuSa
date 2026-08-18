@@ -360,6 +360,82 @@ void test_coup003_fires_when_no_coupling_report(void)
     cfusa_report_free(&rpt);
 }
 
+/* ── DISP001 ────────────────────────────────────────────────────────── */
+
+static int run_disp001(void)
+{
+    cfusa_engine_reset();
+    cfusa_safety_register_rules();
+
+    cfusa_config_t cfg; cfusa_config_load(SR_DIR, &cfg);
+    cfusa_report_t rpt; cfusa_report_init(&rpt);
+
+    int count = cfusa_engine_rule_count();
+    for (int i = 0; i < count; i++) {
+        const cfusa_rule_t *r = cfusa_engine_get_rule(i);
+        if (strcmp(r->id, "DISP001") == 0) r->run(SR_DIR, &cfg, &rpt);
+    }
+    int n = rpt.warning_count;
+    cfusa_report_free(&rpt);
+    return n;
+}
+
+void test_disp001_fires_for_undispositioned_error(void)
+{
+    make_file("check-report.json",
+        "{\"findings\":[\n"
+        "  {\"ruleId\": \"HARA002\", \"severity\": \"error\", \"message\": \"m\"}\n"
+        "]}\n");
+
+    TEST_ASSERT_TRUE(run_disp001() > 0);
+    rm_file("check-report.json");
+}
+
+//cfusa:req REQ-DISP001
+//cfusa:test REQ-DISP001
+void test_disp001_silent_when_finding_carries_dispositionid(void)
+{
+    /* mirrors src/report.c print_json(): "dispositionId" is stamped only
+     * onto findings cfusa_report_apply_dispositions() actually matched by
+     * fingerprint — the one authoritative suppression mechanism. */
+    make_file("check-report.json",
+        "{\"findings\":[\n"
+        "  {\"ruleId\": \"HARA002\", \"severity\": \"error\", \"message\": \"m\","
+        "\"dispositionId\": \"DISP-0001\", \"dispositionAction\": \"accept\"}\n"
+        "]}\n");
+
+    TEST_ASSERT_EQUAL_INT(0, run_disp001());
+    rm_file("check-report.json");
+}
+
+//cfusa:req REQ-DISP001
+//cfusa:test REQ-DISP001
+void test_disp001_not_fooled_by_unrelated_rationale_mentioning_rule_id(void)
+{
+    /* issue #148: DISP001 used to decide "dispositioned" via a raw
+     * strstr() of the rule id over the ENTIRE .fusa-dispositions.json
+     * text, so an unrelated disposition whose free-text rationale merely
+     * *mentions* the undispositioned rule's id used to silently suppress
+     * DISP001 — even though cfusa_report_apply_dispositions() never
+     * actually matched (and never would, since rule-only text mentions
+     * aren't a fingerprint). The fixed rule no longer reads
+     * .fusa-dispositions.json at all, so its mere presence — or its
+     * content — cannot affect the outcome. */
+    make_file("check-report.json",
+        "{\"findings\":[\n"
+        "  {\"ruleId\": \"HARA002\", \"severity\": \"error\", \"message\": \"m\"}\n"
+        "]}\n");
+    make_file(".fusa-dispositions.json",
+        "{\"dispositions\":[\n"
+        "  {\"id\":\"DISP-0001\",\"rule\":\"COMP001\",\"action\":\"accept\","
+        "\"rationale\":\"threshold change related to HARA002 review\"}\n"
+        "]}\n");
+
+    TEST_ASSERT_TRUE(run_disp001() > 0);
+    rm_file("check-report.json");
+    rm_file(".fusa-dispositions.json");
+}
+
 /* ── COUP001 / COUP002 ──────────────────────────────────────────────── */
 
 void test_coup001_detects_extern_mutable(void)
@@ -599,6 +675,10 @@ int main(void)
     RUN_TEST(test_dupreq001_fires_on_duplicate_id);
     RUN_TEST(test_dupreq001_passes_when_ids_unique);
     /* Coupling rules */
+    RUN_TEST(test_disp001_fires_for_undispositioned_error);
+    RUN_TEST(test_disp001_silent_when_finding_carries_dispositionid);
+    RUN_TEST(test_disp001_not_fooled_by_unrelated_rationale_mentioning_rule_id);
+
     RUN_TEST(test_coup003_fires_when_no_coupling_report);
     RUN_TEST(test_coup001_detects_extern_mutable);
     RUN_TEST(test_coup002_detects_fn_pointer_param);
