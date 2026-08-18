@@ -14,6 +14,22 @@ int  cfusa_walk_sources(const char *dir, const char * const *exts, int n_exts,
 char *cfusa_read_file(const char *path, size_t *len_out);
 int   cfusa_file_exists(const char *path);
 int   cfusa_dir_exists(const char *path);
+
+/* Looks for a regular file named `name` directly under `dir`, matching
+ * case-insensitively (issue #97: cmd_safety_case.c used to hardcode exact
+ * lowercase evidence filenames like "hara.md"/"safety-plan.md" and
+ * cfusa_file_exists() is a plain stat() — case-sensitive on the Linux
+ * runners CI/release actually use — so a project naming its evidence
+ * HARA.md/SAFETY_PLAN.md (a defensible, common convention) silently read
+ * as "no evidence" on Linux while appearing fine on a case-insensitive
+ * dev filesystem like macOS/Windows). Scans the directory listing (no
+ * shell-out, no fixed casing-variant guesswork) so any casing of `name`
+ * is found. On a match, joins `dir`/<actual on-disk name> into
+ * `out_path` (size `out_sz`) and returns 1; returns 0 (out_path
+ * untouched) when `dir` can't be opened or no case-insensitive match
+ * exists. */
+int cfusa_find_file_ci(const char *dir, const char *name,
+                        char *out_path, size_t out_sz);
 int   cfusa_mkdir_p(const char *path);
 
 /* Opens `path` for writing (truncating) with explicit 0600 permissions —

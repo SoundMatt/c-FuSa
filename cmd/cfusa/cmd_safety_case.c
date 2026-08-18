@@ -20,7 +20,7 @@
 #include "cfusa/utils.h"
 #include "cfusa/version.h"
 
-//cfusa:req REQ-SC001 REQ-SC002 REQ-SC003
+//cfusa:req REQ-SC001 REQ-SC002 REQ-SC003 REQ-SC004
 
 typedef struct {
     const char *id, *type, *text, *evidence; /* evidence: NULL when not a solution */
@@ -31,6 +31,25 @@ typedef struct { const char *from, *to, *type; } gsn_edge_t;
 
 #define MAX_NODES 16
 #define MAX_EDGES 16
+
+/* Writes one "| File | Present | SHA-256 |" evidence-index row, matching
+ * `name` case-insensitively against `dir`'s real directory listing
+ * (issue #97 — see cfusa_find_file_ci()) so a project naming its evidence
+ * e.g. HARA.md/SAFETY_PLAN.md isn't silently reported "absent" on a
+ * case-sensitive filesystem. Cites whatever casing was actually found on
+ * disk, not the canonical lowercase `name`. */
+static void print_evidence_row(FILE *f, const char *dir, const char *name)
+{
+    char matched[512];
+    if (cfusa_find_file_ci(dir, name, matched, sizeof(matched))) {
+        char hex[65];
+        cfusa_sha256_file(matched, hex);
+        const char *base = cfusa_basename(matched);
+        fprintf(f, "| %s | present | `%s` |\n", base ? base : name, hex);
+    } else {
+        fprintf(f, "| %s | absent | — |\n", name);
+    }
+}
 
 int cmd_safety_case(int argc, char **argv)
 {
@@ -86,20 +105,36 @@ int cmd_safety_case(int argc, char **argv)
 
     char ts[32]; cfusa_timestamp_now(ts);
 
-    /* Evidence files this safety case can cite — only ever cited when they
-     * actually exist (x-FuSa spec §9.2 "real referents only"). */
-    struct { const char *name; int present; } ev_hara = {"hara.md", 0},
+    /* Evidence files this safety case can cite — matched case-insensitively
+     * against the real directory listing (issue #97: a hardcoded exact
+     * lowercase name plus a case-sensitive stat() silently dropped real
+     * evidence on Linux CI/release whenever a project named its files,
+     * e.g., HARA.md/SAFETY_PLAN.md — a defensible, common convention —
+     * see cfusa_find_file_ci()). `name` starts as the canonical casing and
+     * is overwritten with whatever casing was actually found on disk, so
+     * the GSN solution nodes below cite the real filename. Only ever
+     * cited when they actually exist (x-FuSa spec §9.2 "real referents
+     * only"). */
+    struct { char name[64]; int present; } ev_hara = {"hara.md", 0},
         ev_check = {"cfusa-self-check.json", 0}, ev_fmea = {"fmea.json", 0},
         ev_tara = {"tara.json", 0}, ev_qualify = {"qualify-report.json", 0},
         ev_sci = {"sci.json", 0};
-    struct { const char *name; int *present; } evs[] = {
+
+    struct { char *name; int *present; } evs[] = {
         {ev_hara.name, &ev_hara.present}, {ev_check.name, &ev_check.present},
         {ev_fmea.name, &ev_fmea.present}, {ev_tara.name, &ev_tara.present},
         {ev_qualify.name, &ev_qualify.present}, {ev_sci.name, &ev_sci.present},
     };
     for (size_t i = 0; i < sizeof(evs)/sizeof(evs[0]); i++) {
-        char p[512]; cfusa_path_join(p, sizeof(p), dir, evs[i].name);
-        *evs[i].present = cfusa_file_exists(p);
+        char matched[512];
+        if (cfusa_find_file_ci(dir, evs[i].name, matched, sizeof(matched))) {
+            *evs[i].present = 1;
+            const char *base = cfusa_basename(matched);
+            if (base) {
+                strncpy(evs[i].name, base, 63);
+                evs[i].name[63] = '\0';
+            }
+        }
     }
 
     char g1_text[384], c1_text[256], g11_text[320], g12_text[320], a1_text[256];
@@ -129,15 +164,15 @@ int cmd_safety_case(int argc, char **argv)
     nodes[nn++] = (gsn_node_t){"G1.1","goal",       g11_text, NULL, 0};
     nodes[nn++] = (gsn_node_t){"G1.2","goal",       g12_text, NULL, 0};
     if (ev_hara.present)
-        nodes[nn++] = (gsn_node_t){"Sn1", "solution", "Hazard analysis and risk assessment", "hara.md", 1};
+        nodes[nn++] = (gsn_node_t){"Sn1", "solution", "Hazard analysis and risk assessment", ev_hara.name, 1};
     if (ev_check.present)
-        nodes[nn++] = (gsn_node_t){"Sn2", "solution", "Static analysis / lint / cyber self-check results", "cfusa-self-check.json", 1};
+        nodes[nn++] = (gsn_node_t){"Sn2", "solution", "Static analysis / lint / cyber self-check results", ev_check.name, 1};
     if (ev_fmea.present)
-        nodes[nn++] = (gsn_node_t){"Sn3", "solution", "Design FMEA", "fmea.json", 1};
+        nodes[nn++] = (gsn_node_t){"Sn3", "solution", "Design FMEA", ev_fmea.name, 1};
     if (ev_tara.present)
-        nodes[nn++] = (gsn_node_t){"Sn4", "solution", "Threat analysis and risk assessment", "tara.json", 1};
+        nodes[nn++] = (gsn_node_t){"Sn4", "solution", "Threat analysis and risk assessment", ev_tara.name, 1};
     if (ev_qualify.present)
-        nodes[nn++] = (gsn_node_t){"Sn5", "solution", "Tool qualification record", "qualify-report.json", 1};
+        nodes[nn++] = (gsn_node_t){"Sn5", "solution", "Tool qualification record", ev_qualify.name, 1};
 
     gsn_edge_t edges[MAX_EDGES];
     int ne = 0;
@@ -336,29 +371,11 @@ int cmd_safety_case(int argc, char **argv)
         if (!strcmp(standard,"iso21434") || !strcmp(standard,"unece-r155"))
             extra = cyber_evidence;
 
-        for (int i=0; evidence_files[i]; i++) {
-            char ep[512];
-            cfusa_path_join(ep, sizeof(ep), dir, evidence_files[i]);
-            if (cfusa_file_exists(ep)) {
-                char hex[65];
-                cfusa_sha256_file(ep, hex);
-                fprintf(f,"| %s | present | `%s` |\n", evidence_files[i], hex);
-            } else {
-                fprintf(f,"| %s | absent | — |\n", evidence_files[i]);
-            }
-        }
+        for (int i=0; evidence_files[i]; i++)
+            print_evidence_row(f, dir, evidence_files[i]);
         if (extra) {
-            for (int i=0; extra[i]; i++) {
-                char ep[512];
-                cfusa_path_join(ep, sizeof(ep), dir, extra[i]);
-                if (cfusa_file_exists(ep)) {
-                    char hex[65];
-                    cfusa_sha256_file(ep, hex);
-                    fprintf(f,"| %s | present | `%s` |\n", extra[i], hex);
-                } else {
-                    fprintf(f,"| %s | absent | — |\n", extra[i]);
-                }
-            }
+            for (int i=0; extra[i]; i++)
+                print_evidence_row(f, dir, extra[i]);
         }
     }
 
