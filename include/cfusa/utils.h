@@ -51,6 +51,26 @@ int         cfusa_str_starts_with(const char *s, const char *prefix);
 char       *cfusa_str_trim(char *s);
 void        cfusa_str_escape_json(const char *in, char *out, size_t out_sz);
 
+/* Extracts the string value of `"key": "value"` from `json`, tolerant of
+ * any whitespace (space/tab/newline/CR) between the key's closing quote,
+ * the colon, and the value's opening quote — ordinary pretty-printed JSON
+ * (`json.dump(..., indent=2)`, `jq .`, most editors' format-on-save) puts
+ * a space there, and a rigid `sscanf(p, "\"key\":\"%N[^\"]", ...)`-style
+ * literal-adjacency match silently fails to extract it (issue #97-class
+ * audit findings: this exact bug independently broke disposition
+ * loading, the qualitybar placeholder-text gate, and HARA fssrRefs
+ * dangling-reference detection — see cmd/cfusa/cmd_disposition.c,
+ * src/qualitybar.c, cmd/cfusa/cmd_hara.c history). Also reverses the
+ * escaping cfusa_str_escape_json() applies (\", \\, \n, \r, \t), so a
+ * value written by this codebase's own writer round-trips correctly.
+ * `dst` is always NUL-terminated; on no match, `dst[0]` is left
+ * untouched by the caller's own zero-initialization (mirrors
+ * config.c's extract_string() convention — callers zero/clear `dst`
+ * first). Matches only the FIRST occurrence of `"key"` in `json`. */
+//cfusa:req REQ-UTIL018
+void cfusa_json_extract_string(const char *json, const char *key,
+                                char *dst, size_t dsz);
+
 /* ---- path helpers ---- */
 void cfusa_path_join(char *out, size_t sz, const char *a, const char *b);
 

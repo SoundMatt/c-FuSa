@@ -247,6 +247,37 @@ void cfusa_str_escape_json(const char *in, char *out, size_t out_sz)
     out[i] = '\0';
 }
 
+//cfusa:req REQ-UTIL018
+void cfusa_json_extract_string(const char *json, const char *key,
+                                char *dst, size_t dsz)
+{
+    if (dsz == 0) return;
+    char needle[128];
+    snprintf(needle, sizeof(needle), "\"%s\"", key);
+    const char *p = strstr(json, needle);
+    if (!p) return;
+    p += strlen(needle);
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r' || *p == ':') p++;
+    if (*p != '"') return;
+    p++;
+    size_t i = 0;
+    while (*p && *p != '"' && i < dsz - 1) {
+        if (*p == '\\' && p[1]) {
+            p++;
+            switch (*p) {
+            case 'n': dst[i++] = '\n'; break;
+            case 'r': dst[i++] = '\r'; break;
+            case 't': dst[i++] = '\t'; break;
+            default:  dst[i++] = *p;   break; /* \" \\ and any other escape */
+            }
+            p++;
+        } else {
+            dst[i++] = *p++;
+        }
+    }
+    dst[i] = '\0';
+}
+
 void cfusa_path_join(char *out, size_t sz, const char *a, const char *b)
 {
     size_t alen = strlen(a);

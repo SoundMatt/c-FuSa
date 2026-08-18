@@ -395,11 +395,11 @@ static int load_req_ids(const char *dir, char ids[][REF_LEN])
 
     int n = 0;
     char *p = json;
-    while ((p = strstr(p, "\"id\":")) != NULL && n < MAX_REQ_IDS) {
+    while ((p = strstr(p, "\"id\"")) != NULL && n < MAX_REQ_IDS) {
         char id[REF_LEN] = "";
-        sscanf(p, "\"id\":\"%31[^\"]", id);
+        cfusa_json_extract_string(p, "id", id, sizeof(id));
         if (id[0]) { strncpy(ids[n], id, REF_LEN - 1); n++; }
-        p += 5;
+        p += 4;
     }
     free(json);
     return n;

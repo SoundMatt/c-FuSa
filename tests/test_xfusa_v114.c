@@ -212,6 +212,25 @@ void test_qb_rule_disposed_true_when_entry_present(void)
     (void)remove(path);
 }
 
+//cfusa:req REQ-UTIL018
+//cfusa:test REQ-UTIL018
+void test_qb_rule_disposed_true_with_pretty_printed_whitespace(void)
+{
+    /* issue #159: cfusa_qb_rule_disposed() used the same rigid,
+     * whitespace-intolerant sscanf pattern as the disposition loader —
+     * a pretty-printed file (space after the colon) silently never
+     * matched, so the quality-bar gate never saw a real disposition. */
+    write_file(".fusa-dispositions.json",
+        "{\n  \"dispositions\": [\n    {\n      \"id\": \"DISP-0001\",\n"
+        "      \"rule\": \"FUSA-STUB001\",\n      \"action\": \"accept\"\n"
+        "    }\n  ]\n}\n");
+    TEST_ASSERT_TRUE(cfusa_qb_rule_disposed(V114_DIR, "FUSA-STUB001"));
+    TEST_ASSERT_FALSE(cfusa_qb_rule_disposed(V114_DIR, "FUSA-STUB002"));
+
+    char path[512]; snprintf(path, sizeof(path), "%s/.fusa-dispositions.json", V114_DIR);
+    (void)remove(path);
+}
+
 /* ================================================================== */
 /* hara schema conformance                                              */
 /* ================================================================== */
@@ -927,6 +946,7 @@ int main(void)
     RUN_TEST(test_qb_attestation_read_roundtrip);
     RUN_TEST(test_qb_attestation_read_absent_returns_zero);
     RUN_TEST(test_qb_rule_disposed_true_when_entry_present);
+    RUN_TEST(test_qb_rule_disposed_true_with_pretty_printed_whitespace);
 
     RUN_TEST(test_hara_init_scaffold_has_three_empty_collections);
     RUN_TEST(test_hara_show_json_reports_fssr_gap);

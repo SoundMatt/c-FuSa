@@ -352,6 +352,7 @@
     {"id":"REQ-UTIL015","title":"cfusa SHA-256 buffer hashing matches known-answer vectors for empty and non-empty input","standard":"c-FuSa core","level":"ASIL-A"},
     {"id":"REQ-UTIL016","title":"cfusa SHA-256 file hashing matches known content and does not crash on a nonexistent file","standard":"c-FuSa core","level":"ASIL-A"},
     {"id":"REQ-UTIL017","title":"cfusa timestamp helper returns a non-empty ISO-8601 timestamp containing 'T'","standard":"c-FuSa core","level":"ASIL-A"},
+    {"id":"REQ-UTIL018","title":"cfusa_json_extract_string() extracts a JSON string field tolerant of whitespace between the key's colon and the value's opening quote (ordinary pretty-printed JSON), and reverses cfusa_str_escape_json()'s escaping so a value written by this codebase's own writer round-trips","standard":"c-FuSa core","level":"ASIL-A"},
     {"id":"REQ-VULN004","title":"cfusa vuln detects a known-vulnerable strcpy() call in a scanned file","standard":"c-FuSa CLI","level":"ASIL-A"},
     {"id":"REQ-VULN005","title":"cfusa vuln --format json output contains the detected findings","standard":"c-FuSa CLI","level":"ASIL-A"},
     {"id":"REQ-VULN006","title":"cfusa vuln --output-dir writes the vulnerability report to the given directory","standard":"c-FuSa CLI","level":"ASIL-A"},
