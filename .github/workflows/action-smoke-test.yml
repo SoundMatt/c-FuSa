@@ -1,0 +1,46 @@
+name: Action Smoke Test
+
+# issue #213: action.yml has no C code for ctest to exercise, so this is
+# its regression test -- runs the composite action, at the exact commit
+# under test (`uses: ./`), against this repo itself, and checks it
+# actually produced a SARIF file. Separate from the "SARIF Upload" job in
+# ci.yml, which builds cfusa from source; this job installs the latest
+# *released* binary, since that's what a real adopting project's workflow
+# does via `uses: SoundMatt/c-FuSa@<tag>`.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  smoke-test:
+    name: Action Smoke Test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run c-FuSa via this action
+        id: cfusa
+        uses: ./
+        with:
+          dir: '.'
+          sarif-file: 'action-smoke-results.sarif'
+          # This repo's own findings are all WARNING/INFO (see the
+          # "Self-qualification"/"SARIF Upload" jobs in ci.yml) -- don't
+          # gate this smoke test on that pre-existing backlog, only on
+          # the action actually running end-to-end.
+          fail-on-error: 'false'
+
+      - name: Verify SARIF was produced
+        run: |
+          set -euo pipefail
+          f="${{ steps.cfusa.outputs.sarif-file }}"
+          test -s "$f" || { echo "::error::expected a non-empty SARIF file at $f"; exit 1; }
+          grep -q '"version"' "$f" || { echo "::error::$f doesn't look like SARIF"; exit 1; }
+          echo "exit-code output: ${{ steps.cfusa.outputs.exit-code }}"
+          echo "OK: $f ($(wc -c < "$f") bytes)"

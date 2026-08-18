@@ -1,0 +1,134 @@
+name: 'c-FuSa Safety & Security Check'
+description: >-
+  Runs c-FuSa (MISRA-C/CERT-C/CWE static analysis for functional-safety
+  and cybersecurity C projects), uploads results to the GitHub code
+  scanning tab as SARIF, and gates the workflow on findings.
+author: 'SoundMatt'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  dir:
+    description: 'Directory to analyze (passed to `cfusa check --dir`).'
+    required: false
+    default: '.'
+  version:
+    description: >-
+      c-FuSa release tag to install (e.g. "v0.6.1"). "latest" resolves the
+      most recent GitHub release at run time.
+    required: false
+    default: 'latest'
+  strict:
+    description: 'Exit non-zero on WARNING findings too, not just ERROR.'
+    required: false
+    default: 'false'
+  changed-since:
+    description: >-
+      Only report findings on lines changed since this git ref (`cfusa
+      check --changed-since`) — e.g. "origin/main" on a pull request, to
+      gate only on newly-introduced findings rather than a project's full
+      existing backlog. Leave empty to check the whole tree.
+    required: false
+    default: ''
+  sarif-file:
+    description: 'Path to write the SARIF report to.'
+    required: false
+    default: 'cfusa-results.sarif'
+  fail-on-error:
+    description: >-
+      Fail this workflow step when `cfusa check`'s exit-code gate trips
+      (any ERROR finding, or any WARNING finding too under `strict`).
+      SARIF is uploaded either way, so code-scanning annotations still
+      appear even when this is "false".
+    required: false
+    default: 'true'
+
+outputs:
+  sarif-file:
+    description: 'Path to the generated SARIF report.'
+    value: ${{ steps.run-cfusa.outputs.sarif-file }}
+  exit-code:
+    description: "cfusa check's raw exit code (0 = clean, 1 = gated findings)."
+    value: ${{ steps.run-cfusa.outputs.exit-code }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install cfusa
+      id: install
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="${{ inputs.version }}"
+        if [ "$version" = "latest" ]; then
+          version=$(curl -fsSL \
+            https://api.github.com/repos/SoundMatt/c-FuSa/releases/latest \
+            | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/')
+          if [ -z "$version" ]; then
+            echo "::error::Could not resolve the latest c-FuSa release tag from the GitHub API."
+            exit 1
+          fi
+        fi
+
+        case "$(uname -s)-$(uname -m)" in
+          Linux-x86_64)  asset='cfusa-linux-amd64' ;;
+          Darwin-arm64)  asset='cfusa-darwin-arm64' ;;
+          *)
+            echo "::error::Unsupported runner platform $(uname -s)-$(uname -m)."\
+                 " c-FuSa currently ships prebuilt cfusa-linux-amd64 and"\
+                 " cfusa-darwin-arm64 release binaries only — see issue #211"\
+                 " for native-Windows status."
+            exit 1
+            ;;
+        esac
+
+        url="https://github.com/SoundMatt/c-FuSa/releases/download/${version}/${asset}"
+        echo "Installing cfusa ${version} (${asset})"
+        curl -fsSL -o cfusa-bin "$url"
+        chmod +x cfusa-bin
+        echo "bin=$(pwd)/cfusa-bin" >> "$GITHUB_OUTPUT"
+        ./cfusa-bin version
+
+    - name: Run cfusa check
+      id: run-cfusa
+      shell: bash
+      run: |
+        set -uo pipefail
+        args=(check --dir "${{ inputs.dir }}" --format sarif --output "${{ inputs.sarif-file }}")
+        if [ "${{ inputs.strict }}" = "true" ]; then
+          args+=(--strict)
+        fi
+        if [ -n "${{ inputs.changed-since }}" ]; then
+          args+=(--changed-since "${{ inputs.changed-since }}")
+        fi
+
+        "${{ steps.install.outputs.bin }}" "${args[@]}"
+        rc=$?
+
+        echo "exit-code=$rc" >> "$GITHUB_OUTPUT"
+        echo "sarif-file=${{ inputs.sarif-file }}" >> "$GITHUB_OUTPUT"
+
+        # rc 0 (clean) and rc 1 (gated findings, handled by the separate
+        # "Enforce findings gate" step below so SARIF still gets uploaded
+        # first) are both normal outcomes here. rc 2/3 (bad --changed-since
+        # ref, or a failed SARIF write) are tool/usage errors -- always
+        # fatal, independent of fail-on-error, since there is no SARIF
+        # file to upload in either case.
+        if [ "$rc" -gt 1 ]; then
+          echo "::error::cfusa check exited $rc (usage error, not a findings gate) — see the log above."
+          exit "$rc"
+        fi
+        exit 0
+
+    - name: Upload SARIF to code scanning
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.sarif-file }}
+
+    - name: Enforce findings gate
+      if: ${{ inputs.fail-on-error == 'true' && steps.run-cfusa.outputs.exit-code == '1' }}
+      shell: bash
+      run: |
+        echo "::error::cfusa check reported gating findings (ERROR${{ inputs.strict == 'true' && ', or WARNING under strict mode,' || '' }}). See the Security tab (code scanning) for details."
+        exit 1
