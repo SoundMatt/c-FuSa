@@ -73,6 +73,7 @@ add_library(cfusa_cmds STATIC
     cmd/cfusa/cmd_badge.c
     cmd/cfusa/cmd_req.c
     cmd/cfusa/cmd_fix.c
+    cmd/cfusa/cmd_explain.c
     cmd/cfusa/cmd_hooks.c
     cmd/cfusa/cmd_sign.c
     cmd/cfusa/cmd_do178.c
@@ -172,6 +173,7 @@ cfusa_test(test_xfusa_audit_20260728)
 cfusa_test(test_severity)
 cfusa_test(test_coverage_asil)
 cfusa_test(test_disposition_enforcement)
+cfusa_test(test_explain)
 
 # ---- Installation ----
 include(GNUInstallDirs)

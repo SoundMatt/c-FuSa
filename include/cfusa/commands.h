@@ -31,6 +31,7 @@ int cmd_diff(int argc, char **argv);
 int cmd_badge(int argc, char **argv);
 int cmd_req(int argc, char **argv);
 int cmd_fix(int argc, char **argv);
+int cmd_explain(int argc, char **argv);
 int cmd_hooks(int argc, char **argv);
 int cmd_sign(int argc, char **argv);
 int cmd_do178(int argc, char **argv);

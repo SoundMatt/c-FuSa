@@ -18,12 +18,9 @@
 #include "cfusa/engine.h"
 #include "cfusa/report.h"
 #include "cfusa/utils.h"
+#include "cfusa/fix.h"
 
-typedef struct {
-    const char *rule_id;
-    const char *summary;
-    const char *guidance;
-} fix_entry_t;
+typedef cfusa_fix_entry_t fix_entry_t;
 
 static const fix_entry_t FIXES[] = {
     /* ---- LINT ---- */
@@ -239,6 +236,13 @@ static const fix_entry_t *lookup_fix(const char *rule_id)
         if (!strcmp(FIXES[i].rule_id, rule_id))
             return &FIXES[i];
     return NULL;
+}
+
+/* Public accessor (cfusa/fix.h) — issue #212: lets `cfusa explain` show
+ * the same guidance without a second copy of FIXES[]. */
+const cfusa_fix_entry_t *cfusa_fix_lookup(const char *rule_id)
+{
+    return lookup_fix(rule_id);
 }
 
 /* ---- Real autofix: CFUSA-CY006 (free() without a following NULL-out) ----
